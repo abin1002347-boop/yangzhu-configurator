@@ -281,11 +281,12 @@ async function generateAIImage() {
     const previewEl = document.getElementById('ai-image-preview');
     previewEl.innerHTML = `
       <img src="${data.imageDataURL}" style="width:100%;border-radius:8px;margin-top:10px;display:block;">
-      <button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;" onclick="applyAIImage()">
-        套用至卡面 ↗
-      </button>
+      <div style="font-size:12px;color:var(--gray-400);text-align:center;margin-top:6px;">✅ 已自動套用至卡面</div>
     `;
     previewEl.classList.remove('hidden');
+
+    // 自動套用至 Canvas
+    applyAIImage();
 
   } catch (err) {
     const errEl = document.getElementById('ai-image-error');
@@ -364,11 +365,12 @@ async function generateCartoonImage() {
     const previewEl = document.getElementById('cartoon-preview');
     previewEl.innerHTML = `
       <img src="${data.imageDataURL}" style="width:100%;border-radius:8px;margin-top:10px;display:block;">
-      <button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;" onclick="applyCartoonImage()">
-        套用至卡面 ↗
-      </button>
+      <div style="font-size:12px;color:var(--gray-400);text-align:center;margin-top:6px;">✅ 已自動套用至卡面</div>
     `;
     previewEl.classList.remove('hidden');
+
+    // 自動套用至 Canvas
+    applyCartoonImage();
 
   } catch (err) {
     const errEl = document.getElementById('cartoon-error');

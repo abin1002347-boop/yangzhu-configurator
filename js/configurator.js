@@ -181,6 +181,8 @@ function updateLiveQuote() {
 
 // ─── Step 3：設計 ──────────────────────────────────────────
 function initDesignStep() {
+  const isThermos = STATE.productId === 'thermos';
+
   init2DCanvas(STATE.productId);
 
   // 若有先前的 canvas 狀態（從預覽返回），還原設計內容
@@ -197,10 +199,13 @@ function initDesignStep() {
   // 字體格子初始化
   initFontGrid();
 
-  // 圖片上傳
+  // 圖片上傳（保溫杯僅文字，隱藏上傳區）
+  const uploadSection = document.getElementById('design-upload')?.closest('.tool-section');
+  if (uploadSection) uploadSection.style.display = isThermos ? 'none' : '';
+
   const fileInput = document.getElementById('design-upload');
   if (fileInput) {
-    fileInput.replaceWith(fileInput.cloneNode(true)); // 移除舊事件
+    fileInput.replaceWith(fileInput.cloneNode(true));
     const newFile = document.getElementById('design-upload');
     newFile.addEventListener('change', e => {
       if (e.target.files[0]) uploadImage2D(e.target.files[0]);
@@ -216,6 +221,31 @@ function initDesignStep() {
       setBackground2D(e.target.value);
     });
   }
+
+  // 保溫杯：隱藏不適用的 AI 功能
+  ['ai-image-section', 'ai-cartoon-section', 'acrylic-cut-section'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isThermos ? 'none' : '';
+  });
+
+  // 保溫杯：隱藏背景色選擇（瓶身有固定圖案）
+  const bgColorEl = document.getElementById('design-bgcolor');
+  if (bgColorEl) {
+    const bgSection = bgColorEl.closest('.color-row')?.parentElement;
+    if (bgSection) bgSection.style.display = isThermos ? 'none' : '';
+  }
+
+  // 保溫杯：更新 canvas 下方說明文字
+  const canvasNote = document.querySelector('.canvas-wrap + p');
+  if (canvasNote) {
+    canvasNote.textContent = isThermos
+      ? '虛線框為印刷範圍 · 文字套用後即出現在瓶身圖上'
+      : '虛線為刀模輪廓參考線';
+  }
+
+  // 移除舊的參考圖 block（現在瓶身在 canvas 裡）
+  const oldRef = document.getElementById('thermos-ref-block');
+  if (oldRef) oldRef.remove();
 }
 
 function initFontGrid() {
@@ -309,16 +339,38 @@ function initPreviewStep() {
   const dataURL  = STATE.designDataURL;
   const finishId = STATE.finishId;
 
-  setTimeout(() => {
-    init3DPreview('preview3d-container');
-    if (STATE.productId === 'usb_bar') {
-      buildUSB(finishId);
-    } else if (dataURL) {
-      buildCard(dataURL, finishId);
-    } else {
-      buildCard(null, finishId);
-    }
-  }, 150);
+  if (STATE.productId === 'thermos') {
+    // 保溫杯：直接顯示含瓶身的設計合成圖
+    const container = document.getElementById('preview3d-container');
+    container.setAttribute('style',
+      'display:flex;align-items:center;justify-content:center;' +
+      'min-height:300px;padding:20px;background:#edf2f7;border-radius:12px;'
+    );
+    container.innerHTML = dataURL
+      ? `<div style="text-align:center;">
+           <img src="${dataURL}" alt="保溫杯設計預覽"
+                style="max-height:420px;max-width:100%;object-fit:contain;
+                       border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);">
+           <p style="font-size:11px;color:#9aa5b4;margin-top:10px;">
+             雷射雕刻效果預覽 · 正式稿以業務確認為準
+           </p>
+         </div>`
+      : `<p style="color:#9aa5b4;font-size:14px;">請先在設計稿步驟輸入客製文字</p>`;
+  } else {
+    // 卡片 / USB：Three.js 3D 預覽
+    const container = document.getElementById('preview3d-container');
+    container.style = '';
+    setTimeout(() => {
+      init3DPreview('preview3d-container');
+      if (STATE.productId === 'usb_bar') {
+        buildUSB(finishId);
+      } else if (dataURL) {
+        buildCard(dataURL, finishId);
+      } else {
+        buildCard(null, finishId);
+      }
+    }, 150);
+  }
 
   renderSpecSummary();
 }
@@ -437,19 +489,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // 渲染產品卡片
   const grid = document.getElementById('product-grid');
   if (grid) {
-    grid.innerHTML = Object.values(PRODUCTS).map(p => `
+    grid.innerHTML = Object.values(PRODUCTS).map(p => {
+      const isSvg = p.image && p.image.toLowerCase().endsWith('.svg');
+      const imgStyle = isSvg ? 'object-fit:contain;padding:8px;background:#f5f0ea;' : '';
+      const sizeText = p.displaySize || `${p.size.w} × ${p.size.h} ${p.size.unit}`;
+      const imgHtml = p.image
+        ? `<div class="product-img-wrap">
+             <img src="${p.image}" alt="${p.name}" class="product-img" loading="lazy"
+                  style="${imgStyle}"
+                  onerror="this.parentElement.outerHTML='<div class=\\'product-icon\\'>${p.icon}</div>'">
+           </div>`
+        : `<div class="product-icon">${p.icon}</div>`;
+      return `
       <div class="product-card" data-product-id="${p.id}" onclick="selectProduct('${p.id}')">
-        ${p.image
-          ? `<div class="product-img-wrap"><img src="${p.image}" alt="${p.name}" class="product-img" loading="lazy"></div>`
-          : `<div class="product-icon">${p.icon}</div>`
-        }
+        ${imgHtml}
         <div class="product-badge" style="background:${p.badgeColor}">${p.badge}</div>
         <h3>${p.name}</h3>
         <p>${p.description}</p>
-        <div class="product-size">${p.size.w} × ${p.size.h} ${p.size.unit}</div>
+        <div class="product-size">${sizeText}</div>
         <div class="product-min">最低 ${p.minQty} 個起</div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   // 綁定規格步驟事件（在切到 Step 2 時 render）

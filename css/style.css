@@ -1,5 +1,42 @@
 /* 楊竹科技 — 線上配置器樣式表 */
 
+/* ─── 保溫杯本地字體 ────────────────────────── */
+@font-face {
+  font-family: 'Amalfi Coast';
+  src: url('../保溫杯/Amalfi Coast.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+@font-face {
+  font-family: 'Bacalisties';
+  src: url('../保溫杯/Bacalisties.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+@font-face {
+  font-family: 'Chen Yuluoyan';
+  src: url('../保溫杯/ChenYuluoyan-2.0-Thin.ttf') format('truetype');
+  font-weight: 300; font-style: normal;
+}
+@font-face {
+  font-family: 'JF Open Huninn';
+  src: url('../保溫杯/jf-openhuninn-1.1.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+@font-face {
+  font-family: 'Jinghong';
+  src: url('../保溫杯/jinghong.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+@font-face {
+  font-family: 'Meiyi';
+  src: url('../保溫杯/meiyifont-proportional.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+@font-face {
+  font-family: 'Meiyi Mono';
+  src: url('../保溫杯/meiyifont-monospaced.ttf') format('truetype');
+  font-weight: normal; font-style: normal;
+}
+
 :root {
   --green:      #2D7D46;
   --green-light:#4CAF50;

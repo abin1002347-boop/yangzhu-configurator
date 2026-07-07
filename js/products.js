@@ -6,7 +6,7 @@ const PRODUCTS = {
     name: '客製化悠遊卡',
     nameEn: 'Custom EasyCard',
     icon: '🚇',
-    image: 'assets/svgs/products/easycard.svg',
+    image: 'assets/photos/easycard.jpg',
     badge: '授權製造',
     badgeColor: '#0072C6',
     description: '悠遊卡官方簽約授權廠，可搭乘大眾運輸、消費儲值',
@@ -40,7 +40,7 @@ const PRODUCTS = {
     name: '客製化一卡通',
     nameEn: 'Custom iPASS',
     icon: '🚌',
-    image: 'assets/svgs/products/ipass.svg',
+    image: 'assets/photos/ipass.jpg',
     badge: '授權製造',
     badgeColor: '#E85C0D',
     description: '一卡通票證官方授權廠，全台通用電子票證',
@@ -67,12 +67,50 @@ const PRODUCTS = {
     color: '#E85C0D'
   },
 
+  thermos: {
+    id: 'thermos',
+    name: '客製化保溫杯',
+    nameEn: 'Custom Thermos',
+    icon: '🍵',
+    image: 'assets/photos/thermos.jpg',   // 請將保溫杯照片存於此路徑
+    badge: '台灣製造',
+    badgeColor: '#B87333',
+    description: '304不鏽鋼真空保溫，雷射雕刻客製文字，送禮自用首選',
+    size: { w: 1126, h: 796, unit: '' },  // 對應 SVG viewBox 比例，供 canvas 用
+    displaySize: '印刷範圍 234 × 130 mm',
+    // 印刷區在 SVG (1125.77×796.01) 內的比例座標
+    labelArea: { xRatio: 0.386, yRatio: 0.333, wRatio: 0.208, hRatio: 0.163 },
+    // 文字放置位置（相對 canvas 高度）
+    textLayout: {
+      title:    { yRatio: 0.385, sizeRatio: 0.075 },
+      subtitle: { yRatio: 0.447, sizeRatio: 0.052 }
+    },
+    materials: [
+      { id: 'ss304', name: '304 不鏽鋼', priceBase: 480 },
+      { id: 'ss316', name: '316 不鏽鋼（食品級）', priceBase: 620 }
+    ],
+    finishes: [
+      { id: 'laser', name: '雷射雕刻', price: 0 },
+      { id: 'print', name: '彩色印刷貼紙', price: 60 }
+    ],
+    qtyBreaks: [
+      { min: 1,   max: 49,   price: 0 },
+      { min: 50,  max: 99,   price: -30 },
+      { min: 100, max: 299,  price: -60 },
+      { min: 300, max: 9999, price: -100 }
+    ],
+    minQty: 1,
+    leadDays: 20,
+    color: '#B87333',
+    textOnly: true
+  },
+
   usb_bar: {
     id: 'usb_bar',
     name: 'USB 隨身碟（條形）',
     nameEn: 'Bar USB Drive',
     icon: '💾',
-    image: 'assets/svgs/products/usb_bar.svg',
+    image: 'assets/photos/usb_bar.jpg',
     badge: '台灣製造',
     badgeColor: '#2D7D46',
     description: '客製外殼印刷，容量 16GB～256GB，Type-A / Type-C 雙介面可選',

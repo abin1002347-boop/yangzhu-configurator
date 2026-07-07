@@ -21,6 +21,14 @@ const FONTS = [
   { id: 'Playfair Display',         label: 'Playfair（英）',preview: 'YangZhu' },
   { id: 'Bebas Neue',               label: 'Bebas（英）',  preview: 'YANGZHU' },
   { id: 'Arial',                    label: 'Arial',        preview: 'YangZhu' },
+  // ── 保溫杯特色字體 ─────────────────────
+  { id: 'Amalfi Coast',             label: 'Amalfi Coast', preview: 'YangZhu' },
+  { id: 'Bacalisties',              label: 'Bacalisties',  preview: 'YangZhu' },
+  { id: 'Chen Yuluoyan',            label: '陳宇洛燕體',    preview: '楊竹Aa' },
+  { id: 'JF Open Huninn',           label: '俐方體',        preview: '楊竹Aa' },
+  { id: 'Jinghong',                 label: '驚鴻',          preview: '楊竹Aa' },
+  { id: 'Meiyi',                    label: '美意字',        preview: '楊竹Aa' },
+  { id: 'Meiyi Mono',               label: '美意字等寬',     preview: '楊竹Aa' },
 ];
 
 function init2DCanvas(productId) {
@@ -40,8 +48,11 @@ function init2DCanvas(productId) {
   el.width  = cw;
   el.height = ch;
 
+  const isThermos = currentProduct.id === 'thermos';
+
   canvas2d = new fabric.Canvas('canvas-2d', {
-    width: cw, height: ch, backgroundColor: '#ffffff'
+    width: cw, height: ch,
+    backgroundColor: isThermos ? null : '#ffffff'
   });
 
   // ── 手機觸控優化 ──────────────────────────
@@ -53,45 +64,76 @@ function init2DCanvas(productId) {
   fabric.Object.prototype.borderColor         = '#16a34a';
   fabric.Object.prototype.borderScaleFactor   = 2;
 
-  // 選取物件時顯示縮放控制列
   canvas2d.on('selection:created', _showScaleBar);
   canvas2d.on('selection:updated', _showScaleBar);
   canvas2d.on('selection:cleared',  _hideScaleBar);
-  // 拖拉縮放時同步更新滑桿
   canvas2d.on('object:scaling',  _updateScaleSlider);
   canvas2d.on('object:modified', _updateScaleSlider);
 
-  // 用 after:render 將虛線外框覆蓋在最上層（永遠填滿整個 canvas）
+  // after:render — 保溫杯只畫印刷區虛線框；其他產品畫全 canvas 圓角框
   canvas2d.on('after:render', function() {
     if (!currentProduct || _suppressOverlay) return;
-    const ctx  = canvas2d.contextContainer;
-    const w    = canvas2d.getWidth();
-    const h    = canvas2d.getHeight();
-    const r    = Math.round(Math.min(w, h) * 0.06);
-    const sw   = 2.5;
-    const off  = sw / 2;
+    const ctx = canvas2d.contextContainer;
+    const w   = canvas2d.getWidth();
+    const h   = canvas2d.getHeight();
 
     ctx.save();
-    ctx.strokeStyle = currentProduct.color || '#2D7D46';
-    ctx.lineWidth   = sw;
-    ctx.setLineDash([12, 6]);
+    ctx.setLineDash([10, 5]);
 
-    ctx.beginPath();
-    ctx.moveTo(r + off, off);
-    ctx.lineTo(w - r - off, off);
-    ctx.arcTo(w - off, off,       w - off, r + off,    r);
-    ctx.lineTo(w - off, h - r - off);
-    ctx.arcTo(w - off, h - off,   w - r - off, h - off, r);
-    ctx.lineTo(r + off, h - off);
-    ctx.arcTo(off,      h - off,  off, h - r - off,     r);
-    ctx.lineTo(off, r + off);
-    ctx.arcTo(off,      off,      r + off, off,          r);
-    ctx.closePath();
-    ctx.stroke();
+    if (currentProduct.labelArea) {
+      const la = currentProduct.labelArea;
+      ctx.strokeStyle = currentProduct.color || '#B87333';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(
+        w * la.xRatio + 1, h * la.yRatio + 1,
+        w * la.wRatio - 2, h * la.hRatio - 2
+      );
+    } else {
+      const r   = Math.round(Math.min(w, h) * 0.06);
+      const sw  = 2.5;
+      const off = sw / 2;
+      ctx.strokeStyle = currentProduct.color || '#2D7D46';
+      ctx.lineWidth   = sw;
+      ctx.beginPath();
+      ctx.moveTo(r + off, off);
+      ctx.lineTo(w - r - off, off);
+      ctx.arcTo(w - off, off,     w - off, r + off,    r);
+      ctx.lineTo(w - off, h - r - off);
+      ctx.arcTo(w - off, h - off, w - r - off, h - off, r);
+      ctx.lineTo(r + off, h - off);
+      ctx.arcTo(off, h - off,     off, h - r - off,     r);
+      ctx.lineTo(off, r + off);
+      ctx.arcTo(off, off,         r + off, off,          r);
+      ctx.closePath();
+      ctx.stroke();
+    }
     ctx.restore();
   });
 
-  addDefaultElements();
+  if (isThermos) {
+    _loadThermosBottleBg(cw, ch, true);
+  } else {
+    addDefaultElements();
+  }
+}
+
+// 載入保溫杯瓶身 SVG 作為 canvas 最底層
+function _loadThermosBottleBg(cw, ch, withHint) {
+  fabric.Image.fromURL('保溫杯/保溫瓶_MrFoster_簽名流線_20260512.svg', img => {
+    if (!canvas2d) return;
+    img.set({
+      left: 0, top: 0,
+      scaleX: cw / img.width,
+      scaleY: ch / img.height,
+      selectable: false, evented: false,
+      name: 'bottle-bg',
+      originX: 'left', originY: 'top'
+    });
+    canvas2d.add(img);
+    canvas2d.sendToBack(img);
+    if (withHint) addDefaultElements();
+    else canvas2d.renderAll();
+  });
 }
 
 function drawProductOutline(w, h) {
@@ -112,10 +154,22 @@ function addDefaultElements() {
   const w = canvas2d.getWidth();
   const h = canvas2d.getHeight();
 
-  const hint = new fabric.Text('在左側輸入文字後點「套用文字」', {
-    left: w / 2, top: h / 2,
+  let hintLeft, hintTop, hintSize;
+  if (currentProduct && currentProduct.labelArea) {
+    const la = currentProduct.labelArea;
+    hintLeft = w * (la.xRatio + la.wRatio / 2);
+    hintTop  = h * (la.yRatio + la.hRatio / 2);
+    hintSize = Math.max(9, Math.round(h * la.hRatio * 0.28));
+  } else {
+    hintLeft = w / 2;
+    hintTop  = h / 2;
+    hintSize = Math.round(h * 0.07);
+  }
+
+  const hint = new fabric.Text('輸入文字後點「套用文字」', {
+    left: hintLeft, top: hintTop,
     originX: 'center', originY: 'center',
-    fontSize: Math.round(h * 0.07),
+    fontSize: hintSize,
     fill: '#bbbbbb',
     fontFamily: 'Arial',
     fontStyle: 'italic',
@@ -145,18 +199,18 @@ function _doAddText2D(text, color, size, font, role) {
   const w = canvas2d.getWidth();
   const h = canvas2d.getHeight();
 
-  // 移除提示
   const hint = canvas2d.getObjects().find(o => o.name === 'hint');
   if (hint) canvas2d.remove(hint);
 
-  // 位置：主標題 → 上方；副標題 → 下方
-  const topPos = role === 'subtitle'
-    ? h * 0.78   // 下方
-    : h * 0.28;  // 上方
-
-  const defaultSize = role === 'subtitle'
-    ? Math.round(h * 0.10)   // 副標題小一點
-    : Math.round(h * 0.14);  // 主標題大一點
+  let topPos, defaultSize;
+  if (currentProduct && currentProduct.textLayout && currentProduct.textLayout[role]) {
+    const tl = currentProduct.textLayout[role];
+    topPos      = h * tl.yRatio;
+    defaultSize = Math.round(h * tl.sizeRatio);
+  } else {
+    topPos      = role === 'subtitle' ? h * 0.78 : h * 0.28;
+    defaultSize = role === 'subtitle' ? Math.round(h * 0.10) : Math.round(h * 0.14);
+  }
 
   const t = new fabric.IText(text, {
     left: w / 2,
@@ -167,15 +221,15 @@ function _doAddText2D(text, color, size, font, role) {
     fill: color,
     fontFamily: font,
     editable: true,
-    name: role   // 'title' or 'subtitle'
+    name: role
   });
 
   canvas2d.add(t);
-  canvas2d.bringToFront(t);   // 文字永遠在最上層
+  canvas2d.bringToFront(t);
   canvas2d.setActiveObject(t);
   canvas2d.renderAll();
   return t;
-}  // end _doAddText2D
+}
 
 // ─── 上傳圖片 ────────────────────────────────────────────
 function uploadImage2D(file) {
@@ -204,15 +258,17 @@ function uploadImage2D(file) {
 // ─── 背景色 ──────────────────────────────────────────────
 function setBackground2D(color) {
   if (!canvas2d) return;
+  if (currentProduct && currentProduct.id === 'thermos') return; // 保溫杯保留瓶身圖
   canvas2d.setBackgroundColor(color, canvas2d.renderAll.bind(canvas2d));
 }
 
 // ─── 取得 DataURL（排除輔助線與虛線框）──────────────────────
 function get2DDataURL() {
   if (!canvas2d) return null;
-  const bgObjs = canvas2d.getObjects().filter(o => !o.selectable);
+  // bottle-bg 保留在匯出圖中（保溫杯瓶身），只隱藏 hint 等輔助物件
+  const bgObjs = canvas2d.getObjects().filter(o => !o.selectable && o.name !== 'bottle-bg');
   bgObjs.forEach(o => o.set('visible', false));
-  _suppressOverlay = true;   // 不畫虛線框到貼圖上
+  _suppressOverlay = true;
   canvas2d.renderAll();
   const dataURL = canvas2d.toDataURL({ format: 'png', multiplier: 2 });
   _suppressOverlay = false;
@@ -237,7 +293,7 @@ function loadCanvas2DJSON(json) {
 // ─── 取得乾淨 Canvas Element（不含虛線框，供 3D 貼圖用）──────
 function get2DCanvas() {
   if (!canvas2d) return null;
-  const bgObjs = canvas2d.getObjects().filter(o => !o.selectable);
+  const bgObjs = canvas2d.getObjects().filter(o => !o.selectable && o.name !== 'bottle-bg');
   bgObjs.forEach(o => o.set('visible', false));
   _suppressOverlay = true;
   canvas2d.renderAll();
@@ -290,13 +346,14 @@ function deleteSelected2D() {
 }
 
 // ─── 清空 ─────────────────────────────────────────────────
-// 注意：不使用 canvas2d.clear()，否則會清除 after:render 事件
 function clear2D() {
   if (!canvas2d) return;
-  // 逐一移除物件（保留事件監聽）
   canvas2d.getObjects().slice().forEach(o => canvas2d.remove(o));
-  canvas2d.setBackgroundColor('#ffffff', () => {
-    canvas2d.renderAll();
-  });
-  drawProductOutline(canvas2d.getWidth(), canvas2d.getHeight());
+  if (currentProduct && currentProduct.id === 'thermos') {
+    canvas2d.setBackgroundColor(null, () => {});
+    _loadThermosBottleBg(canvas2d.getWidth(), canvas2d.getHeight(), true);
+  } else {
+    canvas2d.setBackgroundColor('#ffffff', () => { canvas2d.renderAll(); });
+    drawProductOutline(canvas2d.getWidth(), canvas2d.getHeight());
+  }
 }

@@ -3,3 +3,4 @@ node_modules/
 訂單資料/
 *.log
 .DS_Store
+.netlify/

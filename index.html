@@ -23,6 +23,13 @@
     <option value="Playfair Display">Playfair Display</option>
     <option value="Bebas Neue">Bebas Neue</option>
     <option value="Arial">Arial</option>
+    <option value="Amalfi Coast">Amalfi Coast</option>
+    <option value="Bacalisties">Bacalisties</option>
+    <option value="Chen Yuluoyan">陳宇洛燕體</option>
+    <option value="JF Open Huninn">俐方體</option>
+    <option value="Jinghong">驚鴻</option>
+    <option value="Meiyi">美意字</option>
+    <option value="Meiyi Mono">美意字等寬</option>
   </select>
 
   <!-- CDN Libraries -->
@@ -216,6 +223,44 @@
 
         <div id="cartoon-error" class="ai-error hidden"></div>
         <div id="cartoon-preview" class="hidden"></div>
+      </div>
+
+      <!-- ✂️ 壓克力切割輪廓 -->
+      <div class="ai-section" id="acrylic-cut-section" style="margin-top:12px;">
+        <div class="ai-header">
+          <span class="ai-badge">✂️ 壓克力切割</span>
+          <span class="ai-model">純瀏覽器運算</span>
+        </div>
+        <p class="ai-desc">上傳圖片，自動偵測輪廓並輸出雷射切割用 SVG 檔（支援 PNG 透明背景 / JPG 白底）</p>
+
+        <label class="upload-zone" style="max-height:none;margin-bottom:10px;cursor:pointer;">
+          <input type="file" id="acrylic-upload-input" accept="image/*" style="display:none;">
+          <div style="font-size:32px;">✂️</div>
+          <p>點擊上傳圖片</p>
+        </label>
+
+        <div id="acrylic-preview-wrap" class="hidden" style="text-align:center;margin-bottom:10px;">
+          <img id="acrylic-preview-img" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain;" alt="上傳圖片">
+        </div>
+
+        <button class="btn btn-ai" id="acrylic-detect-btn" onclick="detectAcrylicContour()" disabled style="width:100%;">
+          <span id="acrylic-detect-btn-text">✂️ 自動偵測輪廓</span>
+          <span id="acrylic-detect-btn-loading" class="hidden">⏳ 偵測中…</span>
+        </button>
+
+        <div id="acrylic-error" class="ai-error hidden"></div>
+
+        <div id="acrylic-result" class="hidden" style="margin-top:12px;">
+          <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;" id="acrylic-info"></p>
+          <canvas id="acrylic-canvas-preview" style="max-width:100%;border:1px solid #e5e7eb;border-radius:8px;display:block;margin:0 auto;"></canvas>
+          <a id="acrylic-download-btn" class="btn btn-primary"
+             style="display:block;text-align:center;margin-top:12px;text-decoration:none;padding:12px;">
+            ⬇ 下載 SVG（雷射切割用）
+          </a>
+          <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:6px;">
+            紅線為切割輪廓，黑框為工作尺寸，可直接送雷射機
+          </p>
+        </div>
       </div>
 
       <div class="design-layout">
@@ -522,6 +567,7 @@
 <script src="js/preview3d.js"></script>
 <script src="js/configurator.js"></script>
 <script src="js/ai-design.js"></script>
+<script src="js/acrylic-cut.js"></script>
 
 <script>
   // Step 2 切入時 render 規格選項
@@ -545,6 +591,9 @@
   window.addEventListener('resize', () => {
     if (STATE.step === 4) resize3DPreview('preview3d-container');
   });
+
+  // 初始化壓克力切割上傳
+  initAcrylicCut();
 </script>
 
 </body>

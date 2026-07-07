@@ -1,0 +1,5 @@
+node_modules
+*.log
+server.js
+package.json
+package-lock.json
