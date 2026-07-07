@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>楊竹科技 — 企業禮贈品 AI 一條龍客製化服務</title>
   <meta name="description" content="楊竹科技：台灣悠遊卡、一卡通官方授權製造廠。AI輔助設計、3D即時預覽、24小時AI客服，企業禮贈品客製化一站式解決方案。">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+
+  <!-- Open Graph / 社群分享預覽（og:image 暫用現有產品照，建議之後換成專屬 1200x630 品牌圖） -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="楊竹科技 — 企業禮贈品 AI 一條龍客製化服務">
+  <meta property="og:description" content="悠遊卡、一卡通官方授權製造廠。AI輔助設計、3D即時預覽、24小時AI客服，企業禮贈品客製化一站式解決方案。">
+  <meta property="og:image" content="/assets/photos/usb_bar.jpg">
+  <meta property="og:locale" content="zh_TW">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="楊竹科技 — 企業禮贈品 AI 一條龍客製化服務">
+  <meta name="twitter:description" content="悠遊卡、一卡通官方授權製造廠。AI輔助設計、3D即時預覽、24小時AI客服，企業禮贈品客製化一站式解決方案。">
+  <meta name="twitter:image" content="/assets/photos/usb_bar.jpg">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
   <style>
@@ -47,9 +60,8 @@
       align-items: center;
       justify-content: space-between;
     }
-    .site-logo { display: flex; flex-direction: column; text-decoration: none; line-height: 1.15; }
-    .logo-zh { font-size: 12px; font-weight: 600; color: var(--green-logo); letter-spacing: 3px; }
-    .logo-en { font-size: 20px; font-weight: 700; font-style: italic; color: var(--green-logo); font-family: Georgia, serif; }
+    .site-logo { display: flex; align-items: center; text-decoration: none; line-height: 1.15; }
+    .logo-img { height: 40px; width: auto; display: block; }
     .header-right { display: flex; align-items: center; gap: 12px; }
     .header-badge { font-size: 12px; color: var(--gray-600); background: var(--gray-100); padding: 4px 10px; border-radius: 20px; }
     .header-tel { font-size: 13px; color: var(--green); font-weight: 600; text-decoration: none; }
@@ -353,8 +365,14 @@
 <!-- ── Header ───────────────────────────── -->
 <header class="site-header">
   <a class="site-logo" href="https://www.yangzhu.com.tw" target="_blank" rel="noopener">
-    <span class="logo-zh">楊竹科技</span>
-    <span class="logo-en">YangZhu</span>
+    <svg class="logo-img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 178 48" width="178" height="48" aria-label="楊竹科技 YangZhu">
+      <text x="72" y="15"
+            font-family="'Noto Sans TC','Microsoft JhengHei',Arial,sans-serif"
+            font-size="12" font-weight="400" fill="#4d7c14" letter-spacing="3">楊竹科技</text>
+      <text x="1" y="45"
+            font-family="Georgia,'Palatino Linotype',serif"
+            font-size="32" font-style="italic" font-weight="700" fill="#4d7c14">YangZhu</text>
+    </svg>
   </a>
   <div class="header-right">
     <span class="header-badge">🏭 台灣製造・40年經驗</span>
@@ -369,6 +387,10 @@
   <p class="hero-sub">從設計靈感到完成下單，全程數位化。<br>AI 輔助設計 × 即時報價 × 24 小時 AI 客服，讓企業採購簡單省時。</p>
   <a href="/customize" class="hero-cta">🎨 立即開始客製化 →</a>
   <p class="hero-meta">免費使用 · 無需帳號 · 1 分鐘完成詢價</p>
+  <p class="hero-meta" style="margin-top:6px;">
+    企業大量採購（發票、量產交期、專屬報價）？
+    <a href="#" onclick="openChat();return false;" style="color:var(--green);font-weight:700;text-decoration:underline;">直接洽詢小竹客服 →</a>
+  </p>
 </section>
 
 <!-- ── Services ──────────────────────────── -->
@@ -462,7 +484,8 @@
     <a href="/customize" class="product-chip">💳 客製化悠遊卡</a>
     <a href="/customize" class="product-chip">💳 客製化一卡通</a>
     <a href="/customize" class="product-chip">💾 USB 隨身碟</a>
-    <a href="/customize" class="product-chip">📇 名片型隨身碟</a>
+    <a href="/customize" class="product-chip">🍵 客製化保溫杯</a>
+    <a href="#" class="product-chip" onclick="openChat();return false;">📇 名片型隨身碟</a>
     <a href="#" class="product-chip" onclick="openChat();return false;">🎁 禮盒包裝組合</a>
     <a href="#" class="product-chip" onclick="openChat();return false;">🧊 壓克力客製品</a>
     <a href="#" class="product-chip" onclick="openChat();return false;">📦 其他特殊需求</a>

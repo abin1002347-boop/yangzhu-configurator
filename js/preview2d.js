@@ -35,6 +35,14 @@ function init2DCanvas(productId) {
   currentProduct = PRODUCTS[productId];
   if (!currentProduct) return;
 
+  if (typeof fabric === 'undefined') {
+    const wrap = document.querySelector('.canvas-wrap');
+    if (wrap) {
+      wrap.innerHTML = '<div style="padding:40px 20px;text-align:center;color:#dc2626;font-size:14px;">⚠️ 設計工具載入失敗，請重新整理頁面再試一次。</div>';
+    }
+    return;
+  }
+
   if (canvas2d) { canvas2d.dispose(); canvas2d = null; }
 
   const el = document.getElementById('canvas-2d');

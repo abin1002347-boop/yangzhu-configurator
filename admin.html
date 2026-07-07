@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楊竹科技 — 訂單管理後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<style>
+  :root {
+    --green: #2D7D46; --green-dark: #1f5c33; --green-pale: #e8f5e9;
+    --gray-900: #111827; --gray-600: #4b5563; --gray-400: #9ca3af;
+    --gray-100: #f3f4f6; --gray-200: #e5e7eb; --white: #ffffff;
+    --red: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
+    background: var(--gray-100); color: var(--gray-900);
+  }
+  header {
+    background: var(--white); border-bottom: 2px solid var(--green);
+    padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { font-size: 12px; color: var(--gray-400); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* 密碼登入畫面 */
+  #gate {
+    max-width: 360px; margin: 80px auto; background: var(--white);
+    border-radius: 12px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    text-align: center;
+  }
+  #gate h2 { font-size: 18px; margin: 0 0 6px; }
+  #gate p { font-size: 13px; color: var(--gray-400); margin: 0 0 18px; }
+  #gate input {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200);
+    border-radius: 8px; font-size: 14px; margin-bottom: 10px;
+  }
+  #gate button {
+    width: 100%; padding: 10px; border: none; border-radius: 8px;
+    background: var(--green); color: white; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  #gate button:hover { background: var(--green-dark); }
+  #gate-error { color: var(--red); font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+
+  /* 主畫面 */
+  #app { display: none; }
+  .toolbar {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 16px;
+  }
+  .toolbar input[type=search] {
+    flex: 1; min-width: 200px; padding: 9px 14px; border: 1.5px solid var(--gray-200);
+    border-radius: 8px; font-size: 14px;
+  }
+  .toolbar button {
+    padding: 9px 16px; border-radius: 8px; border: 1.5px solid var(--gray-200);
+    background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer; color: var(--gray-600);
+  }
+  .toolbar button.primary { background: var(--green); border-color: var(--green); color: white; }
+  .toolbar button:hover { border-color: var(--green); color: var(--green); }
+  .toolbar button.primary:hover { color: white; background: var(--green-dark); }
+  .stat { font-size: 13px; color: var(--gray-400); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: 10px; overflow: hidden; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--gray-100); vertical-align: top; }
+  th { background: var(--gray-100); font-size: 12px; color: var(--gray-600); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr.done { opacity: .5; }
+  td.note { max-width: 220px; white-space: pre-wrap; font-size: 12.5px; color: var(--gray-600); }
+  .qty { font-variant-numeric: tabular-nums; }
+  .price { font-weight: 700; color: var(--green); white-space: nowrap; }
+  .status-btn {
+    padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
+    border: 1.5px solid var(--gray-200); background: var(--white); cursor: pointer; white-space: nowrap;
+  }
+  .status-btn.done { background: var(--green-pale); border-color: var(--green); color: var(--green); }
+  .empty { text-align: center; padding: 60px 20px; color: var(--gray-400); font-size: 14px; }
+  .disclaimer { font-size: 11.5px; color: var(--gray-400); margin-top: 14px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h2>🔒 訂單管理後台</h2>
+  <p>請輸入後台密碼（設定於伺服器 .env 的 ADMIN_TOKEN）</p>
+  <input type="password" id="gate-input" placeholder="後台密碼" autocomplete="off">
+  <button onclick="tryLogin()">登入</button>
+  <div id="gate-error"></div>
+</div>
+
+<div id="app">
+  <header>
+    <div>
+      <h1>楊竹科技 — 訂單管理後台</h1>
+      <div class="sub">內部使用，請勿分享此頁面連結</div>
+    </div>
+    <button class="status-btn" onclick="logout()">登出</button>
+  </header>
+
+  <div class="wrap">
+    <div class="toolbar">
+      <input type="search" id="search-box" placeholder="搜尋姓名 / Email / 電話 / 產品…" oninput="renderTable()">
+      <button onclick="loadOrders()">🔄 重新整理</button>
+      <button class="primary" onclick="exportCSV()">⬇ 匯出 CSV</button>
+      <span class="stat" id="stat-text"></span>
+    </div>
+
+    <div id="table-wrap"></div>
+
+    <p class="disclaimer">
+      ・僅顯示最近 50 筆訂單。「標記已處理」只存在目前這台電腦的瀏覽器，換裝置或清除瀏覽器資料會重置，不是正式的訂單狀態系統。<br>
+      ・完整訂單管理系統（多人協作、狀態同步）屬於 Phase 5 規劃項目。
+    </p>
+  </div>
+</div>
+
+<script>
+  const TOKEN_KEY = 'yz_admin_token';
+  const DONE_KEY  = 'yz_admin_done_orders';
+  let orders = [];
+
+  function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+  function getDoneSet() {
+    try { return new Set(JSON.parse(localStorage.getItem(DONE_KEY) || '[]')); }
+    catch { return new Set(); }
+  }
+  function saveDoneSet(set) { localStorage.setItem(DONE_KEY, JSON.stringify([...set])); }
+
+  async function tryLogin() {
+    const input = document.getElementById('gate-input');
+    const errEl = document.getElementById('gate-error');
+    const token = input.value.trim();
+    if (!token) return;
+    errEl.textContent = '登入中…';
+    const ok = await fetchOrders(token);
+    if (ok) {
+      localStorage.setItem(TOKEN_KEY, token);
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      renderTable();
+    } else {
+      errEl.textContent = '密碼錯誤，或伺服器尚未設定 ADMIN_TOKEN';
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem(TOKEN_KEY);
+    location.reload();
+  }
+
+  async function fetchOrders(token) {
+    try {
+      const resp = await fetch('/api/orders', { headers: { 'x-admin-token': token } });
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      orders = data.orders || [];
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }
+
+  async function loadOrders() {
+    const token = getToken();
+    const ok = await fetchOrders(token);
+    if (!ok) { logout(); return; }
+    renderTable();
+  }
+
+  function fmtTime(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString('zh-TW', { hour12: false });
+    } catch { return iso || '--'; }
+  }
+
+  function renderTable() {
+    const q = (document.getElementById('search-box')?.value || '').trim().toLowerCase();
+    const doneSet = getDoneSet();
+    const filtered = orders.filter(o => {
+      if (!q) return true;
+      const hay = [o.contact?.name, o.contact?.email, o.contact?.phone, o.product?.name, o.contact?.note]
+        .filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+
+    document.getElementById('stat-text').textContent = `共 ${orders.length} 筆（顯示 ${filtered.length} 筆）`;
+
+    const wrap = document.getElementById('table-wrap');
+    if (!filtered.length) {
+      wrap.innerHTML = '<div class="empty">目前沒有符合的訂單資料</div>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>時間</th><th>客戶</th><th>聯絡方式</th><th>產品</th>
+            <th>數量</th><th>預估總額</th><th>備註</th><th>狀態</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filtered.map(o => {
+            const isDone = doneSet.has(o.orderId);
+            return `
+            <tr class="${isDone ? 'done' : ''}">
+              <td>${fmtTime(o.savedAt)}</td>
+              <td>${escHtml(o.contact?.name || '--')}</td>
+              <td>${escHtml(o.contact?.email || '--')}<br>${escHtml(o.contact?.phone || '')}</td>
+              <td>${escHtml(o.product?.name || '--')}<br><span class="stat">${escHtml(o.product?.material || '')} / ${escHtml(o.product?.finish || '')}</span></td>
+              <td class="qty">${(o.product?.qty || 0).toLocaleString()}</td>
+              <td class="price">NT$ ${(o.quote?.total || 0).toLocaleString()}</td>
+              <td class="note">${escHtml(o.contact?.note || '')}</td>
+              <td><button class="status-btn ${isDone ? 'done' : ''}" onclick="toggleDone('${o.orderId}')">${isDone ? '✅ 已處理' : '標記已處理'}</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function toggleDone(orderId) {
+    const set = getDoneSet();
+    if (set.has(orderId)) set.delete(orderId); else set.add(orderId);
+    saveDoneSet(set);
+    renderTable();
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function exportCSV() {
+    const rows = [['時間','客戶','Email','電話','產品','材質','工藝','數量','預估總額','備註']];
+    orders.forEach(o => rows.push([
+      fmtTime(o.savedAt), o.contact?.name || '', o.contact?.email || '', o.contact?.phone || '',
+      o.product?.name || '', o.product?.material || '', o.product?.finish || '',
+      o.product?.qty || 0, o.quote?.total || 0, (o.contact?.note || '').replace(/\n/g, ' ')
+    ]));
+    const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `楊竹訂單_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // 自動登入（若之前已存過密碼）
+  (async function init() {
+    const token = getToken();
+    if (!token) return;
+    const ok = await fetchOrders(token);
+    if (ok) {
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      renderTable();
+    }
+  })();
+
+  document.getElementById('gate-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryLogin();
+  });
+</script>
+
+</body>
+</html>

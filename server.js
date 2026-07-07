@@ -25,6 +25,7 @@ app.use(express.static(path.join(__dirname), { index: false }));  // 靜態資�
 // ─── 頁面路由 ──────────────────────────────
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 app.get('/customize', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 // ─── OpenAI 初始化（Key 可選，無 Key 時 AI 功能停用）──────────
 let openai = null;
@@ -37,8 +38,81 @@ const PRODUCT_NAMES = {
   easycard: '客製化悠遊卡',
   ipass:    '客製化一卡通',
   usb_bar:  'USB 隨身碟',
+  thermos:  '客製化保溫杯',
   usb_card: '名片型隨身碟'
 };
+
+// ─── 後台驗證（保護 /api/orders、/admin，避免客戶個資公開外洩）──
+function checkAdminAuth(req, res, next) {
+  const token = process.env.ADMIN_TOKEN;
+  if (!token) {
+    return res.status(501).json({ error: '後台尚未設定 ADMIN_TOKEN，請在 .env 設定一組密碼後才能使用訂單查詢/後台功能' });
+  }
+  const provided = req.headers['x-admin-token'] || req.query.token;
+  if (provided !== token) {
+    return res.status(401).json({ error: '密碼錯誤或未提供，請輸入正確的後台密碼' });
+  }
+  next();
+}
+
+// ─── LINE Notify：新訂單主動推播（選填，設定 LINE_NOTIFY_TOKEN 才會發送）──
+async function notifyNewOrder(order) {
+  const token = process.env.LINE_NOTIFY_TOKEN;
+  if (!token) return;
+  try {
+    const msg =
+`\n📩 新詢價單
+產品：${order.product.name} × ${order.product.qty} 個
+客戶：${order.contact.name}
+Email：${order.contact.email}
+電話：${order.contact.phone || '未填寫'}
+預估總額：NT$ ${order.quote?.total ? order.quote.total.toLocaleString() : '--'}`;
+    await fetch('https://notify-api.line.me/api/notify', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({ message: msg })
+    });
+  } catch (e) {
+    console.error('[LINE Notify] 發送失敗:', e.message);
+  }
+}
+
+// ─── AI 功能用量管控（避免被大量呼叫導致 OpenAI 帳單暴增）──────
+const RATE_LIMIT_WINDOW_MS  = 60 * 60 * 1000; // 每小時
+const RATE_LIMIT_MAX_PER_IP = 20;             // 每小時每 IP 上限
+const DAILY_MAX_TOTAL       = 200;            // 每天全站上限（可依預算調整）
+const _ipHits = new Map();
+let _dailyCount = 0;
+let _dailyResetAt = _startOfNextDay();
+
+function _startOfNextDay() {
+  const d = new Date();
+  d.setHours(24, 0, 0, 0);
+  return d.getTime();
+}
+
+function aiRateLimit(req, res, next) {
+  const now = Date.now();
+  if (now >= _dailyResetAt) {
+    _dailyCount = 0;
+    _dailyResetAt = _startOfNextDay();
+  }
+  if (_dailyCount >= DAILY_MAX_TOTAL) {
+    return res.status(429).json({ error: '今日 AI 生成額度已滿，請明天再試或直接聯絡業務 02-2680-9966' });
+  }
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const hits = (_ipHits.get(ip) || []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  if (hits.length >= RATE_LIMIT_MAX_PER_IP) {
+    return res.status(429).json({ error: '您使用 AI 功能過於頻繁，請稍後再試' });
+  }
+  hits.push(now);
+  _ipHits.set(ip, hits);
+  _dailyCount++;
+  next();
+}
 
 // ─── API：儲存訂單 ─────────────────────────
 app.post('/api/save-order', (req, res) => {
@@ -75,6 +149,7 @@ app.post('/api/save-order', (req, res) => {
     );
 
     console.log(`[訂單] 已儲存：${baseName}.json`);
+    notifyNewOrder(orderRecord); // 不 await，避免拖慢客戶端回應
     res.json({ success: true, orderId: baseName });
 
   } catch (err) {
@@ -83,8 +158,8 @@ app.post('/api/save-order', (req, res) => {
   }
 });
 
-// ─── API：列出訂單（內部查詢用）────────────────────────────
-app.get('/api/orders', (req, res) => {
+// ─── API：列出訂單（內部查詢用，需後台密碼）────────────────
+app.get('/api/orders', checkAdminAuth, (req, res) => {
   try {
     const files = fs.readdirSync(ORDER_DIR)
       .filter(f => f.endsWith('.json'))
@@ -105,7 +180,7 @@ app.get('/api/orders', (req, res) => {
 });
 
 // ─── API：AI 生圖（DALL-E 3）──────────────
-app.post('/api/generate-image', async (req, res) => {
+app.post('/api/generate-image', aiRateLimit, async (req, res) => {
   if (!openai) return res.status(503).json({ error: 'OpenAI API Key 未設定' });
 
   const { prompt, productName } = req.body;
@@ -143,7 +218,7 @@ app.post('/api/generate-image', async (req, res) => {
 });
 
 // ─── API：AI 設計文字生成 ──────────────────
-app.post('/api/generate-design', async (req, res) => {
+app.post('/api/generate-design', aiRateLimit, async (req, res) => {
   const { userPrompt, productId, materialName, qty } = req.body;
 
   if (!userPrompt || userPrompt.trim().length < 2) {
@@ -213,7 +288,7 @@ app.post('/api/generate-design', async (req, res) => {
 });
 
 // ─── API：Q版卡通化（GPT-4o 描述 + DALL-E 3 生成）──────────
-app.post('/api/cartoon-image', async (req, res) => {
+app.post('/api/cartoon-image', aiRateLimit, async (req, res) => {
   if (!openai) return res.status(503).json({ error: 'OpenAI API Key 未設定' });
 
   const { imageDataURL } = req.body;

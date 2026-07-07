@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>線上客製化配置器 — 楊竹科技</title>
   <meta name="description" content="楊竹科技線上客製化配置器：悠遊卡、一卡通、USB隨身碟，即時報價、即時預覽，快速詢價。">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+
+  <!-- Open Graph / 社群分享預覽 -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="線上客製化配置器 — 楊竹科技">
+  <meta property="og:description" content="悠遊卡、一卡通、USB隨身碟、保溫杯線上客製化，即時報價、即時預覽，快速詢價。">
+  <meta property="og:image" content="/assets/photos/usb_bar.jpg">
+  <meta property="og:locale" content="zh_TW">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="線上客製化配置器 — 楊竹科技">
+  <meta name="twitter:description" content="悠遊卡、一卡通、USB隨身碟、保溫杯線上客製化，即時報價、即時預覽，快速詢價。">
+  <meta name="twitter:image" content="/assets/photos/usb_bar.jpg">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,9 +44,9 @@
     <option value="Meiyi Mono">美意字等寬</option>
   </select>
 
-  <!-- CDN Libraries -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- 本機化第三方套件（避免 CDN 被封鎖/失效導致設計畫布與 3D 預覽無法載入） -->
+  <script src="js/vendor/fabric.min.js"></script>
+  <script src="js/vendor/three.min.js"></script>
 
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -52,6 +64,7 @@
             font-size="32" font-style="italic" font-weight="700" fill="#4d7c14">YangZhu</text>
     </svg>
   </a>
+  <a id="back-to-home" href="/">← <span class="label-full">回主頁</span></a>
   <span class="header-badge">🏭 台灣製造 · 40年經驗</span>
 </header>
 
@@ -127,13 +140,13 @@
       <div class="spec-section">
         <h4>數量</h4>
         <div class="qty-wrap">
-          <input type="range" id="spec-qty" min="1" max="2000" step="1" value="100">
-          <div>
-            <span class="qty-display" id="spec-qty-display">100</span>
+          <input type="range" id="spec-qty" min="1" max="5000" step="1" value="100">
+          <div class="qty-input-row">
+            <input type="number" id="spec-qty-input" class="qty-number-input" min="1" value="100">
             <span class="qty-unit"> 個</span>
           </div>
         </div>
-        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">數量越多、單價越優惠</p>
+        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">數量越多、單價越優惠；超過 5,000 個的大量採購可直接在欄位輸入數字</p>
       </div>
 
       <div class="live-quote-card">
@@ -157,111 +170,6 @@
       <p style="font-size:13px;color:var(--gray-400);margin-bottom:20px;">
         簡易示意稿，讓業務了解您的設計方向。正式稿可於確認後提供 AI / EPS 檔。
       </p>
-
-      <!-- ✨ AI 文字生成區塊 -->
-      <div class="ai-section" id="ai-section">
-        <div class="ai-header">
-          <span class="ai-badge">✨ AI 輔助生成</span>
-          <span class="ai-model">gpt-4o-mini</span>
-        </div>
-        <p class="ai-desc">用一句話描述你的需求，AI 自動生成 3 種設計文案方案</p>
-
-        <div class="ai-input-row">
-          <textarea id="ai-prompt" rows="2"
-            placeholder="例：科技公司 2025 年會紀念品，現代簡約風格&#10;例：婚禮回禮小物，溫馨浪漫，附新人名字"></textarea>
-          <button class="btn btn-ai" id="ai-generate-btn" onclick="generateAIDesign()">
-            <span id="ai-btn-text">✨ 生成</span>
-            <span id="ai-btn-loading" class="hidden">⏳ 生成中…</span>
-          </button>
-        </div>
-
-        <div id="ai-error" class="ai-error hidden"></div>
-
-        <!-- 生成結果 -->
-        <div id="ai-results" class="ai-results hidden"></div>
-      </div>
-
-      <!-- ✨ AI 生圖區塊 -->
-      <div class="ai-section" id="ai-image-section" style="margin-top:12px;">
-        <div class="ai-header">
-          <span class="ai-badge">🎨 AI 生圖</span>
-          <span class="ai-model">DALL-E 3</span>
-        </div>
-        <p class="ai-desc">用文字描述想要的圖案，AI 直接生成滿版卡面背景（約 15~30 秒）</p>
-
-        <div class="ai-input-row">
-          <textarea id="ai-image-prompt" rows="2"
-            placeholder="例：水墨風格的竹子與山水&#10;例：可愛柴犬穿西裝，日本插畫風&#10;例：企業科技感幾何圖形，藍色調"></textarea>
-          <button class="btn btn-ai" id="ai-image-btn" onclick="generateAIImage()">
-            <span id="ai-image-btn-text">🎨 生圖</span>
-            <span id="ai-image-btn-loading" class="hidden">⏳ 生成中…</span>
-          </button>
-        </div>
-
-        <div id="ai-image-error" class="ai-error hidden"></div>
-        <div id="ai-image-preview" class="hidden"></div>
-      </div>
-
-      <!-- 🐾 Q版卡通化區塊 -->
-      <div class="ai-section" id="ai-cartoon-section" style="margin-top:12px;">
-        <div class="ai-header">
-          <span class="ai-badge">🐾 Q版卡通化</span>
-          <span class="ai-model">GPT-4o + DALL-E 3</span>
-        </div>
-        <p class="ai-desc">上傳人物/寵物/物品照片，AI 自動轉成可愛 Q版卡通圖貼到設計稿（約 30~50 秒）</p>
-
-        <label class="upload-zone" style="max-height:none;margin-bottom:10px;cursor:pointer;">
-          <input type="file" id="cartoon-upload-input" accept="image/*" onchange="previewCartoonUpload(this)" style="display:none;">
-          <div id="cartoon-upload-preview" style="font-size:32px;">📷</div>
-          <p id="cartoon-upload-hint">點擊上傳照片（人物 / 寵物 / 物品）</p>
-        </label>
-
-        <button class="btn btn-ai" id="cartoon-btn" onclick="generateCartoonImage()" style="width:100%;">
-          <span id="cartoon-btn-text">🐾 開始 Q版化</span>
-          <span id="cartoon-btn-loading" class="hidden">⏳ 生成中（約30~50秒）…</span>
-        </button>
-
-        <div id="cartoon-error" class="ai-error hidden"></div>
-        <div id="cartoon-preview" class="hidden"></div>
-      </div>
-
-      <!-- ✂️ 壓克力切割輪廓 -->
-      <div class="ai-section" id="acrylic-cut-section" style="margin-top:12px;">
-        <div class="ai-header">
-          <span class="ai-badge">✂️ 壓克力切割</span>
-          <span class="ai-model">純瀏覽器運算</span>
-        </div>
-        <p class="ai-desc">上傳圖片，自動偵測輪廓並輸出雷射切割用 SVG 檔（支援 PNG 透明背景 / JPG 白底）</p>
-
-        <label class="upload-zone" style="max-height:none;margin-bottom:10px;cursor:pointer;">
-          <input type="file" id="acrylic-upload-input" accept="image/*" style="display:none;">
-          <div style="font-size:32px;">✂️</div>
-          <p>點擊上傳圖片</p>
-        </label>
-
-        <div id="acrylic-preview-wrap" class="hidden" style="text-align:center;margin-bottom:10px;">
-          <img id="acrylic-preview-img" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain;" alt="上傳圖片">
-        </div>
-
-        <button class="btn btn-ai" id="acrylic-detect-btn" onclick="detectAcrylicContour()" disabled style="width:100%;">
-          <span id="acrylic-detect-btn-text">✂️ 自動偵測輪廓</span>
-          <span id="acrylic-detect-btn-loading" class="hidden">⏳ 偵測中…</span>
-        </button>
-
-        <div id="acrylic-error" class="ai-error hidden"></div>
-
-        <div id="acrylic-result" class="hidden" style="margin-top:12px;">
-          <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;" id="acrylic-info"></p>
-          <canvas id="acrylic-canvas-preview" style="max-width:100%;border:1px solid #e5e7eb;border-radius:8px;display:block;margin:0 auto;"></canvas>
-          <a id="acrylic-download-btn" class="btn btn-primary"
-             style="display:block;text-align:center;margin-top:12px;text-decoration:none;padding:12px;">
-            ⬇ 下載 SVG（雷射切割用）
-          </a>
-          <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:6px;">
-            紅線為切割輪廓，黑框為工作尺寸，可直接送雷射機
-          </p>
-        </div>
-      </div>
 
       <div class="design-layout">
 
@@ -361,6 +269,113 @@
 
       </div><!-- /design-layout -->
 
+      <p class="ai-tools-eyebrow">✨ 想要 AI 幫忙？點開下方工具（非必要，手動輸入文字/上傳圖片即可完成設計）</p>
+
+      <!-- ✨ AI 文字生成區塊 -->
+      <details class="ai-section" id="ai-section">
+        <summary class="ai-header">
+          <span class="ai-badge">✨ AI 輔助生成</span>
+          <span class="ai-model">gpt-4o-mini</span>
+        </summary>
+        <p class="ai-desc">用一句話描述你的需求，AI 自動生成 3 種設計文案方案</p>
+
+        <div class="ai-input-row">
+          <textarea id="ai-prompt" rows="2"
+            placeholder="例：科技公司 2025 年會紀念品，現代簡約風格&#10;例：婚禮回禮小物，溫馨浪漫，附新人名字"></textarea>
+          <button class="btn btn-ai" id="ai-generate-btn" onclick="generateAIDesign()">
+            <span id="ai-btn-text">✨ 生成</span>
+            <span id="ai-btn-loading" class="hidden">⏳ 生成中…</span>
+          </button>
+        </div>
+
+        <div id="ai-error" class="ai-error hidden"></div>
+
+        <!-- 生成結果 -->
+        <div id="ai-results" class="ai-results hidden"></div>
+      </details>
+
+      <!-- ✨ AI 生圖區塊 -->
+      <details class="ai-section" id="ai-image-section" style="margin-top:12px;">
+        <summary class="ai-header">
+          <span class="ai-badge">🎨 AI 生圖</span>
+          <span class="ai-model">DALL-E 3</span>
+        </summary>
+        <p class="ai-desc">用文字描述想要的圖案，AI 直接生成滿版卡面背景（約 15~30 秒）</p>
+
+        <div class="ai-input-row">
+          <textarea id="ai-image-prompt" rows="2"
+            placeholder="例：水墨風格的竹子與山水&#10;例：可愛柴犬穿西裝，日本插畫風&#10;例：企業科技感幾何圖形，藍色調"></textarea>
+          <button class="btn btn-ai" id="ai-image-btn" onclick="generateAIImage()">
+            <span id="ai-image-btn-text">🎨 生圖</span>
+            <span id="ai-image-btn-loading" class="hidden">⏳ 生成中…</span>
+          </button>
+        </div>
+
+        <div id="ai-image-error" class="ai-error hidden"></div>
+        <div id="ai-image-preview" class="hidden"></div>
+      </details>
+
+      <!-- 🐾 Q版卡通化區塊 -->
+      <details class="ai-section" id="ai-cartoon-section" style="margin-top:12px;">
+        <summary class="ai-header">
+          <span class="ai-badge">🐾 Q版卡通化</span>
+          <span class="ai-model">GPT-4o + DALL-E 3</span>
+        </summary>
+        <p class="ai-desc">上傳人物/寵物/物品照片，AI 自動轉成可愛 Q版卡通圖貼到設計稿（約 30~50 秒）</p>
+
+        <label class="upload-zone" style="max-height:none;margin-bottom:10px;cursor:pointer;">
+          <input type="file" id="cartoon-upload-input" accept="image/*" onchange="previewCartoonUpload(this)" style="display:none;">
+          <div id="cartoon-upload-preview" style="font-size:32px;">📷</div>
+          <p id="cartoon-upload-hint">點擊上傳照片（人物 / 寵物 / 物品）</p>
+        </label>
+
+        <button class="btn btn-ai" id="cartoon-btn" onclick="generateCartoonImage()" style="width:100%;">
+          <span id="cartoon-btn-text">🐾 開始 Q版化</span>
+          <span id="cartoon-btn-loading" class="hidden">⏳ 生成中（約30~50秒）…</span>
+        </button>
+
+        <div id="cartoon-error" class="ai-error hidden"></div>
+        <div id="cartoon-preview" class="hidden"></div>
+      </details>
+
+      <!-- ✂️ 壓克力切割輪廓 -->
+      <details class="ai-section" id="acrylic-cut-section" style="margin-top:12px;">
+        <summary class="ai-header">
+          <span class="ai-badge">✂️ 壓克力切割</span>
+          <span class="ai-model">純瀏覽器運算</span>
+        </summary>
+        <p class="ai-desc">上傳圖片，自動偵測輪廓並輸出雷射切割用 SVG 檔（支援 PNG 透明背景 / JPG 白底）</p>
+
+        <label class="upload-zone" style="max-height:none;margin-bottom:10px;cursor:pointer;">
+          <input type="file" id="acrylic-upload-input" accept="image/*" style="display:none;">
+          <div style="font-size:32px;">✂️</div>
+          <p>點擊上傳圖片</p>
+        </label>
+
+        <div id="acrylic-preview-wrap" class="hidden" style="text-align:center;margin-bottom:10px;">
+          <img id="acrylic-preview-img" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain;" alt="上傳圖片">
+        </div>
+
+        <button class="btn btn-ai" id="acrylic-detect-btn" onclick="detectAcrylicContour()" disabled style="width:100%;">
+          <span id="acrylic-detect-btn-text">✂️ 自動偵測輪廓</span>
+          <span id="acrylic-detect-btn-loading" class="hidden">⏳ 偵測中…</span>
+        </button>
+
+        <div id="acrylic-error" class="ai-error hidden"></div>
+
+        <div id="acrylic-result" class="hidden" style="margin-top:12px;">
+          <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;" id="acrylic-info"></p>
+          <canvas id="acrylic-canvas-preview" style="max-width:100%;border:1px solid #e5e7eb;border-radius:8px;display:block;margin:0 auto;"></canvas>
+          <a id="acrylic-download-btn" class="btn btn-primary"
+             style="display:block;text-align:center;margin-top:12px;text-decoration:none;padding:12px;">
+            ⬇ 下載 SVG（雷射切割用）
+          </a>
+          <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:6px;">
+            紅線為切割輪廓，黑框為工作尺寸，可直接送雷射機
+          </p>
+        </div>
+      </details>
+
       <div class="step-nav">
         <button class="btn btn-secondary" onclick="prevStep()">← 上一步</button>
         <button class="btn btn-primary" onclick="nextStep()">下一步：3D 預覽 →</button>
@@ -458,12 +473,15 @@
             <textarea id="contact-note" placeholder="例：需要特殊包裝、指定 Pantone 色號、附防偽標籤..."></textarea>
           </div>
 
-          <button class="btn btn-primary btn-lg" style="width:100%" onclick="submitQuote()">
-            📩 送出詢價單
+          <button class="btn btn-primary btn-lg" id="submit-quote-btn" style="width:100%" onclick="submitQuote()">
+            <span id="submit-quote-text">📩 送出詢價單</span>
+            <span id="submit-quote-loading" class="hidden">⏳ 送出中…</span>
           </button>
 
+          <div id="submit-quote-error" class="hidden" style="margin-top:8px;font-size:12.5px;color:#dc2626;"></div>
+
           <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:8px;">
-            點擊後將開啟 Email，請確認內容後送出
+            送出後資料會直接送達業務系統，您也可以額外用 Email 主動聯絡
           </p>
         </div>
 
@@ -471,9 +489,12 @@
 
       <!-- 成功訊息 -->
       <div id="quote-success" class="hidden">
-        <h3>✅ 詢價單已準備完成！</h3>
-        <p>請在您的 Email 客戶端確認內容後送出，楊竹業務將於 1 個工作天內回覆。</p>
-        <p style="margin-top:8px;">客服電話：<strong>02-2680-9966</strong></p>
+        <h3>✅ 詢價單已送出！</h3>
+        <p>您的詢價資料已送達楊竹業務系統，將於 1 個工作天內主動回覆您。</p>
+        <p style="margin-top:8px;">
+          <a id="quote-mailto-link" href="#" style="color:var(--green);font-weight:600;">📧 想立即用 Email 補充說明？點此開啟郵件</a>
+        </p>
+        <p style="margin-top:8px;">若急需聯絡，客服電話：<strong>02-2680-9966</strong></p>
       </div>
 
       <div class="step-nav">
@@ -528,17 +549,8 @@
   #chat-toggle:hover { background: #1f5c33; transform: translateY(-2px); }
   .chat-live-dot { width: 10px; height: 10px; background: #4ade80; border-radius: 50%; animation: chatpulse 2s infinite; }
   @keyframes chatpulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.75)} }
-  #back-to-home {
-    position: fixed; top: 12px; left: 12px; z-index: 9998;
-    background: white; border: 1.5px solid #e5e7eb; border-radius: 50px;
-    padding: 8px 16px; font-size: 13px; font-weight: 600;
-    color: #4b5563; text-decoration: none; display: flex; align-items: center; gap: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: all .2s;
-  }
-  #back-to-home:hover { border-color: #2D7D46; color: #2D7D46; }
   @media (max-width: 600px) { #chat-panel { width: calc(100vw - 48px); height: 480px; } }
 </style>
-<a id="back-to-home" href="/">← 回主頁</a>
 <div id="chat-widget">
   <div id="chat-panel">
     <div id="chat-panel-header">

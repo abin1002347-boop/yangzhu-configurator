@@ -302,9 +302,11 @@ function applyAIImage() {
   fabric.Image.fromURL(lastGeneratedImageDataURL, img => {
     const w = canvas2d.getWidth();
     const h = canvas2d.getHeight();
+    // 移除前一張 AI 生成背景圖，避免重新生成時被舊圖疊在上面蓋住
+    canvas2d.getObjects().filter(o => o.name === 'ai-bg-image').forEach(o => canvas2d.remove(o));
     // Math.max = 滿版填滿（超出邊緣自動裁切）
     const scale = Math.max(w / img.width, h / img.height);
-    img.set({ left: w / 2, top: h / 2, originX: 'center', originY: 'center', scaleX: scale, scaleY: scale });
+    img.set({ left: w / 2, top: h / 2, originX: 'center', originY: 'center', scaleX: scale, scaleY: scale, name: 'ai-bg-image' });
     canvas2d.add(img);
     canvas2d.sendToBack(img);   // 放到文字下方
     canvas2d.renderAll();
@@ -386,9 +388,11 @@ function applyCartoonImage() {
   fabric.Image.fromURL(lastCartoonImageDataURL, img => {
     const w = canvas2d.getWidth();
     const h = canvas2d.getHeight();
+    // 移除前一張 AI 生成背景圖（含 AI 生圖／Q版化），避免重新生成時被舊圖疊在上面蓋住
+    canvas2d.getObjects().filter(o => o.name === 'ai-bg-image').forEach(o => canvas2d.remove(o));
     // 滿版填滿（同 AI生圖）
     const scale = Math.max(w / img.width, h / img.height);
-    img.set({ left: w / 2, top: h / 2, originX: 'center', originY: 'center', scaleX: scale, scaleY: scale });
+    img.set({ left: w / 2, top: h / 2, originX: 'center', originY: 'center', scaleX: scale, scaleY: scale, name: 'ai-bg-image' });
     canvas2d.add(img);
     canvas2d.sendToBack(img);
     canvas2d.renderAll();

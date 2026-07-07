@@ -40,7 +40,7 @@ const PRODUCTS = {
     name: '客製化一卡通',
     nameEn: 'Custom iPASS',
     icon: '🚌',
-    image: 'assets/photos/ipass.jpg',
+    // 尚無楊竹自有實品照，暫用 icon（原圖為第三方品牌實際卡面設計，已移除避免版權疑慮）
     badge: '授權製造',
     badgeColor: '#E85C0D',
     description: '一卡通票證官方授權廠，全台通用電子票證',
@@ -72,7 +72,7 @@ const PRODUCTS = {
     name: '客製化保溫杯',
     nameEn: 'Custom Thermos',
     icon: '🍵',
-    image: 'assets/photos/thermos.jpg',   // 請將保溫杯照片存於此路徑
+    // 尚無楊竹自有實品照，暫用 icon（原圖為其他品牌廣告圖，已移除避免版權與品牌混淆疑慮）
     badge: '台灣製造',
     badgeColor: '#B87333',
     description: '304不鏽鋼真空保溫，雷射雕刻客製文字，送禮自用首選',

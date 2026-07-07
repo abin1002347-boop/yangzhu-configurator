@@ -146,17 +146,27 @@ function renderSpecStep() {
     capSection.classList.add('hidden');
   }
 
-  // 數量滑桿
-  const qtyInput = document.getElementById('spec-qty');
-  const qtyDisplay = document.getElementById('spec-qty-display');
-  qtyInput.min   = p.minQty;
-  qtyInput.value = Math.max(STATE.qty, p.minQty);
-  qtyDisplay.textContent = qtyInput.value;
-  STATE.qty = parseInt(qtyInput.value);
+  // 數量滑桿 + 數字輸入（雙向同步，數字輸入不受滑桿上限限制）
+  const qtyInput   = document.getElementById('spec-qty');
+  const qtyNumber  = document.getElementById('spec-qty-input');
+  const qtySliderMax = parseInt(qtyInput.max);
+  qtyInput.min  = p.minQty;
+  qtyNumber.min = p.minQty;
+  const initialQty = Math.max(STATE.qty, p.minQty);
+  qtyInput.value  = Math.min(initialQty, qtySliderMax);
+  qtyNumber.value = initialQty;
+  STATE.qty = initialQty;
 
   qtyInput.addEventListener('input', () => {
     STATE.qty = parseInt(qtyInput.value);
-    qtyDisplay.textContent = STATE.qty;
+    qtyNumber.value = STATE.qty;
+    updateLiveQuote();
+  });
+  qtyNumber.addEventListener('input', () => {
+    let v = parseInt(qtyNumber.value);
+    if (!v || v < p.minQty) v = p.minQty;
+    STATE.qty = v;
+    qtyInput.value = Math.min(v, qtySliderMax); // 超過滑桿上限時滑桿停在最大值，不影響實際數量
     updateLiveQuote();
   });
 
@@ -427,15 +437,26 @@ async function submitQuote() {
   if (!name || !email) { alert('請填寫姓名與 Email'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Email 格式不正確'); return; }
 
+  const btn     = document.getElementById('submit-quote-btn');
+  const btnText = document.getElementById('submit-quote-text');
+  const btnLoad = document.getElementById('submit-quote-loading');
+  const errEl   = document.getElementById('submit-quote-error');
+  if (btn.disabled) return; // 防止重複點擊
+  btn.disabled = true;
+  btnText.classList.add('hidden');
+  btnLoad.classList.remove('hidden');
+  errEl.classList.add('hidden');
+
   const p   = PRODUCTS[STATE.productId];
   const q   = calcQuote(STATE.productId, STATE.materialId, STATE.finishId, STATE.qty, STATE.capacityId);
   const mat = p.materials.find(m => m.id === STATE.materialId) || p.materials[0];
   const fin = p.finishes.find(f => f.id === STATE.finishId)     || p.finishes[0];
   const cap = p.capacities ? (p.capacities.find(c => c.id === STATE.capacityId) || p.capacities[0]) : null;
 
-  // ── 儲存訂單資料至伺服器 ──
+  // ── 儲存訂單資料至伺服器（真正的送出結果以這支 API 的回應為準）──
+  let saveOk = false;
   try {
-    await fetch('/api/save-order', {
+    const resp = await fetch('/api/save-order', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -451,12 +472,23 @@ async function submitQuote() {
         designDataURL: STATE.designDataURL || null
       })
     });
+    saveOk = resp.ok;
   } catch (e) {
-    // 儲存失敗不阻止送出流程
-    console.warn('[submitQuote] 訂單儲存失敗（不影響送出）', e);
+    console.warn('[submitQuote] 訂單儲存失敗', e);
+    saveOk = false;
   }
 
-  // ── 開啟 mailto ──
+  btn.disabled = false;
+  btnText.classList.remove('hidden');
+  btnLoad.classList.add('hidden');
+
+  if (!saveOk) {
+    errEl.textContent = '❌ 送出失敗，請確認網路連線後再試一次，或直接來電 02-2680-9966。';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  // ── 準備 mailto 連結，供消費者「額外」自行寄信用，不自動跳轉 ──
   const subject = encodeURIComponent(`[楊竹科技詢價] ${p.name} × ${STATE.qty} 個`);
   const body = encodeURIComponent(
 `楊竹科技線上詢價單
@@ -477,10 +509,10 @@ ${note || '無'}
 --
 此詢價單由楊竹科技線上配置器自動產生
 `);
+  const mailtoLink = document.getElementById('quote-mailto-link');
+  if (mailtoLink) mailtoLink.href = `mailto:sales@yangzhu.com.tw?subject=${subject}&body=${body}`;
 
-  window.location.href = `mailto:sales@yangzhu.com.tw?subject=${subject}&body=${body}`;
-
-  // 顯示成功訊息
+  // 顯示成功訊息（訂單已確實存進伺服器才會顯示）
   document.getElementById('quote-success').classList.remove('hidden');
 }
 

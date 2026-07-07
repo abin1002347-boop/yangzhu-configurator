@@ -7,6 +7,18 @@ function init3DPreview(containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  if (typeof THREE === 'undefined') {
+    const fallbackImg = (typeof STATE !== 'undefined' && STATE.designDataURL) ? STATE.designDataURL : null;
+    container.style = 'display:flex;align-items:center;justify-content:center;min-height:300px;padding:20px;background:#edf2f7;border-radius:12px;';
+    container.innerHTML = fallbackImg
+      ? `<div style="text-align:center;">
+           <img src="${fallbackImg}" alt="設計預覽" style="max-width:100%;max-height:360px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);">
+           <p style="font-size:12px;color:#dc2626;margin-top:10px;">⚠️ 3D 預覽載入失敗，暫時顯示平面設計圖。</p>
+         </div>`
+      : `<p style="color:#dc2626;font-size:14px;">⚠️ 3D 預覽載入失敗，請重新整理頁面再試一次。</p>`;
+    return;
+  }
+
   if (renderer) {
     renderer.dispose();
     container.innerHTML = '';
