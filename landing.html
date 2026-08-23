@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>楊竹科技 — 企業禮贈品 AI 一條龍客製化服務</title>
-  <meta name="description" content="楊竹科技：台灣悠遊卡、一卡通官方授權製造廠。AI輔助設計、3D即時預覽、24小時AI客服，企業禮贈品客製化一站式解決方案。">
+  <title>楊竹科技｜悠遊卡、一卡通與企業禮贈品客製化</title>
+  <meta name="description" content="楊竹科技提供悠遊卡、一卡通、黑卡、保溫杯與企業禮贈品客製服務，從設計、打樣到量產一站完成。">
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 
-  <!-- Open Graph / 社群分享預覽（og:image 暫用現有產品照，建議之後換成專屬 1200x630 品牌圖） -->
+  <!-- Open Graph / 社群分享預覽 -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="楊竹科技 — 企業禮贈品 AI 一條龍客製化服務">
-  <meta property="og:description" content="悠遊卡、一卡通官方授權製造廠。AI輔助設計、3D即時預覽、24小時AI客服，企業禮贈品客製化一站式解決方案。">
-  <meta property="og:image" content="/assets/photos/usb_bar.jpg">
+  <meta property="og:site_name" content="楊竹科技">
+  <meta property="og:title" content="楊竹科技｜悠遊卡、一卡通與企業禮贈品客製化">
+  <meta property="og:description" content="楊竹科技提供悠遊卡、一卡通、黑卡、保溫杯與企業禮贈品客製服務，從設計、打樣到量產一站完成。">
+  <meta property="og:image" content="/assets/photos/homepage-hero-option-3-premium-studio.png">
   <meta property="og:locale" content="zh_TW">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="楊竹科技 — 企業禮贈品 AI 一條龍客製化服務">
-  <meta name="twitter:description" content="悠遊卡、一卡通官方授權製造廠。AI輔助設計、3D即時預覽、24小時AI客服，企業禮贈品客製化一站式解決方案。">
-  <meta name="twitter:image" content="/assets/photos/usb_bar.jpg">
+  <meta name="twitter:title" content="楊竹科技｜悠遊卡、一卡通與企業禮贈品客製化">
+  <meta name="twitter:description" content="楊竹科技提供悠遊卡、一卡通、黑卡、保溫杯與企業禮贈品客製服務，從設計、打樣到量產一站完成。">
+  <meta name="twitter:image" content="/assets/photos/homepage-hero-option-3-premium-studio.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
@@ -67,37 +68,99 @@
     .header-tel { font-size: 13px; color: var(--green); font-weight: 600; text-decoration: none; }
     .header-tel:hover { text-decoration: underline; }
 
+    /* 網站公告區塊：預設隱藏（display:none），只有後台開啟公告且公告文字非空白時才由
+       js/site-content.js 顯示。<header>是position:fixed，不佔版面流動空間，這裡的
+       margin-top:60px讓公告本身清出頂部固定header的高度；公告顯示時.hero會把自己的
+       margin-top讓給這裡（見site-content.js），避免出現重複的60px留白。 */
+    .site-announcement {
+      display: none;
+      margin-top: 60px;
+      background: var(--green-light);
+      color: var(--green-dark);
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--green);
+    }
+
     /* ── Hero ───────────────────────────── */
     .hero {
-      padding: 120px 24px 80px;
-      text-align: center;
-      background: linear-gradient(180deg, #f0f9f2 0%, #ffffff 100%);
+      position: relative;
+      min-height: 660px;
+      margin-top: 60px;
+      padding: 90px 24px 88px;
+      text-align: left;
+      background-color: #edf4e9;
+      background-image: url('/assets/photos/homepage-hero-option-3-premium-studio.png');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: auto 100%;
       border-bottom: 1px solid #e8f5e9;
+    }
+    /* Hero 背景圖用 background-size:auto 100%，寬度固定跟著圖片長寬比走
+       （1672:941），不會跟著螢幕寬度縮放，寬螢幕時圖片兩側會露出大片
+       Hero 底色，跟圖片邊緣之間出現明顯直線分界。用 ::after 疊一層左右
+       對稱的透明漸層，剛好蓋在「圖片真實邊緣」附近，把分界線用漸層
+       抹順。圖片真實邊緣位置用 calc(50% ± 半個圖片寬度) 算出來，寬度
+       660px（等於Hero min-height）× 1672/941 ÷ 2 ≈ 586px，這樣不管螢幕
+       多寬，漸層都精準對齊圖片邊緣，不是憑螢幕寬度猜的固定色塊。
+       z-index:0，比 .hero-inner 的 z-index:1 低，文字/按鈕一定疊在漸層
+       之上，不會被一起蓋淡。 */
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        to right,
+        #edf4e9 0%,
+        #edf4e9 calc(50% - 586px - 60px),
+        rgba(237, 244, 233, 0) calc(50% - 586px + 60px),
+        rgba(237, 244, 233, 0) calc(50% + 586px - 60px),
+        #edf4e9 calc(50% + 586px + 60px),
+        #edf4e9 100%
+      );
+    }
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+    .hero-mobile-visual { display: none; }
+    .hero-content {
+      width: min(520px, 46%);
     }
     .hero-eyebrow {
       display: inline-block;
-      background: var(--green-light);
-      color: var(--green);
-      font-size: 13px;
-      font-weight: 600;
-      padding: 4px 14px;
-      border-radius: 20px;
-      margin-bottom: 20px;
-      letter-spacing: 1px;
+      background: rgba(255,255,255,.72);
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 13px 7px 16px;
+      border-radius: 3px;
+      margin-bottom: 24px;
+      letter-spacing: 1.8px;
+      border-left: 3px solid var(--green);
+      backdrop-filter: blur(6px);
     }
     .hero h1 {
       font-size: clamp(30px, 6vw, 54px);
       font-weight: 900;
-      line-height: 1.2;
+      line-height: 1.16;
       color: var(--gray-900);
-      margin-bottom: 20px;
+      margin-bottom: 24px;
+      letter-spacing: -1.5px;
     }
     .hero h1 span { color: var(--green); }
     .hero-sub {
       font-size: 17px;
       color: var(--gray-600);
-      margin: 0 auto 36px;
-      max-width: 540px;
+      margin: 0 0 34px;
+      max-width: 500px;
+      line-height: 1.8;
     }
     .hero-cta {
       display: inline-flex;
@@ -119,6 +182,17 @@
       box-shadow: 0 8px 24px rgba(45,125,70,.4);
     }
     .hero-meta { margin-top: 16px; font-size: 13px; color: var(--gray-400); }
+    .hero-contact {
+      margin-top: 7px;
+      font-size: 13px;
+      color: var(--gray-600);
+    }
+    .hero-contact a {
+      color: var(--green-dark);
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
 
     /* ── Section共用 ────────────────────── */
     .section-wrap { max-width: 1100px; margin: 0 auto; padding: 80px 24px; }
@@ -151,18 +225,6 @@
       border-color: var(--green);
       background: linear-gradient(135deg, #f0f9f2 0%, #ffffff 100%);
     }
-    .service-icon {
-      width: 56px; height: 56px;
-      border-radius: 14px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px;
-      margin-bottom: 20px;
-      flex-shrink: 0;
-    }
-    .icon-green  { background: var(--green-light); }
-    .icon-blue   { background: #e0f2fe; }
-    .icon-purple { background: #f3e8ff; }
-
     .service-badge {
       display: inline-block;
       font-size: 11px;
@@ -174,7 +236,7 @@
     }
     .badge-live    { background: #d1fae5; color: #059669; }
     .badge-dev     { background: #fef3c7; color: #d97706; }
-    .badge-online  { background: #ede9fe; color: #7c3aed; }
+    .badge-online  { background: #FBF3DF; color: #B8860B; }
 
     .service-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
     .service-card p  { font-size: 14px; color: var(--gray-600); line-height: 1.7; margin-bottom: 20px; }
@@ -311,7 +373,7 @@
       border: 1px solid #e5e7eb;
     }
     #chat-panel.open { display: flex; }
-    .chat-header {
+    #chat-panel-header {
       background: var(--green);
       padding: 14px 20px;
       display: flex;
@@ -319,13 +381,31 @@
       justify-content: space-between;
       flex-shrink: 0;
     }
-    .chat-title { color: white; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-    .chat-close {
+    #chat-panel-title { color: white; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+    #chat-close {
       background: none; border: none; color: rgba(255,255,255,.8);
-      font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: background .2s;
+      font-size: 20px; cursor: pointer; border-radius: 6px; transition: background .2s;
+      /* 圖示視覺尺寸不變，用透明的可點擊區域把觸控熱區撐到44x44，符合觸控友善最小尺寸 */
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 44px; min-height: 44px; padding: 0;
     }
-    .chat-close:hover { background: rgba(0,0,0,.2); color: white; }
+    #chat-close:hover { background: rgba(0,0,0,.2); color: white; }
+    /* 客服視窗本體：iframe／連線中提示／備援維護畫面三選一顯示，共用同一份高度 */
+    #chat-panel-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     #chat-iframe { flex: 1; border: none; width: 100%; }
+    .chat-state-msg {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 24px; gap: 16px; color: #374151; font-size: 14px; line-height: 1.7;
+    }
+    .chat-fallback-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .chat-fallback-btn {
+      min-width: 44px; min-height: 44px; padding: 0 18px; border-radius: 8px;
+      border: 1px solid #d1d5db; background: #fff; cursor: pointer;
+      font-size: 13px; font-family: inherit; color: #1f2933;
+    }
+    .chat-fallback-btn:hover { background: #f3f4f6; }
+    #chat-fallback a { color: var(--green); font-weight: 600; }
+    .hidden { display: none !important; }
     #chat-toggle {
       display: flex;
       align-items: center;
@@ -357,6 +437,38 @@
     @media (max-width: 600px) {
       #chat-panel { width: calc(100vw - 48px); height: 480px; }
       .site-header .header-badge { display: none; }
+      .hero {
+        min-height: 690px;
+        padding: 62px 20px 260px;
+        background-image: none;
+      }
+      .hero::after { display: none; }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background: linear-gradient(180deg, rgba(242,247,237,.98) 0%, rgba(242,247,237,.94) 55%, rgba(242,247,237,.18) 78%, rgba(242,247,237,.04) 100%);
+      }
+      .hero-inner { z-index: 2; }
+      .hero-mobile-visual {
+        display: block;
+        position: absolute;
+        z-index: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 280px;
+        object-fit: cover;
+        object-position: 88% center;
+      }
+      .hero-content { width: 100%; }
+      .hero h1 {
+        font-size: clamp(31px, 9.4vw, 38px);
+        letter-spacing: -1px;
+      }
+      .hero-sub { font-size: 15px; }
+      .hero-cta { width: 100%; justify-content: center; }
     }
   </style>
 </head>
@@ -375,22 +487,35 @@
     </svg>
   </a>
   <div class="header-right">
-    <span class="header-badge">🏭 台灣製造・40年經驗</span>
-    <a class="header-tel" href="tel:0226809966">📞 02-2680-9966</a>
+    <span class="header-badge">台灣製造・40年經驗</span>
+    <a class="header-tel" id="site-header-tel" href="tel:0226809966">02-2680-9966</a>
   </div>
 </header>
 
+<!-- ── 網站公告（預設隱藏，由 js/site-content.js 依後台設定決定是否顯示）───── -->
+<div id="site-announcement-banner" class="site-announcement">
+  <p id="site-announcement-text"></p>
+</div>
+
 <!-- ── Hero ─────────────────────────────── -->
 <section class="hero">
-  <div class="hero-eyebrow">悠遊卡・一卡通 官方授權製造廠</div>
-  <h1>企業禮贈品<br><span>AI 一條龍</span>客製化服務</h1>
-  <p class="hero-sub">從設計靈感到完成下單，全程數位化。<br>AI 輔助設計 × 即時報價 × 24 小時 AI 客服，讓企業採購簡單省時。</p>
-  <a href="/customize" class="hero-cta">🎨 立即開始客製化 →</a>
-  <p class="hero-meta">免費使用 · 無需帳號 · 1 分鐘完成詢價</p>
-  <p class="hero-meta" style="margin-top:6px;">
-    企業大量採購（發票、量產交期、專屬報價）？
-    <a href="#" onclick="openChat();return false;" style="color:var(--green);font-weight:700;text-decoration:underline;">直接洽詢小竹客服 →</a>
-  </p>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-eyebrow">台灣製造 · 悠遊卡、一卡通授權製造</div>
+      <h1>讓每一份創意<br><span>成為真實商品</span></h1>
+      <p class="hero-sub">從造型設計、開模射出到 UV 彩色印刷，楊竹科技提供一條龍客製服務，少量訂製與企業量產都能安心交付。</p>
+      <a href="/customize" class="hero-cta">開始打造專屬商品</a>
+      <p class="hero-meta">一張即可訂製 · 工廠直營 · 專業製造</p>
+      <p class="hero-contact">
+        需要大量採購、量產交期或專屬報價？
+        <a href="#" onclick="openChat();return false;">洽詢小竹客服</a>
+      </p>
+    </div>
+  </div>
+  <img class="hero-mobile-visual"
+       src="/assets/photos/homepage-hero-option-3-premium-studio.png"
+       alt=""
+       aria-hidden="true">
 </section>
 
 <!-- ── Services ──────────────────────────── -->
@@ -405,7 +530,6 @@
 
     <!-- 1. AI 客製化 -->
     <div class="service-card featured">
-      <div class="service-icon icon-green">🎨</div>
       <span class="service-badge badge-live">✓ 立即可用</span>
       <h3>AI 客製化配置器</h3>
       <p>選產品、設規格、AI 輔助設計，五步驟完成詢價，不需任何設計經驗。</p>
@@ -415,12 +539,11 @@
         <li>即時 3D 立體預覽效果</li>
         <li>一鍵生成完整報價單</li>
       </ul>
-      <a href="/customize" class="svc-btn primary">開始設計 →</a>
+      <a href="/customize" class="svc-btn outline">開始設計 →</a>
     </div>
 
     <!-- 2. 3D 壓克力 -->
     <div class="service-card">
-      <div class="service-icon icon-blue">🧊</div>
       <span class="service-badge badge-dev">開發中</span>
       <h3>壓克力切割 3D 預覽</h3>
       <p>上傳設計圖，即時查看壓克力切割成品的立體效果，下單前看清楚每個細節。</p>
@@ -435,7 +558,6 @@
 
     <!-- 3. 小竹客服 -->
     <div class="service-card">
-      <div class="service-icon icon-purple">💬</div>
       <span class="service-badge badge-online">24hr 上線中</span>
       <h3>小竹 AI 客服</h3>
       <p>報價、規格、交期、材質，任何問題都能立即回答，不需等待業務回電。</p>
@@ -452,7 +574,11 @@
 </div>
 
 <!-- ── Trust Stats ────────────────────────── -->
+<!-- 只調整呈現方式（標題更具體、下方加一行「業務可提供確認」的說明），不新增任何
+     虛構的客戶Logo／案例／證書編號／認證連結——目前專案內沒有這些真實素材，等之後
+     有真的證書或客戶案例檔案，才把「查看入口」加回來。 -->
 <div class="trust">
+  <p style="text-align:center;font-size:13px;font-weight:700;color:var(--green);letter-spacing:.05em;margin-bottom:24px;">台灣製造廠 · 官方授權 · 品質有依據</p>
   <div class="trust-grid">
     <div class="trust-item">
       <h4>40+</h4>
@@ -471,6 +597,7 @@
       <p>9000 品質認證</p>
     </div>
   </div>
+  <p style="text-align:center;font-size:11.5px;color:var(--gray-400);margin-top:28px;">授權與認證資料可由業務提供確認</p>
 </div>
 
 <!-- ── Products ───────────────────────────── -->
@@ -481,14 +608,15 @@
     <p class="section-sub">點選產品直接進入 AI 配置器</p>
   </div>
   <div class="product-chips">
-    <a href="/customize" class="product-chip">💳 客製化悠遊卡</a>
-    <a href="/customize" class="product-chip">💳 客製化一卡通</a>
-    <a href="/customize" class="product-chip">💾 USB 隨身碟</a>
-    <a href="/customize" class="product-chip">🍵 客製化保溫杯</a>
-    <a href="#" class="product-chip" onclick="openChat();return false;">📇 名片型隨身碟</a>
-    <a href="#" class="product-chip" onclick="openChat();return false;">🎁 禮盒包裝組合</a>
-    <a href="#" class="product-chip" onclick="openChat();return false;">🧊 壓克力客製品</a>
-    <a href="#" class="product-chip" onclick="openChat();return false;">📦 其他特殊需求</a>
+    <a href="/customize?product=easycard" class="product-chip">客製化悠遊卡</a>
+    <a href="/customize?product=ipass" class="product-chip">客製化一卡通</a>
+    <a href="#" class="product-chip" onclick="openChat();return false;">USB 隨身碟｜專案洽詢</a>
+    <a href="/customize?product=thermos" class="product-chip">客製化保溫杯</a>
+    <a href="/customize?product=black_card" class="product-chip">尊爵不凡黑卡</a>
+    <a href="#" class="product-chip" onclick="openChat();return false;">名片型隨身碟</a>
+    <a href="#" class="product-chip" onclick="openChat();return false;">禮盒包裝組合</a>
+    <a href="#" class="product-chip" onclick="openChat();return false;">壓克力客製品</a>
+    <a href="#" class="product-chip" onclick="openChat();return false;">其他特殊需求</a>
   </div>
 </div>
 
@@ -496,8 +624,8 @@
 <div class="cta-banner">
   <h2>準備好開始了嗎？</h2>
   <p>免費試用，5 分鐘完成詢價。業務將於 1 個工作天內確認並回覆。</p>
-  <a href="/customize" class="cta-btn white">🎨 開始免費設計</a>
-  <button class="cta-btn ghost" onclick="openChat()">💬 先詢問小竹</button>
+  <a href="/customize" class="cta-btn ghost">開始免費設計</a>
+  <button class="cta-btn ghost" onclick="openChat()">先詢問小竹</button>
 </div>
 
 <!-- ── Footer ─────────────────────────────── -->
@@ -505,28 +633,41 @@
   <p>楊竹科技股份有限公司</p>
   <p>
     新北市樹林區柑園街2段122巷7號 ·
-    <a href="tel:0226809966">02-2680-9966</a> ·
-    <a href="mailto:sales@yangzhu.com.tw">sales@yangzhu.com.tw</a>
+    <a id="site-footer-tel" href="tel:0226809966">02-2680-9966</a> ·
+    <a id="site-footer-email" href="mailto:sales@yangzhu.com.tw">sales@yangzhu.com.tw</a>
   </p>
-  <p style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.25)">
+  <p id="site-footer-note" style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.25)">
     悠遊卡官方授權製造廠 · 一卡通官方授權製造廠 · ISO 9000 認證
   </p>
+  <p style="margin-top:8px;"><a href="/privacy">隱私權政策</a></p>
 </footer>
 
 <!-- ── Floating Chat Widget ───────────────── -->
+<!-- 客服開關/健康檢查/備援畫面的控制邏輯統一放在 js/chat-widget.js，
+     landing.html 與 index.html 共用同一份，不在這裡另外寫一套。
+     iframe 不再寫死 Railway 網址，src 完全由 chat-widget.js 依後端
+     /api/chatbot-config + /api/chatbot-status 的結果動態決定。 -->
 <div id="chat-widget">
   <div id="chat-panel">
-    <div class="chat-header">
-      <div class="chat-title">
-        <span>💬</span> 小竹 AI 客服
+    <div id="chat-panel-header">
+      <div id="chat-panel-title">
+        小竹 AI 客服
       </div>
-      <button class="chat-close" onclick="closeChat()">✕</button>
+      <button id="chat-close" onclick="closeChat()" aria-label="關閉客服視窗">✕</button>
     </div>
-    <iframe id="chat-iframe"
-            src="https://yangzhu-chatbot-production.up.railway.app"
-            title="小竹 AI 客服"
-            loading="lazy">
-    </iframe>
+    <div id="chat-panel-body">
+      <div id="chat-connecting" class="chat-state-msg hidden">
+        <p>正在連接小竹客服…</p>
+      </div>
+      <iframe id="chat-iframe" title="小竹 AI 客服" loading="lazy" class="hidden"></iframe>
+      <div id="chat-fallback" class="chat-state-msg hidden">
+        <p>小竹客服目前維護中，請改用電話 <a href="tel:0226809966">02-2680-9966</a> 或 Email：<a href="mailto:sales@yangzhu.com.tw">sales@yangzhu.com.tw</a> 聯絡我們。</p>
+        <div class="chat-fallback-actions">
+          <button type="button" class="chat-fallback-btn" onclick="reloadChat()">重新載入</button>
+          <button type="button" class="chat-fallback-btn" onclick="closeChat()">關閉</button>
+        </div>
+      </div>
+    </div>
   </div>
   <button id="chat-toggle" onclick="toggleChat()">
     <div class="live-dot"></div>
@@ -534,17 +675,9 @@
   </button>
 </div>
 
-<script>
-  function toggleChat() {
-    document.getElementById('chat-panel').classList.toggle('open');
-  }
-  function openChat() {
-    document.getElementById('chat-panel').classList.add('open');
-  }
-  function closeChat() {
-    document.getElementById('chat-panel').classList.remove('open');
-  }
-</script>
+<script src="js/analytics-tracker.js" defer></script>
+<script src="js/site-content.js"></script>
+<script src="js/chat-widget.js"></script>
 
 </body>
 </html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正式報價單</title>
+<link rel="stylesheet" href="css/quote-print.css">
+</head>
+<body>
+
+<div id="state-loading" class="qp-state">
+  <p class="qp-loading-text">正在讀取報價單資料…</p>
+</div>
+
+<div id="state-error" class="qp-state" hidden>
+  <div class="qp-error-box">
+    <h1>無法顯示報價單</h1>
+    <p>請從後台管理系統的報價版本區塊點擊「預覽正式報價單」開啟此頁面，不支援直接輸入網址存取。</p>
+  </div>
+</div>
+
+<div id="state-content" class="qp-state" hidden>
+  <div class="qp-toolbar no-print">
+    <button type="button" id="btn-print">列印／另存 PDF</button>
+  </div>
+
+  <div class="qp-sheet">
+    <div class="qp-header">
+      <div class="qp-company">楊竹科技股份有限公司</div>
+      <h1>正式報價單</h1>
+    </div>
+
+    <div class="qp-badges">
+      <span id="badge-version" class="qp-badge qp-badge-version">-</span>
+      <span id="badge-history" class="qp-badge qp-badge-history" hidden>歷史版本</span>
+      <span id="badge-expired" class="qp-badge qp-badge-expired" hidden>已過期</span>
+    </div>
+
+    <dl class="qp-meta">
+      <div class="qp-meta-row"><dt>報價日期</dt><dd id="quote-date">-</dd></div>
+      <div class="qp-meta-row"><dt>有效期限</dt><dd id="quote-valid-until">-</dd></div>
+    </dl>
+
+    <h2>客戶資料</h2>
+    <dl class="qp-field-list">
+      <div class="qp-field-row"><dt>客戶名稱</dt><dd id="customer-name">-</dd></div>
+      <div class="qp-field-row"><dt>Email</dt><dd id="customer-email">-</dd></div>
+      <div class="qp-field-row"><dt>電話</dt><dd id="customer-phone">-</dd></div>
+    </dl>
+
+    <h2>商品規格</h2>
+    <dl class="qp-field-list">
+      <div class="qp-field-row"><dt>商品名稱</dt><dd id="product-name">-</dd></div>
+      <div class="qp-field-row"><dt>材質</dt><dd id="product-material">-</dd></div>
+      <div class="qp-field-row"><dt>工藝</dt><dd id="product-finish">-</dd></div>
+      <div class="qp-field-row"><dt>容量</dt><dd id="product-capacity">-</dd></div>
+      <div class="qp-field-row"><dt>數量</dt><dd id="product-qty">-</dd></div>
+    </dl>
+
+    <h2>金額明細</h2>
+    <p id="price-inquiry-note" class="qp-inquiry-note" hidden>此商品需另行報價，正式金額請洽業務人員確認。</p>
+    <dl class="qp-field-list qp-price-list">
+      <div class="qp-field-row"><dt>基準金額</dt><dd id="price-base">-</dd></div>
+      <div class="qp-field-row"><dt>折扣金額</dt><dd id="price-discount">-</dd></div>
+      <div class="qp-field-row"><dt>額外費用</dt><dd id="price-extra">-</dd></div>
+      <div class="qp-field-row"><dt>運費</dt><dd id="price-shipping">-</dd></div>
+      <div class="qp-field-row"><dt>稅額</dt><dd id="price-tax">-</dd></div>
+      <div class="qp-field-row qp-field-final"><dt>最終總額</dt><dd id="price-final">-</dd></div>
+    </dl>
+
+    <h2>備註</h2>
+    <p id="quote-notes" class="qp-notes">-</p>
+  </div>
+</div>
+
+<script src="js/quote-print.js" defer></script>
+</body>
+</html>

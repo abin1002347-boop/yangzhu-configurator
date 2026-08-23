@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>操作紀錄 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>操作紀錄<button type="button" class="admin-help-icon" data-help-key="auditLog" aria-label="說明">?</button></h1>
+        <p>後台帳號登入、登出與所有新增／修改／刪除／封存／恢復／狀態更新／工廠包下載操作的稽核紀錄，僅供查詢，不提供修改或刪除。</p>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="loadAuditLog(auditCurrentPage)">重新整理</button>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <select id="audit-result-filter" style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;">
+        <option value="">全部結果</option>
+        <option value="success">成功</option>
+        <option value="failure">失敗</option>
+      </select>
+      <input type="text" id="audit-resource-type-filter" placeholder="資源類型（例如 order／product／admin_user）"
+        style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;min-width:220px;">
+      <label class="filter-label" style="font-size:12.5px;color:var(--gray-400);display:flex;align-items:center;gap:4px;">
+        開始日期<input type="date" id="audit-date-start" style="padding:6px 8px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;">
+      </label>
+      <label class="filter-label" style="font-size:12.5px;color:var(--gray-400);display:flex;align-items:center;gap:4px;">
+        結束日期<input type="date" id="audit-date-end" style="padding:6px 8px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;">
+      </label>
+      <button class="btn btn-primary btn-sm" onclick="loadAuditLog(1)">套用篩選</button>
+    </div>
+
+    <div id="audit-loading" class="inventory-log-state">載入中…</div>
+    <div id="audit-error" class="inventory-log-state hidden">
+      <p id="audit-error-text">讀取失敗</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadAuditLog(auditCurrentPage)">重新嘗試</button>
+    </div>
+    <div id="audit-empty" class="inventory-log-state hidden">目前沒有符合條件的操作紀錄</div>
+
+    <div id="audit-table-wrap" class="hidden">
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>時間</th><th>操作者</th><th>動作</th><th>資源類型</th><th>資源ID</th><th>結果</th><th>HTTP狀態</th>
+            </tr>
+          </thead>
+          <tbody id="audit-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination-bar" style="margin-top:12px;">
+        <span id="audit-page-info-text"></span>
+        <button class="btn btn-secondary btn-sm" id="btn-audit-prev-page" onclick="changeAuditPage(-1)">上一頁</button>
+        <button class="btn btn-secondary btn-sm" id="btn-audit-next-page" onclick="changeAuditPage(1)">下一頁</button>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="audit-page.js"></script>
+<script>
+  renderAdminNav('audit');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

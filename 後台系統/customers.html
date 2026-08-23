@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客戶管理 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>客戶管理<button type="button" class="admin-help-icon" data-help-key="customers" aria-label="說明">?</button></h1>
+        <p>依既有訂單資料彙總的客戶清單（唯讀），可搜尋、排序並查看歷史訂單</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" id="btn-export-customers-xlsx" onclick="exportCustomersXlsx()">匯出 Excel</button>
+        <button class="btn btn-secondary btn-sm" onclick="openCustomerMergeCandidates()">檢查重複客戶</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadCustomers()">重新整理</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <input type="text" id="customer-search-input" placeholder="搜尋姓名／Email／電話"
+        style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;"
+        onkeydown="if(event.key==='Enter') onCustomerSearchOrSortChanged()">
+      <select id="customer-tag-filter-select"
+        style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;">
+        <option value="">全部標籤</option>
+      </select>
+      <select id="customer-sort-select"
+        style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;">
+        <option value="lastOrderAt">依最後下單時間（新到舊）</option>
+        <option value="orderCount">依訂單數（多到少）</option>
+        <option value="totalSpent">依累計金額（高到低）</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="onCustomerSearchOrSortChanged()">套用</button>
+    </div>
+
+    <div id="customer-list-loading" class="inventory-log-state">載入中…</div>
+    <div id="customer-list-error" class="inventory-log-state hidden">
+      <p id="customer-list-error-text">讀取失敗</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadCustomers()">重新嘗試</button>
+    </div>
+    <div id="customer-list-empty" class="inventory-log-state hidden">目前沒有符合條件的客戶資料</div>
+
+    <div id="customer-list-wrap" class="hidden">
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr><th>姓名</th><th>Email</th><th>電話</th><th>訂單數</th><th>累計金額</th><th>最後下單時間</th><th>操作</th></tr>
+          </thead>
+          <tbody id="customer-list-body"></tbody>
+        </table>
+      </div>
+      <div id="customer-pagination" style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- 客戶詳情（預設隱藏）：基本資料編輯、合併狀態、內部備註、公司資料、收件地址（可多筆、
+         任何時間最多一筆預設）、客戶標籤（新增／移除）。仍不提供多人權限功能。 -->
+    <div id="customer-detail-overlay" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeCustomerDetail()">
+      <div class="admin-modal-box admin-modal-box-wide">
+        <div class="admin-modal-header">
+          <h3 id="customer-detail-title">客戶詳情</h3>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeCustomerDetail()">關閉</button>
+        </div>
+        <div class="admin-modal-body">
+          <div id="customer-detail-loading" class="inventory-log-state">載入中…</div>
+          <div id="customer-detail-error" class="inventory-log-state hidden">
+            <p id="customer-detail-error-text">讀取失敗</p>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="retryCustomerDetail()">重新嘗試</button>
+          </div>
+          <div id="customer-detail-content" class="hidden">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
+              <p id="customer-detail-summary" style="font-size:13px;color:var(--gray-400);line-height:1.8;margin:0;"></p>
+              <button type="button" class="btn btn-secondary btn-sm" id="customer-edit-toggle-btn" onclick="toggleCustomerEditForm()">編輯基本資料</button>
+            </div>
+
+            <!-- 編輯基本資料表單（預設隱藏） -->
+            <div id="customer-edit-form" class="hidden" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <label style="font-size:13px;">
+                  姓名
+                  <input type="text" id="customer-edit-name" maxlength="100" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                </label>
+                <label style="font-size:13px;">
+                  Email
+                  <input type="text" id="customer-edit-email" maxlength="254" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                </label>
+                <label style="font-size:13px;">
+                  電話
+                  <input type="text" id="customer-edit-phone" maxlength="30" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                </label>
+              </div>
+              <p id="customer-edit-error" class="hidden" style="color:var(--danger,#c0392b);font-size:13px;margin:0 0 10px;"></p>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="btn btn-primary btn-sm" id="customer-edit-save-btn" onclick="saveCustomerProfile()">儲存</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCustomerEditForm(false)">取消</button>
+              </div>
+            </div>
+
+            <!-- 合併狀態：這位主要客戶身上目前併入的舊客戶（如果有的話），可個別解除合併 -->
+            <div id="customer-merge-status-wrap" class="hidden" style="margin-bottom:20px;background:#FFF8E6;border:1px solid #E8D48A;border-radius:var(--radius-sm);padding:12px 14px;">
+              <h4 style="font-size:14px;margin:0 0 8px;">合併狀態</h4>
+              <div id="customer-merge-status-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+            </div>
+
+            <!-- 公司資料：1:1覆蓋層，不回寫訂單 -->
+            <div style="margin-bottom:20px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <h4 style="font-size:14px;margin:0;">公司資料</h4>
+                <button type="button" class="btn btn-secondary btn-sm" id="customer-company-toggle-btn" onclick="toggleCustomerCompanyForm()">編輯公司資料</button>
+              </div>
+              <p id="customer-company-summary" style="font-size:13px;color:var(--gray-400);margin:0;"></p>
+              <div id="customer-company-form" class="hidden" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:14px;margin-top:8px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <label style="font-size:13px;">
+                    公司名稱
+                    <input type="text" id="customer-company-name" maxlength="100" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                  </label>
+                  <label style="font-size:13px;">
+                    統一編號
+                    <input type="text" id="customer-company-taxid" maxlength="8" placeholder="8碼數字" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                  </label>
+                  <label style="font-size:13px;">
+                    發票抬頭
+                    <input type="text" id="customer-company-invoice" maxlength="150" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                  </label>
+                </div>
+                <p id="customer-company-error" class="hidden" style="color:var(--danger,#c0392b);font-size:13px;margin:0 0 10px;"></p>
+                <div style="display:flex;gap:8px;">
+                  <button type="button" class="btn btn-primary btn-sm" id="customer-company-save-btn" onclick="saveCustomerCompany()">儲存</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCustomerCompanyForm(false)">取消</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 客戶標籤：只能新增／移除 -->
+            <div style="margin-bottom:20px;">
+              <h4 style="font-size:14px;margin:0 0 8px;">客戶標籤</h4>
+              <div id="customer-tags-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="customer-tag-input" maxlength="20" placeholder="輸入標籤後新增"
+                  style="flex:1;max-width:220px;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomerTag();}">
+                <button type="button" class="btn btn-secondary btn-sm" id="customer-tag-add-btn" onclick="addCustomerTag()">新增標籤</button>
+              </div>
+              <p id="customer-tag-error" class="hidden" style="color:var(--danger,#c0392b);font-size:13px;margin:6px 0 0;"></p>
+            </div>
+
+            <!-- 收件地址：可多筆，任何時間最多一筆預設 -->
+            <div style="margin-bottom:20px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <h4 style="font-size:14px;margin:0;">收件地址</h4>
+                <button type="button" class="btn btn-secondary btn-sm" id="customer-address-add-toggle-btn" onclick="openCustomerAddressForm()">新增地址</button>
+              </div>
+              <div id="customer-addresses-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+              <p id="customer-addresses-empty" class="hidden" style="font-size:13px;color:var(--gray-400);">目前沒有收件地址</p>
+
+              <div id="customer-address-form" class="hidden" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:14px;">
+                <input type="hidden" id="customer-address-editing-id" value="">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <label style="font-size:13px;">
+                    收件人
+                    <input type="text" id="customer-address-recipient" maxlength="50" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                  </label>
+                  <label style="font-size:13px;">
+                    電話
+                    <input type="text" id="customer-address-phone" maxlength="30" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                  </label>
+                  <label style="font-size:13px;">
+                    郵遞區號
+                    <input type="text" id="customer-address-postal" maxlength="6" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                  </label>
+                  <label style="font-size:13px;grid-column:span 1;display:flex;align-items:center;gap:6px;margin-top:18px;">
+                    <input type="checkbox" id="customer-address-default"> 設為預設地址
+                  </label>
+                </div>
+                <label style="font-size:13px;display:block;margin-bottom:10px;">
+                  地址
+                  <input type="text" id="customer-address-address" maxlength="200" style="width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;margin-top:4px;">
+                </label>
+                <p id="customer-address-error" class="hidden" style="color:var(--danger,#c0392b);font-size:13px;margin:0 0 10px;"></p>
+                <div style="display:flex;gap:8px;">
+                  <button type="button" class="btn btn-primary btn-sm" id="customer-address-save-btn" onclick="saveCustomerAddress()">儲存</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="closeCustomerAddressForm()">取消</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr><th>訂單編號</th><th>日期</th><th>商品</th><th>數量</th><th>狀態</th><th>金額</th><th>封存</th></tr>
+                </thead>
+                <tbody id="customer-detail-orders-body"></tbody>
+              </table>
+            </div>
+
+            <!-- 內部備註：只能新增、不能修改或刪除舊備註 -->
+            <div style="margin-top:20px;">
+              <h4 style="font-size:14px;margin:0 0 10px;">內部備註</h4>
+              <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <textarea id="customer-note-input" maxlength="2000" rows="2" placeholder="新增內部備註…"
+                  style="flex:1;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;resize:vertical;"></textarea>
+                <button type="button" class="btn btn-primary btn-sm" id="customer-note-save-btn" onclick="addCustomerNote()" style="align-self:flex-start;">新增備註</button>
+              </div>
+              <p id="customer-note-error" class="hidden" style="color:var(--danger,#c0392b);font-size:13px;margin:0 0 10px;"></p>
+              <div id="customer-notes-loading" class="inventory-log-state">載入中…</div>
+              <div id="customer-notes-empty" class="hidden" style="font-size:13px;color:var(--gray-400);padding:10px 0;">目前沒有備註</div>
+              <ul id="customer-notes-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 可能重複客戶清單：只做偵測與提示，實際合併必須由管理員在下方合併確認視窗手動選擇
+         主要客戶並二次確認，絕不自動合併。 -->
+    <div id="customer-merge-candidates-overlay" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeCustomerMergeCandidates()">
+      <div class="admin-modal-box admin-modal-box-wide">
+        <div class="admin-modal-header">
+          <h3>可能重複客戶</h3>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeCustomerMergeCandidates()">關閉</button>
+        </div>
+        <div class="admin-modal-body">
+          <div id="customer-merge-candidates-loading" class="inventory-log-state">載入中…</div>
+          <div id="customer-merge-candidates-error" class="inventory-log-state hidden">
+            <p id="customer-merge-candidates-error-text">讀取失敗</p>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadCustomerMergeCandidates()">重新嘗試</button>
+          </div>
+          <div id="customer-merge-candidates-empty" class="inventory-log-state hidden">目前沒有偵測到可能重複的客戶</div>
+          <div id="customer-merge-candidates-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 合併預覽與二次確認：顯示雙方完整資料比較，管理員手動選擇主要客戶，勾選確認後才會
+         真的呼叫合併 API；合併／解除合併都不會搬動或刪除任何一邊原本的資料。 -->
+    <div id="customer-merge-preview-overlay" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeCustomerMergePreview()">
+      <div class="admin-modal-box admin-modal-box-wide">
+        <div class="admin-modal-header">
+          <h3>合併客戶確認</h3>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeCustomerMergePreview()">關閉</button>
+        </div>
+        <div class="admin-modal-body">
+          <div id="customer-merge-preview-loading" class="inventory-log-state">載入中…</div>
+          <div id="customer-merge-preview-error" class="inventory-log-state hidden">
+            <p id="customer-merge-preview-error-text">讀取失敗</p>
+          </div>
+          <div id="customer-merge-preview-content" class="hidden">
+            <div style="margin-bottom:12px;">
+              <div style="font-size:13px;font-weight:600;margin-bottom:6px;">選擇合併後要保留的主要客戶：</div>
+              <div id="customer-merge-primary-choice" style="display:flex;gap:20px;flex-wrap:wrap;"></div>
+            </div>
+            <div id="customer-merge-compare-wrap" class="admin-table-wrap"></div>
+            <p style="font-size:13px;color:var(--danger,#c0392b);margin:14px 0 8px;">
+              合併後，被合併客戶的訂單、備註、公司資料、地址與標籤都會併入主要客戶名下顯示；
+              這個操作之後可以在合併紀錄裡「解除合併」還原（雙方原始資料從頭到尾不會被搬動或刪除），
+              但仍請確認雙方資訊無誤後再繼續。
+            </p>
+            <label style="font-size:13px;display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+              <input type="checkbox" id="customer-merge-ack-checkbox"> 我已確認上述雙方資訊，同意執行合併
+            </label>
+            <p id="customer-merge-confirm-error" class="hidden" style="color:var(--danger,#c0392b);font-size:13px;margin:0 0 10px;"></p>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn btn-primary btn-sm" id="customer-merge-confirm-btn" onclick="executeCustomerMerge()">確認合併</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="closeCustomerMergePreview()">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="customers-page.js"></script>
+<script>
+  renderAdminNav('customers');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

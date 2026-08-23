@@ -1,321 +1,51 @@
-// 楊竹科技 — AI 設計文案生成模組
-// 直接從瀏覽器呼叫 OpenAI API（Key 存於 localStorage）
+// 楊竹科技 — AI Q版肖像生成模組
 
-const AI_KEY_STORAGE = 'yz_openai_key';
-let lastAIOptions = [];
-let lastGeneratedImageDataURL = null;
 let lastCartoonImageDataURL  = null;
 let cartoonSourceDataURL     = null;
+let _cartoonAbortController  = null; // 切換商品/重新配置時用來中止尚未完成的 AI 請求
 
-// ── 主要生成函式（透過伺服器 API Key）────────
-async function generateAIDesign() {
-  const userPrompt = document.getElementById('ai-prompt').value.trim();
-  if (!userPrompt) {
-    showAIError('請先輸入描述文字');
-    document.getElementById('ai-prompt').focus();
-    return;
+function abortCartoonGeneration() {
+  if (_cartoonAbortController) {
+    _cartoonAbortController.abort();
+    _cartoonAbortController = null;
   }
-
-  const p   = PRODUCTS[STATE.productId] || {};
-  const mat = p.materials
-    ? (p.materials.find(m => m.id === STATE.materialId) || p.materials[0])
-    : {};
-
-  setAILoading(true);
-  hideAIError();
-
-  const resultsEl = document.getElementById('ai-results');
-  resultsEl.classList.add('hidden');
-  resultsEl.innerHTML = '';
-
-  try {
-    const resp = await fetch('/api/generate-design', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        userPrompt,
-        productId:    STATE.productId,
-        materialName: mat.name || 'PVC',
-        qty:          STATE.qty || 100
-      })
-    });
-
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || '生成失敗');
-
-    lastAIOptions = data.options || [];
-    renderAIOptions(lastAIOptions);
-    resultsEl.classList.remove('hidden');
-
-  } catch (err) {
-    if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-      showAIError('🌐 網路連線失敗，請確認網路後再試');
-    } else {
-      showAIError('生成失敗：' + err.message);
-    }
-  } finally {
-    setAILoading(false);
-  }
-}
-
-// ── 取得 API Key（localStorage 或彈出輸入框）──
-async function getOrAskAPIKey() {
-  const stored = localStorage.getItem(AI_KEY_STORAGE);
-  if (stored && stored.startsWith('sk-')) return stored;
-
-  return new Promise(resolve => {
-    // 建立 modal
-    const overlay = document.createElement('div');
-    overlay.id = 'ai-key-modal';
-    overlay.innerHTML = `
-      <div class="ai-modal-box">
-        <div class="ai-modal-header">
-          <span class="ai-badge">✨ AI 設定</span>
-          <button class="ai-modal-close" id="ai-key-cancel">✕</button>
-        </div>
-        <p class="ai-modal-desc">
-          請輸入你的 <strong>OpenAI API Key</strong> 來啟用 AI 生成功能。<br>
-          Key 僅存在你的瀏覽器，不會上傳至任何伺服器。
-        </p>
-        <input type="password" id="ai-key-input"
-          placeholder="sk-proj-xxxxxxxxxxxxxxxxxxxx"
-          autocomplete="off"
-          style="width:100%;padding:10px 12px;border:1.5px solid #86efac;border-radius:8px;font-size:14px;margin:8px 0 4px;">
-        <p style="font-size:11px;color:#9aa5b4;margin-bottom:14px;">
-          前往 <a href="https://platform.openai.com/api-keys" target="_blank" style="color:#16a34a">platform.openai.com/api-keys</a> 取得 Key
-        </p>
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" id="ai-key-cancel2">取消</button>
-          <button class="btn btn-primary btn-sm" id="ai-key-confirm">確認並生成</button>
-        </div>
-      </div>
-    `;
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
-    document.body.appendChild(overlay);
-
-    const input   = document.getElementById('ai-key-input');
-    const confirm = document.getElementById('ai-key-confirm');
-    const cancel  = document.getElementById('ai-key-cancel');
-    const cancel2 = document.getElementById('ai-key-cancel2');
-
-    setTimeout(() => input.focus(), 100);
-
-    function close(key) {
-      overlay.remove();
-      resolve(key || null);
-    }
-
-    confirm.addEventListener('click', () => {
-      const key = input.value.trim();
-      if (!key.startsWith('sk-')) {
-        input.style.borderColor = '#ef4444';
-        input.placeholder = 'Key 格式不正確，應以 sk- 開頭';
-        return;
-      }
-      localStorage.setItem(AI_KEY_STORAGE, key);
-      close(key);
-    });
-
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm.click(); });
-    cancel.addEventListener('click',  () => close(null));
-    cancel2.addEventListener('click', () => close(null));
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
-  });
-}
-
-// ── 直接呼叫 OpenAI Chat Completions API ────
-async function callOpenAI(apiKey, userPrompt, productName, materialName, qty) {
-  const systemPrompt = `你是楊竹科技的設計顧問，協助客戶設計客製化禮贈品的印刷文案。
-楊竹科技是台灣悠遊卡、一卡通官方授權製造廠。
-
-根據客戶描述，生成適合印在產品上的設計文字方案：
-- 第一行（主標題）：10字以內，簡潔有力
-- 第二行（副標題）：15字以內，可含英文或日期
-- 顏色要配合描述的風格，提供 HEX 色碼
-- 生成 3 個不同風格的方案
-- 只回傳 JSON，不要其他文字`;
-
-  const userMessage = `產品：${productName}（${materialName}），數量 ${qty} 個
-客戶需求：${userPrompt}
-
-JSON 格式：
-{"options":[{"style":"風格名","textLine1":"主標題","textLine2":"副標題","textColor":"#hex","bgColor":"#hex","reason":"設計理念一句話"}]}`;
-
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userMessage  }
-      ],
-      temperature: 0.85,
-      max_tokens: 700,
-      response_format: { type: 'json_object' }
-    })
-  });
-
-  if (!resp.ok) {
-    const errData = await resp.json().catch(() => ({}));
-    const code    = errData?.error?.code || '';
-    const msg     = errData?.error?.message || resp.statusText;
-    throw new Error(code ? `${code}: ${msg}` : `${resp.status} ${msg}`);
-  }
-
-  const data = await resp.json();
-  const raw  = data.choices?.[0]?.message?.content || '{}';
-  const parsed = JSON.parse(raw);
-  return parsed.options || [];
-}
-
-// ── 渲染方案卡片 ─────────────────────────────
-function renderAIOptions(options) {
-  const resultsEl = document.getElementById('ai-results');
-  resultsEl.innerHTML = `
-    <div style="font-size:12px;color:var(--gray-400);margin-bottom:6px;">
-      ✅ 已生成 ${options.length} 個方案，點「套用」將文字填入設計區
-    </div>
-    ${options.map((opt, i) => {
-      const fontFamily = (typeof STATE !== 'undefined' && STATE.font) ? STATE.font : 'Noto Sans TC';
-      return `
-      <div class="ai-option-card" id="ai-opt-${i}">
-        <div class="ai-option-preview"
-             style="background:${escHtml(opt.bgColor||'#fff')};color:${escHtml(opt.textColor||'#333')};font-family:'${escHtml(fontFamily)}',sans-serif">
-          <div class="line1">${escHtml(opt.textLine1 || '')}</div>
-          <div class="line2">${escHtml(opt.textLine2 || '')}</div>
-        </div>
-        <div class="ai-option-info">
-          <div class="ai-option-style">方案 ${i+1}：${escHtml(opt.style||'')}</div>
-          <div class="ai-option-text">
-            ${escHtml(opt.textLine1||'')}
-            ${opt.textLine2 ? `<span style="color:var(--gray-400)"> / </span>${escHtml(opt.textLine2)}` : ''}
-          </div>
-          <div class="ai-option-reason">${escHtml(opt.reason||'')}</div>
-        </div>
-        <button class="ai-apply-btn" onclick="applyAIOption(${i})">套用</button>
-      </div>
-    `}).join('')}
-    <div style="text-align:right;margin-top:4px;">
-      <button onclick="clearAIKey()" style="font-size:11px;color:var(--gray-400);background:none;border:none;cursor:pointer;text-decoration:underline;">
-        更換 API Key
-      </button>
-    </div>
-  `;
-}
-
-// ── 套用方案到 Canvas ─────────────────────────
-function applyAIOption(index) {
-  const opt = lastAIOptions[index];
-  if (!opt) return;
-
-  const fields = {
-    'design-text1':   opt.textLine1 || '',
-    'design-text2':   opt.textLine2 || '',
-    'design-textcolor': opt.textColor || '#333333',
-    'design-bgcolor':   opt.bgColor  || '#ffffff'
-  };
-  Object.entries(fields).forEach(([id, val]) => {
-    const el = document.getElementById(id);
-    if (el) el.value = val;
-  });
-
-  STATE.textLine1 = opt.textLine1 || '';
-  STATE.textLine2 = opt.textLine2 || '';
-  STATE.bgColor   = opt.bgColor   || '#ffffff';
-
-  const font = STATE.font || document.getElementById('design-font')?.value || 'Noto Sans TC';
-  clear2D();
-  setBackground2D(opt.bgColor || '#ffffff');
-  if (opt.textLine1) addText2D(opt.textLine1, opt.textColor || '#333333', null, font, 'title');
-  if (opt.textLine2) addText2D(opt.textLine2, opt.textColor || '#333333', null, font, 'subtitle');
-
-  document.querySelectorAll('.ai-option-card').forEach((el, i) => {
-    el.classList.toggle('applied', i === index);
-  });
-
-  const btn = document.querySelector(`#ai-opt-${index} .ai-apply-btn`);
-  if (btn) {
-    btn.textContent = '✅ 已套用';
-    setTimeout(() => { btn.textContent = '套用'; }, 1500);
-  }
-
-  document.querySelector('.canvas-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-// ── 清除 Key ──────────────────────────────────
-function clearAIKey() {
-  localStorage.removeItem(AI_KEY_STORAGE);
-  document.getElementById('ai-results').classList.add('hidden');
-  hideAIError();
-  showAIError('✅ API Key 已清除，下次生成時重新輸入。');
-}
-
-// ── AI 生圖（DALL-E 3）────────────────────
-async function generateAIImage() {
-  const prompt = document.getElementById('ai-image-prompt').value.trim();
-  if (!prompt) {
-    document.getElementById('ai-image-prompt').focus();
-    return;
-  }
-
-  const p = PRODUCTS[STATE.productId] || {};
-  setAIImageLoading(true);
-  document.getElementById('ai-image-preview').classList.add('hidden');
-  document.getElementById('ai-image-error').classList.add('hidden');
-
-  try {
-    const resp = await fetch('/api/generate-image', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ prompt, productName: p.name || '客製化卡片' })
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || '生成失敗');
-
-    lastGeneratedImageDataURL = data.imageDataURL;
-
-    const previewEl = document.getElementById('ai-image-preview');
-    previewEl.innerHTML = `
-      <img src="${data.imageDataURL}" style="width:100%;border-radius:8px;margin-top:10px;display:block;">
-      <div style="font-size:12px;color:var(--gray-400);text-align:center;margin-top:6px;">✅ 已自動套用至卡面</div>
-    `;
-    previewEl.classList.remove('hidden');
-
-    // 自動套用至 Canvas
-    applyAIImage();
-
-  } catch (err) {
-    const errEl = document.getElementById('ai-image-error');
-    errEl.textContent = '❌ ' + err.message;
-    errEl.classList.remove('hidden');
-  } finally {
-    setAIImageLoading(false);
-  }
-}
-
-function applyAIImage() {
-  if (!lastGeneratedImageDataURL || !canvas2d) return;
-  fabric.Image.fromURL(lastGeneratedImageDataURL, img => {
-    const w = canvas2d.getWidth();
-    const h = canvas2d.getHeight();
-    // 移除前一張 AI 生成背景圖，避免重新生成時被舊圖疊在上面蓋住
-    canvas2d.getObjects().filter(o => o.name === 'ai-bg-image').forEach(o => canvas2d.remove(o));
-    // Math.max = 滿版填滿（超出邊緣自動裁切）
-    const scale = Math.max(w / img.width, h / img.height);
-    img.set({ left: w / 2, top: h / 2, originX: 'center', originY: 'center', scaleX: scale, scaleY: scale, name: 'ai-bg-image' });
-    canvas2d.add(img);
-    canvas2d.sendToBack(img);   // 放到文字下方
-    canvas2d.renderAll();
-  });
 }
 
 // ── Q版卡通化 ──────────────────────────────────────────────
+
+// 五種風格選項（id 需與 server.js 的 CARTOON_STYLES 對應）
+const CARTOON_STYLES = [
+  { id: 'classic_kawaii',  name: '經典可愛 Q版',   desc: '大眼可愛・粉彩背景',   thumb: 'assets/cartoon-styles/01_classic_kawaii.png' },
+  { id: 'elegant_festive', name: '精緻喜氣肖像風', desc: '紅金配色・典雅線條',   thumb: 'assets/cartoon-styles/02_elegant_festive.png' },
+  { id: 'sticker_mascot',  name: '貼紙吉祥物風',   desc: '粗外框・亮色貼紙感',   thumb: 'assets/cartoon-styles/03_sticker_mascot.png' },
+  { id: 'watercolor_soft', name: '柔和水彩風',     desc: '手繪水彩・溫柔筆觸',   thumb: 'assets/cartoon-styles/04_soft_watercolor.png' }
+];
+let selectedCartoonStyle = 'classic_kawaii';
+
+function initCartoonStylePicker() {
+  const wrap = document.getElementById('cartoon-style-picker');
+  if (!wrap) return;
+  wrap.innerHTML = CARTOON_STYLES.map(s => `
+    <div class="cartoon-style-card ${s.id === selectedCartoonStyle ? 'selected' : ''}"
+         data-style="${s.id}" onclick="selectCartoonStyle('${s.id}')">
+      <div class="cartoon-style-swatch">
+        <img src="${s.thumb}" alt="${s.name}" loading="lazy">
+      </div>
+      <div class="cartoon-style-name">${s.name}</div>
+      <div class="cartoon-style-desc">${s.desc}</div>
+    </div>
+  `).join('');
+}
+
+function selectCartoonStyle(styleId) {
+  selectedCartoonStyle = styleId;
+  document.querySelectorAll('.cartoon-style-card').forEach(el => {
+    el.classList.toggle('selected', el.dataset.style === styleId);
+  });
+}
+
 async function compressImage(dataURL, maxWidth = 800) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const scale = Math.min(1, maxWidth / img.width);
@@ -325,27 +55,210 @@ async function compressImage(dataURL, maxWidth = 800) {
       cvs.getContext('2d').drawImage(img, 0, 0, cvs.width, cvs.height);
       resolve(cvs.toDataURL('image/jpeg', 0.82));
     };
+    // 原本沒有onerror，圖片解碼失敗時這個Promise會永遠不resolve也不reject（唯一呼叫端
+    // previewCartoonUpload()因此也會卡住）。加上onerror讓失敗有明確訊號，供upload_result
+    // 事件追蹤使用，同時也修正了這個既有的靜默卡住問題。
+    img.onerror = () => reject(new Error('圖片解碼失敗'));
     img.src = dataURL;
   });
 }
 
+async function removeCartoonBackground(dataURL) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxSide = 1400;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cvs = document.createElement('canvas');
+      cvs.width = w;
+      cvs.height = h;
+      const ctx = cvs.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const image = ctx.getImageData(0, 0, w, h);
+      const data = image.data;
+      const idx = (x, y) => (y * w + x) * 4;
+      const sampleStep = Math.max(1, Math.floor(Math.min(w, h) / 80));
+      let sr = 0, sg = 0, sb = 0, count = 0;
+
+      for (let x = 0; x < w; x += sampleStep) {
+        for (const y of [0, h - 1]) {
+          const i = idx(x, y);
+          sr += data[i]; sg += data[i + 1]; sb += data[i + 2]; count++;
+        }
+      }
+      for (let y = 0; y < h; y += sampleStep) {
+        for (const x of [0, w - 1]) {
+          const i = idx(x, y);
+          sr += data[i]; sg += data[i + 1]; sb += data[i + 2]; count++;
+        }
+      }
+
+      const br = sr / count, bg = sg / count, bb = sb / count;
+      const colorDistance = i => {
+        const dr = data[i] - br;
+        const dg = data[i + 1] - bg;
+        const db = data[i + 2] - bb;
+        return Math.sqrt(dr * dr + dg * dg + db * db);
+      };
+
+      // AI 生成圖不一定是純白背景，有時會帶淡淡漸層／暗角（vignette）。原本只跟「邊框
+      // 平均色」比對距離的作法，遇到漸層背景時要嘛整片吃不掉（漸層另一端跟邊框色差太多），
+      // 要嘛沿漸層一路吃進主體本身的淺色填色區。改成「跟前一步鄰居像素比對」的局部容差
+      // flood-fill：漸層本身相鄰像素落差很小，容易被吃掉；碰到黑色線稿邊緣時落差會突然
+      // 變大而停下來，才不會被漸層牽著走進主體內部。同時保留跟邊框平均色的總落差上限，
+      // 避免真的一路淺色到底時整張圖被誤判成背景。
+      const localTolerance = 30;
+      const globalDriftCap = 150;
+      const visited = new Uint8Array(w * h);
+      const removed = new Uint8Array(w * h);
+      const stack = []; // [x, y, refR, refG, refB]：refR/G/B 是「推進到這格」的來源像素顏色
+
+      const seedBorder = (x, y) => {
+        const p = y * w + x;
+        if (visited[p]) return;
+        const i = idx(x, y);
+        if (colorDistance(i) > globalDriftCap) return; // 邊框本身就明顯不像背景色，不強制當背景
+        visited[p] = 1;
+        removed[p] = 1;
+        stack.push([x, y, data[i], data[i + 1], data[i + 2]]);
+      };
+      for (let x = 0; x < w; x++) { seedBorder(x, 0); seedBorder(x, h - 1); }
+      for (let y = 0; y < h; y++) { seedBorder(0, y); seedBorder(w - 1, y); }
+
+      const tryExpand = (x, y, refR, refG, refB) => {
+        if (x < 0 || y < 0 || x >= w || y >= h) return;
+        const p = y * w + x;
+        if (visited[p]) return;
+        visited[p] = 1;
+        const i = idx(x, y);
+        const dr = data[i] - refR, dg = data[i + 1] - refG, db = data[i + 2] - refB;
+        const localDist = Math.sqrt(dr * dr + dg * dg + db * db);
+        if (localDist <= localTolerance && colorDistance(i) <= globalDriftCap) {
+          removed[p] = 1;
+          stack.push([x, y, data[i], data[i + 1], data[i + 2]]);
+        }
+      };
+
+      while (stack.length) {
+        const [x, y, r, g, b] = stack.pop();
+        tryExpand(x + 1, y, r, g, b);
+        tryExpand(x - 1, y, r, g, b);
+        tryExpand(x, y + 1, r, g, b);
+        tryExpand(x, y - 1, r, g, b);
+      }
+
+      const removeThreshold = localTolerance;
+      const featherThreshold = 96;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const p = y * w + x;
+          const i = idx(x, y);
+          if (removed[p]) {
+            data[i + 3] = 0;
+            continue;
+          }
+
+          let bgNeighbors = 0;
+          for (let yy = -2; yy <= 2; yy++) {
+            for (let xx = -2; xx <= 2; xx++) {
+              if (!xx && !yy) continue;
+              const nx = x + xx, ny = y + yy;
+              if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+              if (removed[ny * w + nx]) bgNeighbors++;
+            }
+          }
+          if (bgNeighbors > 0) {
+            const dist = colorDistance(i);
+            if (dist < featherThreshold) {
+              const fade = Math.max(0.25, Math.min(1, (dist - removeThreshold) / (featherThreshold - removeThreshold)));
+              const edgeSoftness = Math.max(0.65, 1 - bgNeighbors / 48);
+              data[i + 3] = Math.round(data[i + 3] * Math.max(fade, edgeSoftness));
+            }
+          }
+        }
+      }
+
+      ctx.putImageData(image, 0, 0);
+      resolve(cvs.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('去背處理失敗'));
+    img.src = dataURL;
+  });
+}
+
+// Q版人物照片上傳（黑卡AI圖案功能）。upload_result事件追蹤：類型／大小先擋
+// （unsupported_type／file_too_large）；FileReader失敗算read_failed；compressImage()
+// 內部解碼失敗（見上方compressImage新增的onerror→reject）算decode_failed；其餘處理過程
+// 例外算processing_failed；只有真的完成壓縮並更新預覽畫面才算success。
 function previewCartoonUpload(input) {
   const file = input.files[0];
   if (!file) return;
+  const _uploadProductId = (typeof STATE !== 'undefined') ? STATE.productId : null;
+  try {
+    const invalidCategory = (typeof _validateUploadFile === 'function') ? _validateUploadFile(file) : null;
+    if (invalidCategory) {
+      if (typeof _trackUploadResult === 'function') _trackUploadResult(_uploadProductId, 'failure', invalidCategory);
+      return;
+    }
+  } catch (e) { /* 驗證本身若意外出錯，不擋使用者上傳，直接往下走原本流程 */ }
+
   const reader = new FileReader();
+  reader.onerror = () => {
+    if (typeof _trackUploadResult === 'function') _trackUploadResult(_uploadProductId, 'failure', 'read_failed');
+  };
   reader.onload = async e => {
-    cartoonSourceDataURL = await compressImage(e.target.result, 800);
-    const preview = document.getElementById('cartoon-upload-preview');
-    const hint    = document.getElementById('cartoon-upload-hint');
-    if (preview) preview.innerHTML = `<img src="${cartoonSourceDataURL}" style="max-width:100%;max-height:120px;border-radius:8px;object-fit:contain;display:block;margin:0 auto;">`;
-    if (hint)    hint.textContent  = '已選擇圖片，點擊可重新選擇';
+    try {
+      cartoonSourceDataURL = await compressImage(e.target.result, 800);
+    } catch (err) {
+      if (typeof _trackUploadResult === 'function') _trackUploadResult(_uploadProductId, 'failure', 'decode_failed');
+      return;
+    }
+    try {
+      const preview = document.getElementById('cartoon-upload-preview');
+      const hint    = document.getElementById('cartoon-upload-hint');
+      if (preview) preview.innerHTML = `<img src="${cartoonSourceDataURL}" alt="已上傳的照片預覽" style="max-width:100%;max-height:120px;border-radius:8px;object-fit:contain;display:block;margin:0 auto;">`;
+      if (hint)    hint.textContent  = '已選擇圖片，點擊可重新選擇';
+      // 已補上照片，清除先前「未上傳照片」的錯誤狀態
+      document.getElementById('cartoon-upload-zone')?.classList.remove('upload-zone-error');
+      const errEl = document.getElementById('cartoon-error');
+      if (errEl) errEl.classList.add('hidden');
+      if (typeof _trackUploadResult === 'function') _trackUploadResult(_uploadProductId, 'success');
+    } catch (err) {
+      if (typeof _trackUploadResult === 'function') _trackUploadResult(_uploadProductId, 'failure', 'processing_failed');
+    }
   };
   reader.readAsDataURL(file);
 }
 
+function _showCartoonError(message, { withRetry = false } = {}) {
+  const errEl = document.getElementById('cartoon-error');
+  if (!errEl) return;
+  errEl.innerHTML = '';
+  const msg = document.createElement('span');
+  msg.textContent = '❌ ' + message;
+  errEl.appendChild(msg);
+  if (withRetry) {
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'btn btn-outline btn-sm';
+    retryBtn.style.marginLeft = '10px';
+    retryBtn.textContent = '重新生成';
+    retryBtn.onclick = generateCartoonImage;
+    errEl.appendChild(retryBtn);
+  }
+  errEl.classList.remove('hidden');
+}
+
 async function generateCartoonImage() {
   if (!cartoonSourceDataURL) {
-    document.getElementById('cartoon-upload-input')?.click();
+    _showCartoonError('請先上傳一張單人正面清晰照片，再開始製作 Q版肖像。');
+    const zone = document.getElementById('cartoon-upload-zone');
+    zone?.classList.add('upload-zone-error');
+    zone?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
@@ -353,21 +266,49 @@ async function generateCartoonImage() {
   document.getElementById('cartoon-preview').classList.add('hidden');
   document.getElementById('cartoon-error').classList.add('hidden');
 
+  const thisRequestProductId = STATE.productId;
+  _cartoonAbortController = new AbortController();
+
+  // 在請求開始前鎖定這次的匿名關聯，避免等待期間資料切換；_getAnalyticsContextForRequest()
+  // 定義於 configurator.js，跨檔案共用慣例（typeof檢查，不受script載入順序影響）。
+  const _cartoonAnalyticsContext = (typeof _getAnalyticsContextForRequest === 'function') ? _getAnalyticsContextForRequest() : null;
+
   try {
     const resp = await fetch('/api/cartoon-image', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ imageDataURL: cartoonSourceDataURL })
+      body:    JSON.stringify({
+        imageDataURL: cartoonSourceDataURL,
+        styleId:      selectedCartoonStyle,
+        productId:    thisRequestProductId,
+        mode:         thisRequestProductId === 'black_card' ? 'black_card' : 'standard',
+        ...( _cartoonAnalyticsContext ? { analyticsContext: _cartoonAnalyticsContext } : {} )
+      }),
+      signal:  _cartoonAbortController.signal
     });
+    // 使用者可能在等待期間已經切換到別的商品，這種情況直接忽略回應，不套用到現在的畫布上
+    if (STATE.productId !== thisRequestProductId) return;
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || '生成失敗');
+    // 防呆：AI 沒有真的回傳可用圖片（空白 data URL／過短的無效內容）時，當成失敗處理，
+    // 不要讓消費者以為空白圖已經套用成功。
+    if (!data.imageDataURL || data.imageDataURL.length < 100) {
+      throw new Error('AI 沒有回傳有效的圖片，請點「重新生成」再試一次');
+    }
 
-    lastCartoonImageDataURL = data.imageDataURL;
+    let processedImageDataURL = data.imageDataURL;
+    try {
+      processedImageDataURL = await removeCartoonBackground(data.imageDataURL);
+    } catch (bgErr) {
+      console.warn('[cartoon-bg-removal]', bgErr);
+    }
+
+    lastCartoonImageDataURL = processedImageDataURL;
 
     const previewEl = document.getElementById('cartoon-preview');
     previewEl.innerHTML = `
-      <img src="${data.imageDataURL}" style="width:100%;border-radius:8px;margin-top:10px;display:block;">
-      <div style="font-size:12px;color:var(--gray-400);text-align:center;margin-top:6px;">✅ 已自動套用至卡面</div>
+      <img src="${processedImageDataURL}" alt="AI 生成的 Q 版肖像預覽" style="width:100%;border-radius:8px;margin-top:10px;display:block;background:linear-gradient(45deg,#f8faf7 25%,#eef3ec 25%,#eef3ec 50%,#f8faf7 50%,#f8faf7 75%,#eef3ec 75%);background-size:18px 18px;">
+      <div style="font-size:12px;color:var(--gray-400);text-align:center;margin-top:6px;">✅ 已自動去背並套用至卡面</div>
     `;
     previewEl.classList.remove('hidden');
 
@@ -375,9 +316,8 @@ async function generateCartoonImage() {
     applyCartoonImage();
 
   } catch (err) {
-    const errEl = document.getElementById('cartoon-error');
-    errEl.textContent = '❌ ' + err.message;
-    errEl.classList.remove('hidden');
+    if (err.name === 'AbortError') return; // 使用者主動切換商品造成的中止，不是錯誤
+    _showCartoonError(err.message, { withRetry: true });
   } finally {
     setCartoonLoading(false);
   }
@@ -385,17 +325,64 @@ async function generateCartoonImage() {
 
 function applyCartoonImage() {
   if (!lastCartoonImageDataURL || !canvas2d) return;
+  // 卡片背景換成跟客人選的Q版風格對應的插畫背景（只對悠遊卡/一卡通生效，函式內部自行判斷商品）
+  if (typeof applyCartoonStyleCardBackground2D === 'function') {
+    applyCartoonStyleCardBackground2D(selectedCartoonStyle);
+  }
   fabric.Image.fromURL(lastCartoonImageDataURL, img => {
+    // 先移除舊的 Q版肖像物件，避免重新生成時重疊
+    canvas2d.getObjects().filter(o => o.name === 'cartoon-avatar').forEach(o => canvas2d.remove(o));
+
     const w = canvas2d.getWidth();
     const h = canvas2d.getHeight();
-    // 移除前一張 AI 生成背景圖（含 AI 生圖／Q版化），避免重新生成時被舊圖疊在上面蓋住
-    canvas2d.getObjects().filter(o => o.name === 'ai-bg-image').forEach(o => canvas2d.remove(o));
-    // 滿版填滿（同 AI生圖）
-    const scale = Math.max(w / img.width, h / img.height);
-    img.set({ left: w / 2, top: h / 2, originX: 'center', originY: 'center', scaleX: scale, scaleY: scale, name: 'ai-bg-image' });
+
+    // 有印刷區(labelArea)的產品（如USB）：頭像限制在印刷區內；卡片類商品則預設放在右側主視覺區。
+    let areaLeft = 0, areaTop = 0, areaW = w, areaH = h;
+    let targetLeftRatio = 0.5;
+    let targetTopRatio = 0.5;
+    let widthRatio = 0.52;
+    let heightLimitRatio = 0.92;
+    // 卡片類商品（易受 labelArea 影響版位判斷，需優先比對，見下方註解）先判斷，
+    // 其餘有 labelArea 的商品（如USB）才落入印刷區判斷分支
+    if (typeof currentProduct !== 'undefined' && currentProduct && ['easycard', 'ipass'].includes(currentProduct.id)) {
+      areaLeft = w * 0.46;
+      areaTop  = h * 0.08;
+      areaW    = w * 0.45;
+      areaH    = h * 0.86;
+      targetLeftRatio = 0.56;
+      targetTopRatio = 0.55;
+      widthRatio = 0.86;
+      heightLimitRatio = 0.94;
+    } else if (typeof currentProduct !== 'undefined' && currentProduct && currentProduct.labelArea) {
+      const la = currentProduct.labelArea;
+      areaLeft = w * la.xRatio; areaTop = h * la.yRatio;
+      areaW    = w * la.wRatio; areaH   = h * la.hRatio;
+    }
+
+    let scale = (areaW * widthRatio) / img.width;
+    if (img.height * scale > areaH * heightLimitRatio) {
+      scale = (areaH * heightLimitRatio) / img.height;
+    }
+
+    img.set({
+      left: areaLeft + areaW * targetLeftRatio,
+      top:  areaTop  + areaH * targetTopRatio,
+      originX: 'center', originY: 'center',
+      scaleX: scale, scaleY: scale,
+      selectable: true, evented: true,   // 可拖拉、可縮放、可旋轉
+      name: 'cartoon-avatar'
+    });
+
     canvas2d.add(img);
-    canvas2d.sendToBack(img);
-    canvas2d.renderAll();
+    canvas2d.bringToFront(img);   // 維持在文字/背景上方，不 sendToBack（不當滿版背景）
+    canvas2d.setActiveObject(img);
+    canvas2d.requestRenderAll();
+    // 圖片已確定 decode 完成並畫進 canvas，立刻更新快照與 designState
+    if (typeof STATE !== 'undefined') {
+      STATE.designDataURL = (typeof get2DDataURL === 'function') ? get2DDataURL() : STATE.designDataURL;
+      STATE.canvasJSON = (typeof getCanvas2DJSON === 'function') ? getCanvas2DJSON() : STATE.canvasJSON;
+    }
+    if (typeof syncDesignState === 'function') syncDesignState();
   });
 }
 
@@ -407,40 +394,4 @@ function setCartoonLoading(on) {
   btn.disabled = on;
   text?.classList.toggle('hidden',  on);
   load?.classList.toggle('hidden', !on);
-}
-
-function setAIImageLoading(on) {
-  const btn  = document.getElementById('ai-image-btn');
-  const text = document.getElementById('ai-image-btn-text');
-  const load = document.getElementById('ai-image-btn-loading');
-  if (!btn) return;
-  btn.disabled = on;
-  text?.classList.toggle('hidden',  on);
-  load?.classList.toggle('hidden', !on);
-}
-
-// ── 工具函式 ──────────────────────────────────
-function setAILoading(on) {
-  const btn  = document.getElementById('ai-generate-btn');
-  const text = document.getElementById('ai-btn-text');
-  const load = document.getElementById('ai-btn-loading');
-  btn.disabled = on;
-  text.classList.toggle('hidden',  on);
-  load.classList.toggle('hidden', !on);
-}
-
-function showAIError(msg) {
-  const el = document.getElementById('ai-error');
-  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
-}
-
-function hideAIError() {
-  const el = document.getElementById('ai-error');
-  if (el) el.classList.add('hidden');
-}
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

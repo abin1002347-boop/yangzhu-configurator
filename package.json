@@ -3,14 +3,31 @@
   "version": "1.0.0",
   "description": "楊竹科技線上客製化配置器",
   "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "smoke-test": "node scripts/smoke-test.js",
+    "test": "node scripts/smoke-test.js",
+    "test:form": "node scripts/form-test.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "openai": "^4.28.0",
+    "archiver": "^7.0.1",
+    "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.1",
-    "cors": "^2.8.5"
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "helmet": "^8.3.0",
+    "multer": "^2.2.0",
+    "nodemailer": "^9.0.5",
+    "openai": "^4.28.0",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1",
+    "smtp-server": "^3.19.3"
   }
 }

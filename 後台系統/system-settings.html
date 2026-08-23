@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系統設定 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>系統設定<button type="button" class="admin-help-icon" data-help-key="systemSettings" aria-label="說明">?</button></h1>
+        <p>調整後台全域參數，並查看伺服器目前的唯讀運作狀態。僅擁有者可以使用這個頁面。</p>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="ss-refresh-btn" onclick="loadSystemSettings()">重新整理</button>
+    </div>
+
+    <div id="ss-loading" class="inventory-log-state">載入中…</div>
+    <div id="ss-error" class="inventory-log-state hidden">
+      <p id="ss-error-text">讀取失敗</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadSystemSettings()">重新嘗試</button>
+    </div>
+
+    <div id="ss-content" class="hidden">
+
+      <div class="card" style="margin-bottom:20px;max-width:480px;">
+        <h2 style="font-size:15px;margin-bottom:12px;">全域設定</h2>
+        <div class="form-group">
+          <label for="ss-quote-default-days">
+            預設報價有效天數
+            <button type="button" class="admin-help-icon" data-help-key="systemSettingsQuoteDefaultDays" aria-label="說明">?</button>
+          </label>
+          <input type="number" id="ss-quote-default-days" min="1" max="365" step="1" style="max-width:140px;">
+          <div class="field-error" id="ss-quote-default-days-error"></div>
+        </div>
+        <div class="admin-form-actions">
+          <button class="btn btn-primary" id="ss-save-btn" onclick="saveSystemSettings()" disabled>儲存</button>
+        </div>
+        <p id="ss-save-result" style="font-size:12.5px;margin-top:4px;"></p>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:15px;margin-bottom:4px;">系統資訊（唯讀）</h2>
+        <p style="font-size:12.5px;color:var(--gray-400);margin-bottom:12px;">以下資訊僅供查看，這裡不提供修改功能。</p>
+        <div class="stat-grid" id="ss-system-info-grid"></div>
+      </div>
+
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="system-settings-page.js"></script>
+<script>
+  renderAdminNav('settings');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

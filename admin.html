@@ -3,157 +3,687 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楊竹科技 — 訂單管理後台</title>
+<title>訂單管理 — 楊竹科技後台</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="/admin/admin-style.css">
 <style>
-  :root {
-    --green: #2D7D46; --green-dark: #1f5c33; --green-pale: #e8f5e9;
-    --gray-900: #111827; --gray-600: #4b5563; --gray-400: #9ca3af;
-    --gray-100: #f3f4f6; --gray-200: #e5e7eb; --white: #ffffff;
-    --red: #dc2626;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
-    background: var(--gray-100); color: var(--gray-900);
-  }
-  header {
-    background: var(--white); border-bottom: 2px solid var(--green);
-    padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
-  }
-  header h1 { font-size: 18px; margin: 0; }
-  header .sub { font-size: 12px; color: var(--gray-400); }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
-
-  /* 密碼登入畫面 */
+  /* 訂單管理頁專屬樣式（列表/密碼登入畫面），顏色與版面沿用上面兩份共用樣式表 */
+  /* 這個登入畫面的綠改用官網 yangzhu.com.tw 實際的品牌綠（#7ba918），跟本頁其他地方
+     （按鈕、訂單狀態徽章）用的 --green（#2D7D46）是兩套不同色系，只在 #gate 這個
+     區塊內用 CSS 變數局部覆蓋，範圍不外溢到登入之後的訂單管理介面。 */
   #gate {
-    max-width: 360px; margin: 80px auto; background: var(--white);
-    border-radius: 12px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,.08);
-    text-align: center;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    --yz-green: #7ba918; --yz-green-dark: #496b00; --yz-green-pale: #EFF5E3;
+    position: relative; overflow: hidden;
   }
-  #gate h2 { font-size: 18px; margin: 0 0 6px; }
-  #gate p { font-size: 13px; color: var(--gray-400); margin: 0 0 18px; }
+  /* 背景裝飾：使用者提供的竹林插畫，已用 Pillow 轉成官網品牤綠雙色調（原圖偏藍綠色，
+     跟品牌色不合），存在 assets/gate-bg-bamboo.jpg。這裡再用低透明度淡化，當作登入
+     畫面背景，不搶卡片的注意力。 */
+  .gate-bg-photo {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; opacity: .3; pointer-events: none; z-index: 0;
+  }
+  #gate-card {
+    width: 100%; max-width: 380px; background: var(--white);
+    border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-lg);
+    position: relative; z-index: 1;
+  }
+  #gate-band {
+    background: linear-gradient(160deg, var(--yz-green) 0%, var(--yz-green-dark) 100%);
+    padding: 40px 32px 32px; text-align: center;
+  }
+  .gate-logo { display: inline-flex; }
+  .gate-logo svg { display: block; }
+  #gate-form { padding: 30px 32px 32px; text-align: center; }
+  #gate h2 { font-size: 19px; font-weight: 700; color: var(--gray-900); letter-spacing: .3px; margin: 0 0 6px; }
+  #gate p { font-size: 13px; color: var(--gray-400); margin: 0 0 24px; }
   #gate input {
-    width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200);
-    border-radius: 8px; font-size: 14px; margin-bottom: 10px;
+    width: 100%; padding: 11px 14px; border: 1.5px solid var(--gray-200); background: var(--gray-100);
+    border-radius: var(--radius-sm); font-size: 14px; margin-bottom: 12px; font-family: inherit;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  #gate input:focus {
+    outline: none; border-color: var(--yz-green); background: var(--white);
+    box-shadow: 0 0 0 3px var(--yz-green-pale);
   }
   #gate button {
-    width: 100%; padding: 10px; border: none; border-radius: 8px;
-    background: var(--green); color: white; font-size: 14px; font-weight: 700; cursor: pointer;
+    width: 100%; padding: 13px; border: none; border-radius: 50px;
+    background: var(--yz-green); color: white; font-size: 14px; font-weight: 700; cursor: pointer;
+    margin-top: 6px; box-shadow: var(--shadow-sm); transition: background .15s, box-shadow .15s, transform .1s;
   }
-  #gate button:hover { background: var(--green-dark); }
-  #gate-error { color: var(--red); font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+  #gate button:hover { background: var(--yz-green-dark); box-shadow: var(--shadow-md); }
+  #gate button:active { transform: scale(.98); }
+  #gate button:focus-visible { outline: 2px solid var(--yz-green-dark); outline-offset: 2px; }
+  #gate-error { color: #dc2626; font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+  /* 畫面上不顯示文字，但螢幕報讀軟體讀得到，也讓input能透過label正確關聯（不只靠
+     placeholder——placeholder不是label，欄位內容一輸入placeholder就消失，且部分
+     輔助工具不會把placeholder當成欄位名稱朗讀）。 */
+  .visually-hidden {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
 
-  /* 主畫面 */
-  #app { display: none; }
-  .toolbar {
-    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
-    margin-bottom: 16px;
+  .order-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .order-tab-btn {
+    padding: 8px 18px; border-radius: 20px; border: 1.5px solid var(--gray-200);
+    background: var(--white); font-size: 13px; font-weight: 700; cursor: pointer;
+    color: var(--gray-700); font-family: inherit;
   }
+  .order-tab-btn:hover { border-color: var(--green); color: var(--green); }
+  .order-tab-btn.active { background: var(--green); border-color: var(--green); color: white; }
+  .order-tab-btn.active:hover { color: white; }
+
+  .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
   .toolbar input[type=search] {
     flex: 1; min-width: 200px; padding: 9px 14px; border: 1.5px solid var(--gray-200);
-    border-radius: 8px; font-size: 14px;
+    border-radius: var(--radius-sm); font-size: 14px; font-family: inherit;
   }
   .toolbar button {
-    padding: 9px 16px; border-radius: 8px; border: 1.5px solid var(--gray-200);
-    background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer; color: var(--gray-600);
+    padding: 9px 16px; border-radius: var(--radius-sm); border: 1.5px solid var(--gray-200);
+    background: var(--white); font-size: 13px; font-weight: 600; cursor: pointer; color: var(--gray-700);
+    font-family: inherit;
   }
   .toolbar button.primary { background: var(--green); border-color: var(--green); color: white; }
   .toolbar button:hover { border-color: var(--green); color: var(--green); }
   .toolbar button.primary:hover { color: white; background: var(--green-dark); }
-  .stat { font-size: 13px; color: var(--gray-400); }
+  .toolbar .stat { font-size: 13px; color: var(--gray-400); }
+  .toolbar select, .toolbar input[type=date] {
+    padding: 8px 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit; color: var(--gray-700); background: var(--white);
+    /* min-width:0 讓 <select> 在 flex 版面下可以縮到比內容還窄（避免瀏覽器依「最長選項文字」
+       撐開元素寬度，例如網址帶入的商品篩選參數可能是很長的商品名稱）；max-width:100% 確保
+       視覺上絕對不會超過 toolbar 目前的可視寬度，超長文字用省略號截斷，不會撐開整列版面。 */
+    min-width: 0; max-width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
+  }
+  .toolbar .filter-label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--gray-400); }
 
-  table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: 10px; overflow: hidden; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; background: var(--white); border-radius: var(--radius); overflow: hidden; font-size: 13px; }
   th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--gray-100); vertical-align: top; }
-  th { background: var(--gray-100); font-size: 12px; color: var(--gray-600); white-space: nowrap; }
+  th { background: var(--gray-100); font-size: 12px; color: var(--gray-700); white-space: nowrap; }
   tr:last-child td { border-bottom: none; }
-  tr.done { opacity: .5; }
-  td.note { max-width: 220px; white-space: pre-wrap; font-size: 12.5px; color: var(--gray-600); }
+  td.note { max-width: 220px; white-space: pre-wrap; font-size: 12.5px; color: var(--gray-700); }
   .qty { font-variant-numeric: tabular-nums; }
   .price { font-weight: 700; color: var(--green); white-space: nowrap; }
-  .status-btn {
+  .order-status-btn {
     padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
     border: 1.5px solid var(--gray-200); background: var(--white); cursor: pointer; white-space: nowrap;
+    display: inline-block; text-decoration: none; font-family: inherit;
   }
-  .status-btn.done { background: var(--green-pale); border-color: var(--green); color: var(--green); }
+  .order-status-btn.factory { border-color: var(--green); color: var(--green); margin-left: 6px; }
+  .order-status-btn.factory:hover { background: var(--green-pale); }
+  .status-select {
+    padding: 4px 8px; border-radius: 20px; font-size: 11.5px; font-weight: 700;
+    border: 1.5px solid var(--gray-200); background: var(--white); cursor: pointer; font-family: inherit;
+  }
+  .status-select:disabled { opacity: .55; cursor: wait; }
+  .status-select.status-new_inquiry   { border-color: var(--gray-200); color: var(--gray-700); }
+  .status-select.status-quoted        { border-color: #f59e0b; color: #b45309; background: #fef3c7; }
+  .status-select.status-closed_won    { border-color: var(--green); color: var(--green); background: var(--green-pale); }
+  .status-select.status-in_production { border-color: #8b5cf6; color: #6d28d9; background: #ede9fe; }
+  .status-select.status-qc            { border-color: #ec4899; color: #be185d; background: #fce7f3; }
+  .status-select.status-ready_to_ship { border-color: #06b6d4; color: #0e7490; background: #cffafe; }
+  .status-select.status-shipped       { border-color: #2563eb; color: #1d4ed8; background: #dbeafe; }
+  .status-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11.5px;
+    font-weight: 700; white-space: nowrap; border: 1.5px solid transparent;
+  }
+  .status-badge.status-completed { background: var(--green-pale); color: var(--green); border-color: var(--green); }
+  .status-badge.status-cancelled { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
   .empty { text-align: center; padding: 60px 20px; color: var(--gray-400); font-size: 14px; }
   .disclaimer { font-size: 11.5px; color: var(--gray-400); margin-top: 14px; line-height: 1.7; }
+  .order-no { font-weight: 700; color: var(--gray-900); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .factory-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px;
+    font-size: 10.5px; font-weight: 700; white-space: nowrap; margin-bottom: 4px;
+  }
+  .factory-badge.pending { background: #fee2e2; color: #dc2626; }
+  .factory-badge.done    { background: var(--green-pale); color: var(--green); }
+
+  /* ─── 操作欄縮短：原本查看詳情／列印／封存／下載狀態／下載工廠包五個項目直排、中間用
+     兩個<br>隔開，每一列會被撐得很高；改成兩行橫排——第一行放最常用的「查看詳情」＋收合
+     「列印」「封存」的「更多」選單，第二行放「下載工廠包」＋下載狀態徽章。 ─── */
+  .order-actions-cell { min-width: 168px; }
+  .order-actions-row { display: flex; align-items: center; gap: 6px; }
+  .order-actions-row + .order-actions-row { margin-top: 6px; }
+  .order-actions-row .factory-badge { margin-bottom: 0; }
+  /* 「更多」選單是共用的單一浮動面板（position:fixed，用JS依按鈕位置即時定位），不是每列
+     各自建立一個——表格外層 .admin-table-wrap 有 overflow-y:hidden（避免水平捲動時版面跑掉），
+     如果選單改成每列自己 position:absolute 展開，會被這層 overflow 裁掉看不見；用 fixed
+     定位到body底下，就不受表格容器的 overflow 影響。 */
+  .order-more-menu {
+    position: fixed; z-index: 2000; display: none;
+    background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md); padding: 4px; min-width: 96px;
+  }
+  .order-more-menu.open { display: block; }
+  .order-more-menu button {
+    display: block; width: 100%; text-align: left; padding: 8px 10px;
+    border: none; background: none; font-size: 12.5px; color: var(--gray-700);
+    border-radius: var(--radius-sm); cursor: pointer; font-family: inherit;
+  }
+  .order-more-menu button:hover { background: var(--gray-100); }
+
+  .pagination-bar {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+    justify-content: flex-end; margin-top: 12px; font-size: 13px; color: var(--gray-400);
+  }
+  .pagination-bar button:disabled { opacity: .45; cursor: default; }
+
+  .order-detail-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 1000;
+    display: flex; justify-content: flex-end;
+  }
+  .order-detail-overlay.hidden { display: none; }
+  .order-detail-panel {
+    width: min(440px, 100%); height: 100%; background: var(--white);
+    padding: 26px; overflow-y: auto; box-shadow: var(--shadow-lg);
+  }
+  .order-detail-panel h3 { margin: 4px 0 4px; font-size: 17px; }
+  .order-detail-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  .order-detail-table th {
+    text-align: left; color: var(--gray-400); font-weight: 600; padding: 7px 10px 7px 0;
+    white-space: nowrap; vertical-align: top; width: 100px;
+  }
+  .order-detail-table td { padding: 7px 0; word-break: break-word; }
+  .order-detail-panel h4 { margin: 20px 0 8px; font-size: 13.5px; color: var(--gray-700); }
+  .order-detail-panel input[type=text], .order-detail-panel textarea {
+    padding: 7px 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+    font-size: 13px; font-family: inherit; color: var(--gray-700);
+  }
+  .detail-field-error { color: #dc2626; font-size: 12px; min-height: 16px; margin-top: 4px; }
+  .internal-note-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .internal-note-item { background: var(--gray-100); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12.5px; }
+  .internal-note-meta { color: var(--gray-400); font-size: 11px; margin-bottom: 3px; }
+  .internal-note-content { white-space: pre-wrap; word-break: break-word; color: var(--gray-900); }
+  .status-history-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .status-history-item { border-left: 2px solid var(--gray-200); padding: 2px 0 2px 10px; font-size: 12.5px; }
+  .status-history-main { color: var(--gray-900); }
+  .status-history-action { color: var(--gray-400); font-size: 11px; }
+  .status-history-meta { color: var(--gray-400); font-size: 11px; margin-top: 2px; }
+
+  .payment-summary-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px;
+    font-size: 12.5px; margin-bottom: 10px;
+  }
+  .payment-summary-label { color: var(--gray-400); margin-right: 6px; }
+  .payment-history-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+  .payment-history-item { border-left: 2px solid var(--gray-200); padding: 2px 0 2px 10px; font-size: 12.5px; }
+  .payment-history-main { color: var(--gray-900); }
+  .payment-history-meta { color: var(--gray-400); font-size: 11px; margin-top: 2px; }
+  .payment-history-note { color: var(--gray-700); font-size: 11.5px; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
+  .payment-type-tag { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 10.5px; font-weight: 700; margin-right: 4px; }
+  .payment-type-tag.payment-type-receive { background: var(--green-pale); color: var(--green); }
+  .payment-type-tag.payment-type-refund  { background: #fee2e2; color: #dc2626; }
+  .status-badge.status-payment-unpaid   { background: var(--gray-100); color: var(--gray-700); border-color: var(--gray-200); }
+  .status-badge.status-payment-partial  { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
+  .status-badge.status-payment-paid     { background: var(--green-pale); color: var(--green); border-color: var(--green); }
+  .status-badge.status-payment-refunded { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
+
+  .logistics-history-item { border-left: 2px solid var(--gray-200); padding: 2px 0 2px 10px; font-size: 12.5px; }
+  .logistics-history-main { color: var(--gray-900); }
+  .logistics-history-meta { color: var(--gray-400); font-size: 11px; margin-top: 2px; }
+  .logistics-history-note { color: var(--gray-700); font-size: 11.5px; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
+  .status-badge.status-logistics-preparing { background: var(--gray-100); color: var(--gray-700); border-color: var(--gray-200); }
+  .status-badge.status-logistics-shipped   { background: #dbeafe; color: #1d4ed8; border-color: #2563eb; }
+  .status-badge.status-logistics-delivered { background: var(--green-pale); color: var(--green); border-color: var(--green); }
+  .status-badge.status-logistics-returned  { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
+
+  .quote-version-history-item { border-left: 2px solid var(--gray-200); padding: 2px 0 2px 10px; font-size: 12.5px; }
+  .quote-version-history-main { color: var(--gray-900); font-weight: 700; }
+  .quote-version-history-meta { color: var(--gray-400); font-size: 11px; margin-top: 2px; }
+  .quote-version-history-note { color: var(--gray-700); font-size: 11.5px; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
+  .quote-version-history-block { color: var(--gray-700); font-size: 11.5px; margin-top: 4px; }
+  .quote-version-history-block-title { color: var(--gray-400); font-size: 10.5px; margin-bottom: 1px; }
+  .status-badge.status-quoteversion-valid   { background: var(--green-pale); color: var(--green); border-color: var(--green); }
+  .status-badge.status-quoteversion-expired { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
+  .status-badge.status-quoteversion-invalid { background: #fef3c7; color: #b45309; border-color: #f59e0b; }
+
+  /* ─── 訂單列印：#print-area 畫面上永遠隱藏，只有 @media print 生效時才顯示，
+     且會把 body 底下其他所有內容一併隱藏，確保只印出這一個區塊。 ─── */
+  #print-area { display: none; }
+  .print-header h1 { font-size: 16px; margin: 0 0 4px; }
+  .print-meta { font-size: 11px; color: #444; margin-bottom: 12px; }
+  #print-area h2 { font-size: 13px; margin: 14px 0 6px; border-bottom: 1px solid #000; padding-bottom: 2px; }
+  .print-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 12px; page-break-inside: avoid; break-inside: avoid; }
+  .print-table th, .print-table td { border: 1px solid #000; padding: 4px 6px; text-align: left; vertical-align: top; }
+  .print-table th { width: 110px; background: #f0f0f0; font-weight: 700; white-space: nowrap; }
+  .print-list-item { border: 1px solid #ccc; padding: 4px 6px; margin-bottom: 4px; font-size: 11.5px; page-break-inside: avoid; break-inside: avoid; }
+  .print-list-content { white-space: pre-wrap; word-break: break-word; }
+  .print-list-meta { color: #444; font-size: 10.5px; margin-top: 2px; }
+  .print-empty { font-size: 11.5px; color: #666; }
+
+  @media print {
+    body * { visibility: hidden !important; }
+    #print-area, #print-area * { visibility: visible !important; }
+    #print-area {
+      display: block !important;
+      position: absolute; left: 0; top: 0; width: 100%;
+      margin: 0; padding: 0;
+      font-family: 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', sans-serif;
+      color: #000;
+    }
+    @page { size: A4; margin: 15mm; }
+  }
 </style>
 </head>
 <body>
 
 <div id="gate">
-  <h2>🔒 訂單管理後台</h2>
-  <p>請輸入後台密碼（設定於伺服器 .env 的 ADMIN_TOKEN）</p>
-  <input type="password" id="gate-input" placeholder="後台密碼" autocomplete="off">
-  <button onclick="tryLogin()">登入</button>
-  <div id="gate-error"></div>
-</div>
-
-<div id="app">
-  <header>
-    <div>
-      <h1>楊竹科技 — 訂單管理後台</h1>
-      <div class="sub">內部使用，請勿分享此頁面連結</div>
+  <img class="gate-bg-photo" src="/assets/gate-bg-bamboo.jpg" alt="" aria-hidden="true">
+  <div id="gate-card">
+    <div id="gate-band">
+      <a class="gate-logo" href="https://www.yangzhu.com.tw" target="_blank" rel="noopener" aria-label="楊竹科技">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 178 48" width="200" height="54" aria-hidden="true">
+          <text x="72" y="15"
+                font-family="'Noto Sans TC','Microsoft JhengHei',Arial,sans-serif"
+                font-size="12" font-weight="400" fill="#ffffff" letter-spacing="3">楊竹科技</text>
+          <text x="1" y="45"
+                font-family="Georgia,'Palatino Linotype',serif"
+                font-size="32" font-style="italic" font-weight="700" fill="#ffffff">YangZhu</text>
+        </svg>
+      </a>
     </div>
-    <button class="status-btn" onclick="logout()">登出</button>
-  </header>
-
-  <div class="wrap">
-    <div class="toolbar">
-      <input type="search" id="search-box" placeholder="搜尋姓名 / Email / 電話 / 產品…" oninput="renderTable()">
-      <button onclick="loadOrders()">🔄 重新整理</button>
-      <button class="primary" onclick="exportCSV()">⬇ 匯出 CSV</button>
-      <span class="stat" id="stat-text"></span>
+    <div id="gate-form">
+      <h2>訂單管理後台</h2>
+      <p>請輸入管理員帳號與密碼</p>
+      <label for="gate-username" class="visually-hidden">管理員帳號</label>
+      <input type="text" id="gate-username" placeholder="管理員帳號" autocomplete="username">
+      <label for="gate-input" class="visually-hidden">密碼</label>
+      <input type="password" id="gate-input" placeholder="密碼" autocomplete="current-password">
+      <button onclick="tryLogin()">登入</button>
+      <div id="gate-error"></div>
     </div>
-
-    <div id="table-wrap"></div>
-
-    <p class="disclaimer">
-      ・僅顯示最近 50 筆訂單。「標記已處理」只存在目前這台電腦的瀏覽器，換裝置或清除瀏覽器資料會重置，不是正式的訂單狀態系統。<br>
-      ・完整訂單管理系統（多人協作、狀態同步）屬於 Phase 5 規劃項目。
-    </p>
   </div>
 </div>
 
+<div id="app" class="admin-shell" style="display:none;">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+    <div id="admin-topbar" class="admin-topbar"></div>
+    <main class="admin-main">
+
+      <div class="admin-page-title">
+        <div>
+          <h1>訂單管理<button type="button" class="admin-help-icon" data-help-key="orders" aria-label="說明">?</button></h1>
+          <p>內部使用，請勿分享此頁面連結</p>
+        </div>
+      </div>
+
+      <div class="order-tabs">
+        <button id="tab-btn-active" class="order-tab-btn active" onclick="switchOrderTab('active')">目前訂單</button>
+        <button id="tab-btn-archived" class="order-tab-btn" onclick="switchOrderTab('archived')">已封存</button>
+      </div>
+
+      <div class="toolbar">
+        <input type="search" id="search-box" placeholder="搜尋姓名 / Email / 電話 / 產品…" oninput="onFilterOrSearchChanged()">
+        <label class="filter-label">開始日期
+          <input type="date" id="filter-date-start" onchange="onFilterOrSearchChanged()">
+        </label>
+        <label class="filter-label">結束日期
+          <input type="date" id="filter-date-end" onchange="onFilterOrSearchChanged()">
+        </label>
+        <select id="filter-product" onchange="onFilterOrSearchChanged()"><option value="">全部商品</option></select>
+        <select id="filter-status" onchange="onStatusFilterChanged()"><option value="">全部狀態</option></select>
+        <span id="filter-status-custom-note" class="hidden" style="font-size:12.5px;color:var(--gray-400);"></span>
+        <label class="filter-label">
+          <input type="checkbox" id="filter-overdue" onchange="onFilterOrSearchChanged()"> 只顯示預估逾期訂單
+        </label>
+        <button onclick="clearFilters()">清除篩選</button>
+        <button onclick="loadOrders()">重新整理</button>
+        <button class="primary" id="btn-export-orders-xlsx" onclick="exportOrdersXlsx()">匯出 Excel</button>
+        <span class="stat" id="stat-text"></span>
+      </div>
+
+      <div id="table-wrap"></div>
+
+      <div class="pagination-bar">
+        <label class="filter-label">每頁筆數
+          <select id="page-size-select" onchange="onPageSizeChanged()">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+        <span id="page-info-text"></span>
+        <button id="btn-order-prev-page" onclick="changeOrderPage(-1)">上一頁</button>
+        <button id="btn-order-next-page" onclick="changeOrderPage(1)">下一頁</button>
+      </div>
+
+      <p class="disclaimer">
+        ・訂單列表涵蓋全部訂單（依篩選條件分頁顯示），Excel 匯出的是目前篩選結果的全部筆數，不受分頁影響。訂單狀態與「工廠包下載狀態」都存在伺服器端，任何人登入後台都會看到相同狀態。<br>
+        ・訂單狀態流程：新詢價 → 已報價 → 已成交 → 生產中 → 品質檢查 → 待出貨 → 已出貨 → 已完成，一般操作只能往下一階段前進；「已取消」為例外流程，取消與狀態倒退都需要二次確認。「已完成」／「已取消」為終止狀態，如需變更請在訂單詳情頁使用「恢復訂單狀態」並二次確認。
+      </p>
+
+    </main>
+  </div>
+</div>
+
+<!-- ─── 訂單詳情側邊視窗（預設隱藏）───────────── -->
+<div id="order-detail-modal" class="order-detail-overlay hidden" onclick="if (event.target === this) closeOrderDetail()">
+  <div class="order-detail-panel">
+    <button class="btn btn-secondary btn-sm" onclick="closeOrderDetail()">關閉</button>
+    <div id="order-detail-body"></div>
+  </div>
+</div>
+
+<!-- ─── 列印專用區塊：畫面上永遠隱藏，只有 printOrder() 呼叫 window.print() 時
+     由 CSS 的 @media print 規則暫時顯示，且會把畫面上其他所有內容一併隱藏，
+     確保只印出這個區塊裡的單一訂單內容，不會印到後台導覽列/篩選器/表單/其他訂單。 -->
+<div id="print-area"></div>
+
+<!-- 訂單列「更多」選單：全表格共用同一個浮動面板，不是每列各自建立一個。
+     開啟時由 toggleOrderMoreMenu() 依當次點擊的按鈕位置即時定位、填入內容。 -->
+<div id="order-more-menu" class="order-more-menu" role="menu"></div>
+
+<script src="/admin/admin-common.js"></script>
+<script src="/admin/admin-nav.js"></script>
+<script src="/admin/admin-tooltip.js"></script>
+<script src="/js/quote-total-resolver.js"></script>
 <script>
-  const TOKEN_KEY = 'yz_admin_token';
-  const DONE_KEY  = 'yz_admin_done_orders';
+  // 正常流程（依序前進，不可跳級）：新詢價 → 已報價 → 已成交 → 生產中 → 品質檢查 → 待出貨 → 已出貨 → 已完成
+  // 「已取消」是例外流程，可以從任何非終止狀態直接取消；「已完成」／「已取消」是終止狀態，
+  // 一般狀態更新無法變更，只能透過訂單詳情頁的「恢復訂單狀態」並二次確認後才能變更。
+  // 這份清單與規則要跟 server.js 的 ORDER_STATUS_FLOW／evaluateStatusTransition() 完全對應，
+  // 但後端一律會獨立重新驗證，前端這裡只是提供正確的操作選項、避免使用者選到不合法的跳級。
+  const ORDER_STATUS_FLOW = ['new_inquiry', 'quoted', 'closed_won', 'in_production', 'qc', 'ready_to_ship', 'shipped', 'completed'];
+  const ORDER_STATUS_OPTIONS = [...ORDER_STATUS_FLOW, 'cancelled'];
+  const TERMINAL_STATUSES = ['completed', 'cancelled'];
+  const ORDER_STATUS_LABELS = {
+    new_inquiry: '新詢價', quoted: '已報價', closed_won: '已成交',
+    in_production: '生產中', qc: '品質檢查', ready_to_ship: '待出貨', shipped: '已出貨',
+    completed: '已完成', cancelled: '已取消'
+  };
   let orders = [];
-
-  function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
-  function getDoneSet() {
-    try { return new Set(JSON.parse(localStorage.getItem(DONE_KEY) || '[]')); }
-    catch { return new Set(); }
+  let currentPage = 1;
+  let pageSize = 20;
+  // 「發布新報價版本」表單的預設有效天數（系統設定第一批）：從GET /api/admin/quote-defaults
+  // 讀取，四個角色都能讀（跟能發布報價版本的角色一致，見admin-rbac.js的quote_defaults說明）。
+  // 讀取失敗時安全退回30天（原本寫死的預設值），不影響訂單詳情頁其他功能正常使用。
+  let systemDefaultQuoteValidDays = 30;
+  async function loadSystemDefaultQuoteValidDays() {
+    try {
+      const resp = await adminFetch('/api/admin/quote-defaults');
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data && typeof data.defaultValidDays === 'number' && Number.isInteger(data.defaultValidDays)) {
+        systemDefaultQuoteValidDays = data.defaultValidDays;
+      }
+    } catch (e) {
+      // 靜默失敗、維持30天預設值，不影響頁面其他功能
+    }
   }
-  function saveDoneSet(set) { localStorage.setItem(DONE_KEY, JSON.stringify([...set])); }
 
+  // 手動登入（tryLogin）與已有Session自動登入（init）共用的初始化步驟：訂單清單與報價
+  // 預設天數各自獨立、互不依賴，用 Promise.all 併行載入即可，不需要排隊等待；兩者各自內部
+  // 都有 try/catch，fetchOrders() 失敗時回傳 false（不拋例外），
+  // loadSystemDefaultQuoteValidDays() 失敗時靜默保留現有值（同樣不拋例外），Promise.all()
+  // 不會因為其中一個失敗就連帶讓另一個的結果遺失。呼叫端必須 await 這支函式完整結束後，
+  // 才能呼叫 showAdminApp()（進而觸發 maybeOpenOrderFromQuery() 可能立即開啟訂單詳情面板），
+  // 確保 systemDefaultQuoteValidDays 在任何「發布新報價版本」表單第一次被畫出來之前，
+  // 就已經是資料庫實際設定值（或安全退回的30天），不會出現先顯示30、稍後才悄悄變成
+  // 正確數字的畫面閃動，也不會出現深連結（?order=）直接開啟的詳情面板用到還沒更新的舊值。
+  async function prepareAdminAppData() {
+    const [ordersOk] = await Promise.all([
+      fetchOrders(),
+      loadSystemDefaultQuoteValidDays()
+    ]);
+    return ordersOk;
+  }
+  // 主要訂單表排序狀態：sortKey為null代表維持後端原始順序（沒有套用排序）。跟currentPage／
+  // pageSize一樣是模組層級變數，loadOrders()重新抓資料後不會被重置，天然保留使用者目前的
+  // 排序選擇（2026-08-21 Codex獨立檢測要求）。
+  const orderSortState = { sortKey: null, sortDir: 'asc' };
+  // 狀態排序依業務流程順序（新詢價→已報價→…→已完成，取消排最後），不是依字母或代碼排序，
+  // 這樣「依狀態排序」才有實際意義；用index()查表比在compare函式裡每次重算indexOf快。
+  const ORDER_STATUS_SORT_INDEX = {};
+  ORDER_STATUS_OPTIONS.forEach((s, i) => { ORDER_STATUS_SORT_INDEX[s] = i; });
+  // 'active'＝目前訂單頁籤（預設，只回傳未封存訂單）；'archived'＝已封存頁籤（帶 archived=1）。
+  // 兩個頁籤各自呼叫一次 /api/orders，orders 陣列永遠只代表「目前頁籤」的資料，不會混在一起。
+  let currentTab = 'active';
+
+  // ── 儀表板可點擊統計卡帶入的網址篩選參數（?product=／?statuses=／?dateStart=／?dateEnd=／
+  // ?overdue=1）：product／dateStart／dateEnd 直接寫入既有的篩選欄位（完全重用既有篩選邏輯，
+  // 篩選控制項本身就是目前條件的畫面呈現，不需要另外維護一份狀態）。statuses 是逗號分隔的
+  // 狀態白名單，跟儀表板「待處理」「製作中」兩張卡片對應的固定狀態組合完全一致時，直接對應到
+  // filter-status 下拉選單新增的兩個群組選項（一樣是既有篩選欄位的畫面呈現）；其他任意狀態組合
+  // （目前沒有卡片會產生，但保留給未來擴充或直接手動輸入網址的情況）才使用這個獨立變數＋
+  // 唯讀文字提示來呈現，因為單選下拉選單本身沒辦法同時勾選任意多個選項。
+  let customStatusesFilter = null; // null＝沒有套用；否則是狀態代碼陣列
+
+  // 預估逾期訂單的判斷規則，必須跟後端 admin-routes.js 的 GET /dashboard 完全一致：
+  // 只有「已成交、還在履約流程中、尚未出貨」（PRODUCTION_STATUSES）的訂單才可能逾期；
+  // savedAt 換算成台北日期後加上 leadDays 個日曆天，以那天台北時間 23:59:59.999 為預估期限，
+  // 超過這個瞬間才算逾期；leadDays 不是「型別為 number、有限、整數、且 >= 0」一律不猜測、
+  // 不計入逾期。時區固定用 UTC+8 位移換算，不依賴使用者瀏覽器系統時區設定。
+  const PENDING_STATUSES = ['new_inquiry', 'quoted'];
+  const PRODUCTION_STATUSES = ['closed_won', 'in_production', 'qc', 'ready_to_ship'];
+  const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
+  function toTaipeiDateParts(isoString) {
+    if (typeof isoString !== 'string' || !isoString) return null;
+    const d = new Date(isoString);
+    if (Number.isNaN(d.getTime())) return null;
+    const taipei = new Date(d.getTime() + TAIPEI_OFFSET_MS);
+    return { y: taipei.getUTCFullYear(), m: taipei.getUTCMonth(), d: taipei.getUTCDate() };
+  }
+  function taipeiMidnightUtcMs(parts) {
+    return Date.UTC(parts.y, parts.m, parts.d, 0, 0, 0, 0) - TAIPEI_OFFSET_MS;
+  }
+  function isOrderOverdue(o) {
+    const status = orderStatus(o);
+    if (!PRODUCTION_STATUSES.includes(status)) return false;
+    const parts = toTaipeiDateParts(o.savedAt);
+    if (!parts) return false;
+    const leadDays = o.quote?.leadDays;
+    const leadDaysValid = typeof leadDays === 'number' && Number.isFinite(leadDays) && Number.isInteger(leadDays) && leadDays >= 0;
+    if (!leadDaysValid) return false;
+    const deadlineMs = taipeiMidnightUtcMs(parts) + leadDays * 86400000 + 86399999;
+    return Date.now() > deadlineMs;
+  }
+
+  // YYYY-MM-DD 格式且必須是真實存在的日期（用 Date 建構後讀回年/月/日比對，「不存在的日期」
+  // 會被自動進位到下個月，讀回來的值就會跟輸入不一致，藉此擋下，不是只檢查字串格式）。
+  function isValidCalendarDateString(s) {
+    if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const [y, m, d] = s.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+  }
+
+  function isOrderArchived(o) {
+    return !!o.archivedAt;
+  }
+
+  function orderStatus(o) {
+    return o.status || (o.processed ? 'closed_won' : 'new_inquiry');
+  }
+
+  // 依目前狀態算出「合法的下一步選項」：正常操作只有一個（流程中的下一階段）；
+  // 倒退（回到更早的階段）與取消都算例外操作，回傳時標記 kind 讓畫面能分開顯示、並在
+  // 送出前要求二次確認。終止狀態（已完成／已取消）沒有任何一般操作可選，只能用「恢復」功能。
+  function legalNextStatuses(current) {
+    if (TERMINAL_STATUSES.includes(current)) return [];
+    const idx = ORDER_STATUS_FLOW.indexOf(current);
+    if (idx === -1) return [{ status: 'cancelled', kind: 'cancel' }];
+    const options = [];
+    if (idx + 1 < ORDER_STATUS_FLOW.length) {
+      options.push({ status: ORDER_STATUS_FLOW[idx + 1], kind: 'forward' });
+    }
+    for (let i = 0; i < idx; i++) {
+      options.push({ status: ORDER_STATUS_FLOW[i], kind: 'regress' });
+    }
+    options.push({ status: 'cancelled', kind: 'cancel' });
+    return options;
+  }
+
+  function showAdminApp() {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    renderAdminNav('orders');
+    renderAdminTopbar();
+    populateStatusFilterOptions();
+    populateProductFilterOptions();
+    applyFiltersFromUrl();
+    renderTable();
+    maybeOpenOrderFromQuery();
+  }
+
+  // 深連結支援：網址帶 ?order=訂單編號 時（例如從客戶管理頁的歷史訂單點過來），自動開啟
+  // 該筆訂單既有的詳情面板。先在目前頁籤（預設「目前訂單」）找，找不到就自動切到「已封存」
+  // 頁籤再找一次（涵蓋該筆訂單其實已被封存的情況）；兩邊都找不到就靜默放棄，不用跳錯誤訊息
+  // 打擾使用者（可能是訂單編號打錯或訂單已經被刪除的極端情況）。只在成功開啟登入畫面
+  // （showAdminApp）之後執行一次，不影響一般直接打開 /admin 網址（沒有這個參數）的既有行為。
+  async function maybeOpenOrderFromQuery() {
+    const targetOrderId = new URLSearchParams(location.search).get('order');
+    if (!targetOrderId) return;
+    if (orders.some(o => o.orderId === targetOrderId)) {
+      openOrderDetail(targetOrderId);
+      return;
+    }
+    if (currentTab !== 'archived') {
+      await switchOrderTab('archived');
+      if (orders.some(o => o.orderId === targetOrderId)) {
+        openOrderDetail(targetOrderId);
+      }
+    }
+  }
+
+  // 狀態篩選選項固定沿用 ORDER_STATUS_OPTIONS／ORDER_STATUS_LABELS，跟狀態下拉選單
+  // 是同一份資料來源，不會各寫一次而以後改一邊漏改另一邊。額外新增兩個「群組」選項，
+  // 對應儀表板「待處理」「製作中」兩張統計卡點擊後帶入的多狀態篩選（?statuses=...）——
+  // 這樣單選下拉選單本身就能完整呈現這兩種多狀態篩選條件目前是否套用中，不需要另外
+  // 設計多選介面。
+  const STATUS_GROUP_PENDING = '__pending__';
+  const STATUS_GROUP_PRODUCTION = '__production__';
+  function populateStatusFilterOptions() {
+    const select = document.getElementById('filter-status');
+    if (!select) return;
+    select.innerHTML = '<option value="">全部狀態</option>'
+      + `<option value="${STATUS_GROUP_PENDING}">待處理（新詢價＋已報價）</option>`
+      + `<option value="${STATUS_GROUP_PRODUCTION}">製作中（已成交＋生產中＋品質檢查＋待出貨）</option>`
+      + ORDER_STATUS_OPTIONS.map(s => `<option value="${s}">${ORDER_STATUS_LABELS[s]}</option>`).join('');
+  }
+
+  // 商品名稱正規化規則，必須跟後端 admin-routes.js 的 normalizeProductName() 完全一致：
+  // product.name 必須是字串、trim() 後不可為空白，合法名稱一律用 trim() 後的名稱；缺少／
+  // null／非字串／空字串／只有空白，統一轉成固定文字「未知商品」。儀表板「熱門商品排行」
+  // 用的就是這條規則分組，點擊排行連結後帶到這個頁面的 ?product= 也是同一個字串，兩邊
+  // 用來比對的商品名稱完全一致，才不會出現「排行顯示1筆、點擊後篩選卻是0筆」的落差。
+  function normalizeProductName(name) {
+    if (typeof name !== 'string') return '未知商品';
+    const trimmed = name.trim();
+    return trimmed ? trimmed : '未知商品';
+  }
+
+  // 商品篩選選項依目前訂單資料自動產生並去除重複（用正規化後的名稱分組，缺少商品名稱的
+  // 訂單會產生「未知商品」這個選項，而不是被直接濾掉）；每次重新整理訂單清單都要重新產生
+  // 一次（新訂單可能帶入新的產品名稱），保留使用者原本選取的商品（若還存在於新清單中）。
+  function populateProductFilterOptions() {
+    const select = document.getElementById('filter-product');
+    if (!select) return;
+    const previousValue = select.value;
+    const names = Array.from(new Set(orders.map(o => normalizeProductName(o.product?.name))))
+      .sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+    select.innerHTML = '<option value="">全部商品</option>'
+      + names.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+    if (previousValue && names.includes(previousValue)) select.value = previousValue;
+  }
+
+  // 讀取儀表板可點擊統計卡帶入的網址篩選參數，套用到既有篩選欄位（篩選控制項本身就是
+  // 目前條件的畫面呈現，重新整理頁面時網址參數還在，篩選條件也會跟著保留）。不合法的
+  // 日期、未知狀態或其他錯誤參數一律安全忽略，不猜測、不拋出例外、不影響頁面其餘功能。
+  function applyFiltersFromUrl() {
+    const params = new URLSearchParams(location.search);
+
+    const productParam = params.get('product');
+    if (productParam) {
+      const select = document.getElementById('filter-product');
+      select.value = productParam;
+      // 目前訂單清單裡剛好沒有任何一筆是這個商品名稱時，下拉選單不會有對應的
+      // <option>，直接設值會被瀏覽器忽略、視覺上退回「全部商品」——這裡額外補一個
+      // 選項，確保篩選條件仍然正確套用、畫面上也看得到目前是哪個商品名稱。
+      if (select.value !== productParam) {
+        const opt = document.createElement('option');
+        opt.value = productParam;
+        opt.textContent = productParam;
+        select.appendChild(opt);
+        select.value = productParam;
+      }
+    }
+
+    const dateStartParam = params.get('dateStart');
+    if (dateStartParam && isValidCalendarDateString(dateStartParam)) {
+      document.getElementById('filter-date-start').value = dateStartParam;
+    }
+    const dateEndParam = params.get('dateEnd');
+    if (dateEndParam && isValidCalendarDateString(dateEndParam)) {
+      document.getElementById('filter-date-end').value = dateEndParam;
+    }
+
+    const statusesParam = params.get('statuses');
+    if (statusesParam) {
+      const requested = statusesParam.split(',').map(s => s.trim()).filter(Boolean);
+      const valid = requested.filter(s => ORDER_STATUS_OPTIONS.includes(s));
+      const uniqueValid = [...new Set(valid)];
+      if (uniqueValid.length === 1) {
+        document.getElementById('filter-status').value = uniqueValid[0];
+      } else if (uniqueValid.length > 1) {
+        const sameAsPending = uniqueValid.length === PENDING_STATUSES.length && PENDING_STATUSES.every(s => uniqueValid.includes(s));
+        const sameAsProduction = uniqueValid.length === PRODUCTION_STATUSES.length && PRODUCTION_STATUSES.every(s => uniqueValid.includes(s));
+        if (sameAsPending) {
+          document.getElementById('filter-status').value = STATUS_GROUP_PENDING;
+        } else if (sameAsProduction) {
+          document.getElementById('filter-status').value = STATUS_GROUP_PRODUCTION;
+        } else {
+          // 選單本身沒有對應的固定選項可以呈現這個任意組合，改用獨立變數＋唯讀文字
+          // 提示畫面上目前實際套用的狀態條件。
+          customStatusesFilter = uniqueValid;
+          const noteEl = document.getElementById('filter-status-custom-note');
+          noteEl.textContent = '網址篩選狀態：' + uniqueValid.map(s => ORDER_STATUS_LABELS[s]).join('、');
+          noteEl.classList.remove('hidden');
+        }
+      }
+      // uniqueValid.length === 0（全部都是未知或非法狀態代碼）：安全忽略，不套用任何狀態篩選。
+    }
+
+    if (params.get('overdue') === '1') {
+      document.getElementById('filter-overdue').checked = true;
+    }
+  }
+
+  // 登入／登出改用 後台系統/admin-common.js 提供的 adminLogin()／adminLogout()（Cookie
+  // Session＋CSRF Token，密碼只在這次登入請求中送出，不會被保存在 localStorage 或任何地方）。
   async function tryLogin() {
+    const usernameInput = document.getElementById('gate-username');
     const input = document.getElementById('gate-input');
     const errEl = document.getElementById('gate-error');
-    const token = input.value.trim();
-    if (!token) return;
+    const username = usernameInput.value.trim();
+    const password = input.value;
+    if (!username || !password) return;
     errEl.textContent = '登入中…';
-    const ok = await fetchOrders(token);
-    if (ok) {
-      localStorage.setItem(TOKEN_KEY, token);
-      document.getElementById('gate').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      renderTable();
+    const result = await adminLogin(username, password);
+    input.value = ''; // 不論成功或失敗，欄位裡的密碼都不保留
+    if (result.ok) {
+      const ok = await prepareAdminAppData();
+      if (ok) {
+        showAdminApp();
+      } else {
+        errEl.textContent = '訂單資料載入失敗，請稍後再試';
+      }
     } else {
-      errEl.textContent = '密碼錯誤，或伺服器尚未設定 ADMIN_TOKEN';
+      errEl.textContent = result.error || '登入失敗';
     }
   }
 
   function logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    location.reload();
+    adminLogout();
   }
 
-  async function fetchOrders(token) {
+  async function fetchOrders() {
     try {
-      const resp = await fetch('/api/orders', { headers: { 'x-admin-token': token } });
+      const url = currentTab === 'archived' ? '/api/orders?archived=1' : '/api/orders';
+      const resp = await adminFetch(url);
       if (!resp.ok) return false;
       const data = await resp.json();
       orders = data.orders || [];
@@ -165,105 +695,2093 @@
   }
 
   async function loadOrders() {
-    const token = getToken();
-    const ok = await fetchOrders(token);
+    const ok = await fetchOrders();
     if (!ok) { logout(); return; }
+    populateProductFilterOptions(); // 重新整理可能帶回新產品，商品篩選選項要跟著更新
     renderTable();
   }
 
+  // 切換「目前訂單／已封存」頁籤：重新向對應的 archived 參數打一次 /api/orders，
+  // 不在前端自己用同一份清單做過濾（後端本來就已經分開回傳，前端沒必要重複這份邏輯）。
+  async function switchOrderTab(tab) {
+    if (tab === currentTab) return;
+    currentTab = tab;
+    currentPage = 1;
+    document.getElementById('tab-btn-active').classList.toggle('active', tab === 'active');
+    document.getElementById('tab-btn-archived').classList.toggle('active', tab === 'archived');
+    await loadOrders();
+  }
+
+  // 空值／不合法的時間字串一律顯示「--」，不可以顯示 new Date(undefined) 產生的
+  // 「Invalid Date」字樣（toLocaleString() 對 Invalid Date 不會拋例外、只會回傳
+  // 這個看起來像錯誤訊息的字串，光靠 try/catch 接不住，必須明確檢查 getTime()）。
   function fmtTime(iso) {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString('zh-TW', { hour12: false });
-    } catch { return iso || '--'; }
+    if (!iso) return '--';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '--';
+    return d.toLocaleString('zh-TW', { hour12: false });
+  }
+
+  // 金額／數量欄位同樣要對缺漏或非數字值安全處理，不能顯示 "NT$ undefined" 之類的字串。
+  function fmtMoney(n) {
+    return (typeof n === 'number' && Number.isFinite(n)) ? `NT$ ${n.toLocaleString()}` : '--';
+  }
+  function fmtQty(n) {
+    return (typeof n === 'number' && Number.isFinite(n)) ? n.toLocaleString() : '--';
+  }
+
+  // 訂單時間一律讀 savedAt；舊訂單資料可能缺這個欄位或格式不合法，一律回傳 null
+  // 而不是讓 new Date(undefined) 產生的 Invalid Date 混進比較，也不會拋出例外。
+  function orderDateValue(o) {
+    const raw = o?.savedAt;
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  // <input type="date"> 給的是 YYYY-MM-DD 字串；直接丟給 new Date() 會被解讀成 UTC 午夜，
+  // 在台灣時區（UTC+8）會整個往前偏移將近一天，讓「今天」篩選不到今天的訂單。這裡改成
+  // 自己拆年月日組出「本地時區」的 Date，開始日固定當天 00:00:00.000，結束日固定當天
+  // 23:59:59.999，確保結束日當天晚上（甚至最後一毫秒）的訂單都不會被日期篩選漏掉。
+  function parseFilterDateStart(s) {
+    if (!s) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  }
+  function parseFilterDateEnd(s) {
+    if (!s) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+  }
+
+  // 關鍵字搜尋、日期區間、商品、狀態、預估逾期五個條件必須同時成立（AND），renderTable() 跟
+  // exportOrdersXlsx() 共用同一份邏輯，才不會出現「畫面篩選結果」跟「匯出內容」兜不起來的情況。
+  function getFilteredOrders() {
+    const q = (document.getElementById('search-box')?.value || '').trim().toLowerCase();
+    const dateStart = parseFilterDateStart(document.getElementById('filter-date-start')?.value || '');
+    const dateEnd = parseFilterDateEnd(document.getElementById('filter-date-end')?.value || '');
+    const productFilter = document.getElementById('filter-product')?.value || '';
+    const statusFilterRaw = document.getElementById('filter-status')?.value || '';
+    const overdueOnly = !!document.getElementById('filter-overdue')?.checked;
+
+    // 狀態篩選白名單：優先看 filter-status 下拉選單目前選到的值（含兩個群組選項），
+    // 只有選單本身無法表達的任意多狀態組合，才退回使用 customStatusesFilter。
+    let statusWhitelist = null;
+    if (statusFilterRaw === STATUS_GROUP_PENDING) statusWhitelist = PENDING_STATUSES;
+    else if (statusFilterRaw === STATUS_GROUP_PRODUCTION) statusWhitelist = PRODUCTION_STATUSES;
+    else if (statusFilterRaw) statusWhitelist = [statusFilterRaw];
+    else if (customStatusesFilter) statusWhitelist = customStatusesFilter;
+
+    return orders.filter(o => {
+      if (q) {
+        const hay = [o.friendlyOrderNo, o.contact?.name, o.contact?.email, o.contact?.phone, o.product?.name, o.contact?.note, ORDER_STATUS_LABELS[orderStatus(o)]]
+          .filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (dateStart || dateEnd) {
+        const od = orderDateValue(o);
+        if (!od) return false; // 有設定日期篩選、但這筆訂單沒有可用時間可比對時安全排除，不猜測、不拋錯
+        if (dateStart && od < dateStart) return false;
+        if (dateEnd && od > dateEnd) return false;
+      }
+      if (productFilter && normalizeProductName(o.product?.name) !== productFilter) return false;
+      if (statusWhitelist && !statusWhitelist.includes(orderStatus(o))) return false;
+      if (overdueOnly && !isOrderOverdue(o)) return false;
+      return true;
+    });
+  }
+
+  function clearFilters() {
+    document.getElementById('search-box').value = '';
+    document.getElementById('filter-date-start').value = '';
+    document.getElementById('filter-date-end').value = '';
+    document.getElementById('filter-product').value = '';
+    document.getElementById('filter-status').value = '';
+    document.getElementById('filter-overdue').checked = false;
+    customStatusesFilter = null;
+    const noteEl = document.getElementById('filter-status-custom-note');
+    noteEl.textContent = '';
+    noteEl.classList.add('hidden');
+    // 清除篩選也要清除網址上的篩選參數，避免使用者重新整理頁面時，網址殘留的舊參數
+    // 又把剛剛清掉的篩選條件重新套用回來。
+    if (location.search) history.replaceState(null, '', location.pathname);
+    onFilterOrSearchChanged();
+  }
+
+  // 篩選／搜尋條件一改變，結果集合就可能整個不一樣，停在原本的頁碼很容易停在一個
+  // 已經沒有資料的空頁面；統一由這支函式處理「條件變了 → 回到第 1 頁」。
+  function onFilterOrSearchChanged() {
+    currentPage = 1;
+    renderTable();
+  }
+
+  // 使用者手動改變狀態下拉選單時，代表使用者要自己直接指定狀態條件，任何來自網址
+  // 「任意多狀態組合」的殘留篩選（customStatusesFilter／唯讀提示文字）都要跟著清掉，
+  // 避免選單顯示「全部狀態」卻仍套用著使用者已經看不到、無法理解的舊篩選條件。
+  function onStatusFilterChanged() {
+    customStatusesFilter = null;
+    const noteEl = document.getElementById('filter-status-custom-note');
+    noteEl.textContent = '';
+    noteEl.classList.add('hidden');
+    onFilterOrSearchChanged();
+  }
+
+  function onPageSizeChanged() {
+    pageSize = Number(document.getElementById('page-size-select').value) || 20;
+    currentPage = 1;
+    renderTable();
+  }
+
+  function changeOrderPage(delta) {
+    currentPage = Math.max(1, currentPage + delta);
+    renderTable();
+  }
+
+  // 排序鍵對應的實際取值方式；時間／數量／金額轉成數字或毫秒時間戳給adminCompareForSort()
+  // 做數值比較，狀態轉成業務流程順序索引，其餘（訂單編號、客戶）用字串比較。
+  function orderSortValue(o, key) {
+    switch (key) {
+      case 'friendlyOrderNo': return o.friendlyOrderNo || o.orderId || '';
+      case 'savedAt': { const d = orderDateValue(o); return d ? d.getTime() : null; }
+      case 'contactName': return o.contact?.name || '';
+      case 'qty': return (typeof o.product?.qty === 'number' && Number.isFinite(o.product.qty)) ? o.product.qty : null;
+      case 'total': return (typeof o.quote?.total === 'number' && Number.isFinite(o.quote.total)) ? o.quote.total : null;
+      case 'statusIndex': { const idx = ORDER_STATUS_SORT_INDEX[orderStatus(o)]; return typeof idx === 'number' ? idx : null; }
+      default: return null;
+    }
   }
 
   function renderTable() {
-    const q = (document.getElementById('search-box')?.value || '').trim().toLowerCase();
-    const doneSet = getDoneSet();
-    const filtered = orders.filter(o => {
-      if (!q) return true;
-      const hay = [o.contact?.name, o.contact?.email, o.contact?.phone, o.product?.name, o.contact?.note]
-        .filter(Boolean).join(' ').toLowerCase();
-      return hay.includes(q);
-    });
+    // 這個表格每次renderTable()都會把整個thead＋tbody一起透過innerHTML重建（不像其他頁面
+    // 只換tbody、thead維持不變），排序按鈕本身也會跟著被整批換成全新的DOM節點。如果使用者
+    // 是用鍵盤（Tab／Enter／Space）操作排序按鈕，重建後新按鈕不會自動接手焦點，鍵盤使用者會
+    // 「失去所在位置」；這裡記錄「重建前，目前的排序按鈕是不是使用者正在操作的那個」，重建
+    // 完成後把焦點還給新按鈕的同一個位置，維持鍵盤操作的連續性。
+    const activeSortKeyForFocus = (document.activeElement && document.activeElement.closest && document.activeElement.closest('th[data-sort-key]'))
+      ? document.activeElement.closest('th[data-sort-key]').dataset.sortKey
+      : null;
 
-    document.getElementById('stat-text').textContent = `共 ${orders.length} 筆（顯示 ${filtered.length} 筆）`;
+    // 處理順序固定是「篩選→排序→分頁」：先篩選出符合條件的訂單，再依目前排序狀態排序，
+    // 最後才依頁碼切出這一頁要顯示的資料——順序顛倒（例如先分頁再排序）會讓排序只在
+    // 「這一頁裡面」生效，不是整個篩選結果的正確排序，是2026-08-21 Codex獨立檢測明確要求的處理順序。
+    const filtered = getFilteredOrders();
+    if (orderSortState.sortKey) {
+      filtered.sort((a, b) => adminCompareForSort(orderSortValue(a, orderSortState.sortKey), orderSortValue(b, orderSortState.sortKey), orderSortState.sortDir));
+    }
+
+    document.getElementById('stat-text').textContent = `共 ${orders.length} 筆（篩選後 ${filtered.length} 筆）`;
+
+    // 分頁永遠對「篩選後（且已排序）」的完整結果做（不是只對目前這一頁再篩一次），totalPages
+    // 至少為 1，篩選或排序讓目前頁碼超出範圍時（例如原本停在第 3 頁、篩選後只剩 1 頁）要
+    // 夾回合法範圍，維持「合法頁碼」。
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    const pageStart = (currentPage - 1) * pageSize;
+    const pageItems = filtered.slice(pageStart, pageStart + pageSize);
+
+    document.getElementById('page-info-text').textContent = filtered.length
+      ? `第 ${currentPage} / ${totalPages} 頁`
+      : '';
+    document.getElementById('btn-order-prev-page').disabled = currentPage <= 1;
+    document.getElementById('btn-order-next-page').disabled = currentPage >= totalPages;
 
     const wrap = document.getElementById('table-wrap');
     if (!filtered.length) {
-      wrap.innerHTML = '<div class="empty">目前沒有符合的訂單資料</div>';
+      wrap.innerHTML = '<div class="empty">沒有符合篩選條件的訂單，請調整條件或按「清除篩選」</div>';
       return;
     }
 
     wrap.innerHTML = `
+      <div class="admin-table-wrap">
       <table>
-        <thead>
+        <thead id="order-table-thead">
           <tr>
-            <th>時間</th><th>客戶</th><th>聯絡方式</th><th>產品</th>
-            <th>數量</th><th>預估總額</th><th>備註</th><th>狀態</th>
+            <th data-sort-key="friendlyOrderNo">訂單編號</th><th data-sort-key="savedAt">時間</th><th data-sort-key="contactName">客戶</th><th>聯絡方式</th><th>產品</th>
+            <th data-sort-key="qty">數量</th><th data-sort-key="total">預估總額</th><th>備註</th><th data-sort-key="statusIndex">狀態</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
-          ${filtered.map(o => {
-            const isDone = doneSet.has(o.orderId);
+          ${pageItems.map(o => {
+            const status = orderStatus(o);
+            const factoryDownloaded = !!o.factoryPackageDownloadedAt;
+            const factoryBadge = factoryDownloaded
+              ? `<span class="factory-badge done" title="${fmtTime(o.factoryPackageDownloadedAt)}">已下載</span>`
+              : `<span class="factory-badge pending">尚未下載</span>`;
+            const isArchivedRow = currentTab === 'archived';
             return `
-            <tr class="${isDone ? 'done' : ''}">
+            <tr>
+              <td class="order-no">${escHtml(o.friendlyOrderNo || '--')}</td>
               <td>${fmtTime(o.savedAt)}</td>
               <td>${escHtml(o.contact?.name || '--')}</td>
               <td>${escHtml(o.contact?.email || '--')}<br>${escHtml(o.contact?.phone || '')}</td>
               <td>${escHtml(o.product?.name || '--')}<br><span class="stat">${escHtml(o.product?.material || '')} / ${escHtml(o.product?.finish || '')}</span></td>
-              <td class="qty">${(o.product?.qty || 0).toLocaleString()}</td>
-              <td class="price">NT$ ${(o.quote?.total || 0).toLocaleString()}</td>
+              <td class="qty">${fmtQty(o.product?.qty)}</td>
+              <td class="price">${fmtMoney(o.quote?.total)}</td>
               <td class="note">${escHtml(o.contact?.note || '')}</td>
-              <td><button class="status-btn ${isDone ? 'done' : ''}" onclick="toggleDone('${o.orderId}')">${isDone ? '✅ 已處理' : '標記已處理'}</button></td>
+              <td>${renderStatusCell(o)}</td>
+              <td class="order-actions-cell">
+                <div class="order-actions-row">
+                  <button class="order-status-btn" onclick="openOrderDetail('${o.orderId}')">查看詳情</button>
+                  <button type="button" class="order-status-btn" onclick="toggleOrderMoreMenu(event, '${o.orderId}', ${isArchivedRow})">更多 ▾</button>
+                </div>
+                <div class="order-actions-row">
+                  <button class="order-status-btn factory" onclick="downloadFactoryPackage('${o.orderId}', this)">下載工廠包</button>
+                  ${factoryBadge}
+                </div>
+              </td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>
+      </div>
     `;
+    // thead整段跟著wrap.innerHTML一起重建（表格內容本身就是每次重繪整個換掉，不是只換
+    // tbody），所以排序表頭的互動也要在這裡重新綁定一次；attachAdminSortableHeaders()是
+    // 操作全新的DOM節點，不會有事件監聽器重複累加或記憶體洩漏的問題。
+    attachAdminSortableHeaders(document.getElementById('order-table-thead'), orderSortState, () => renderTable());
+
+    if (activeSortKeyForFocus) {
+      const newBtn = document.querySelector(`#order-table-thead th[data-sort-key="${activeSortKeyForFocus}"] button`);
+      if (newBtn) newBtn.focus();
+    }
   }
 
-  function toggleDone(orderId) {
-    const set = getDoneSet();
-    if (set.has(orderId)) set.delete(orderId); else set.add(orderId);
-    saveDoneSet(set);
-    renderTable();
+  // 終止狀態（已完成／已取消）只顯示清楚標示的徽章，不提供一般狀態下拉選單——
+  // 一般狀態變更的下拉選項只列出「合法的下一步」（下一階段／倒退／取消），使用者不可能
+  // 在畫面上選到不合法的跳級；後端仍會用同一套規則獨立重新驗證，不只依賴這裡的篩選。
+  function renderStatusCell(o) {
+    const status = orderStatus(o);
+    // 已封存訂單一律唯讀顯示徽章，不提供下拉選單（不論狀態本身是否為終止狀態）。
+    if (isOrderArchived(o)) {
+      return `<span class="status-badge status-terminal status-${status}">${escHtml(ORDER_STATUS_LABELS[status])}</span>`;
+    }
+    if (TERMINAL_STATUSES.includes(status)) {
+      return `<span class="status-badge status-terminal status-${status}">${escHtml(ORDER_STATUS_LABELS[status])}（終止）</span>`;
+    }
+    const opts = legalNextStatuses(status);
+    const forwardOpt  = opts.find(x => x.kind === 'forward');
+    const regressOpts = opts.filter(x => x.kind === 'regress');
+    const hasCancel   = opts.some(x => x.kind === 'cancel');
+    // 選單收合時看到的文字＝目前選到的option文字，「（目前）」是多餘的（本來就是選到的那個），
+    // 拿掉能讓縮合狀態的欄位變窄；展開選單裡的「下一步」「倒退狀態」等其他選項不受影響，
+    // 一樣清楚標示。
+    let optionsHtml = `<option value="${status}" selected>${escHtml(ORDER_STATUS_LABELS[status])}</option>`;
+    if (forwardOpt) {
+      optionsHtml += `<option value="${forwardOpt.status}">下一步：${escHtml(ORDER_STATUS_LABELS[forwardOpt.status])}</option>`;
+    }
+    if (regressOpts.length) {
+      optionsHtml += `<optgroup label="倒退狀態（需二次確認）">`
+        + regressOpts.map(x => `<option value="${x.status}">${escHtml(ORDER_STATUS_LABELS[x.status])}</option>`).join('')
+        + `</optgroup>`;
+    }
+    if (hasCancel) {
+      optionsHtml += `<option value="cancelled">取消訂單（需二次確認）</option>`;
+    }
+    return `<select class="status-select status-${status}" onchange="updateOrderStatus('${o.orderId}', this)">${optionsHtml}</select>`;
+  }
+
+  // ─── 訂單列「更多」選單（列印／封存／還原）────────────────
+  // 表格每一列的「操作」欄原本把查看詳情／列印／封存／下載工廠包五個項目直排、中間用兩個
+  // <br>隔開，列高被撐得很高；改成只留最常用的「查看詳情」「下載工廠包」在外面，「列印」
+  // 「封存（或還原）」收進「更多」選單。選單只用一個共用的浮動面板（不是每列各自建立一個
+  // DOM），開啟時才依按鈕當下位置定位、填入內容，關閉時清空——這樣不管表格有幾百列，
+  // 同時間DOM裡最多只有一個選單，效能跟先前的說明提示元件（admin-tooltip.js）是同一套思路。
+  function closeOrderMoreMenu() {
+    const menu = document.getElementById('order-more-menu');
+    menu.classList.remove('open');
+    menu.innerHTML = '';
+  }
+
+  function positionOrderMoreMenu(btn, menu) {
+    const rect = btn.getBoundingClientRect();
+    const margin = 8;
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    // 靠右對齊按鈕右緣、往下展開；「操作」欄是表格最後一欄，靠右對齊能讓選單往表格內部展開，
+    // 不會超出畫面右側。下方空間不夠時改往上展開。
+    let left = rect.right - mw;
+    let top = rect.bottom + 4;
+    if (left < margin) left = margin;
+    if (left + mw > window.innerWidth - margin) left = window.innerWidth - margin - mw;
+    if (top + mh > window.innerHeight - margin) top = rect.top - mh - 4;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+  }
+
+  function toggleOrderMoreMenu(event, orderId, isArchived) {
+    event.stopPropagation();
+    const menu = document.getElementById('order-more-menu');
+    const btn = event.currentTarget;
+    const alreadyOpenForThisRow = menu.classList.contains('open') && menu.dataset.orderId === orderId;
+    closeOrderMoreMenu();
+    if (alreadyOpenForThisRow) return; // 再點一次同一列的「更多」＝關閉
+
+    menu.innerHTML = isArchived
+      ? `<button type="button" onclick="closeOrderMoreMenu(); unarchiveOrderRow('${orderId}', this)">還原</button>`
+      : `<button type="button" onclick="closeOrderMoreMenu(); printOrder('${orderId}')">列印</button>
+         <button type="button" onclick="closeOrderMoreMenu(); archiveOrderRow('${orderId}', this)">封存</button>`;
+    menu.dataset.orderId = orderId;
+    // 量測尺寸前先用visibility:hidden展開，避免使用者看到「先出現在左上角、再跳到正確位置」的閃爍。
+    menu.style.visibility = 'hidden';
+    menu.classList.add('open');
+    positionOrderMoreMenu(btn, menu);
+    menu.style.visibility = '';
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#order-more-menu') && !e.target.closest('.order-actions-cell')) closeOrderMoreMenu();
+  });
+  window.addEventListener('scroll', () => {
+    const menu = document.getElementById('order-more-menu');
+    if (menu.classList.contains('open')) closeOrderMoreMenu();
+  }, true);
+
+  // 滑鼠移開「更多」按鈕或選單本身一小段時間後自動關閉（給使用者足夠時間把滑鼠從按鈕移到
+  // 選單裡點選項目，不會滑鼠一離開按鈕就立刻消失）。用pointerover／pointerout並限定
+  // pointerType==='mouse'，不是mouseover／mouseout——原因跟admin-tooltip.js的說明提示元件
+  // 完全一樣：觸控裝置點按鈕時，瀏覽器也會補發一組合成的滑鼠事件，如果hover關閉邏輯照單
+  // 全收，會跟click切換開關的邏輯互相打架，導致觸控點開選單後又被自己觸發的滑鼠事件關掉。
+  let orderMoreMenuHideTimer = null;
+  function isInOrderMoreMenuArea(el) {
+    return !!(el && el.closest && (el.closest('#order-more-menu') || el.closest('.order-actions-cell')));
+  }
+  document.addEventListener('pointerover', e => {
+    if (e.pointerType !== 'mouse') return;
+    const menu = document.getElementById('order-more-menu');
+    if (!menu.classList.contains('open')) return;
+    if (isInOrderMoreMenuArea(e.target)) clearTimeout(orderMoreMenuHideTimer);
+  });
+  document.addEventListener('pointerout', e => {
+    if (e.pointerType !== 'mouse') return;
+    const menu = document.getElementById('order-more-menu');
+    if (!menu.classList.contains('open')) return;
+    if (!isInOrderMoreMenuArea(e.target)) return;
+    if (isInOrderMoreMenuArea(e.relatedTarget)) return; // 還在按鈕／選單範圍內移動，不算離開
+    orderMoreMenuHideTimer = setTimeout(closeOrderMoreMenu, 400);
+  });
+  window.addEventListener('resize', closeOrderMoreMenu);
+
+  // 狀態改成伺服器端存放（POST /api/orders/:orderId/status），所有登入後台的人看到的都是同一份狀態。
+  // 前進到下一階段是「一般操作」不需要確認；取消與倒退屬於例外操作，一定會先跳二次確認對話框，
+  // 使用者取消對話框則整個還原、不送出任何請求。合法性規則跟後端 evaluateStatusTransition() 一致，
+  // 但實際是否放行仍完全由後端決定（confirm 旗標也是送到後端一起驗證，不是只在前端擋一下而已）。
+  async function updateOrderStatus(orderId, selectEl) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const prevStatus = orderStatus(order);
+    const nextStatus = selectEl.value;
+    if (nextStatus === prevStatus) return;
+
+    const fromIdx = ORDER_STATUS_FLOW.indexOf(prevStatus);
+    const toIdx   = ORDER_STATUS_FLOW.indexOf(nextStatus);
+    const isCancel  = nextStatus === 'cancelled';
+    const isForward = !isCancel && toIdx === fromIdx + 1;
+    const isRegress = !isCancel && !isForward && toIdx !== -1 && toIdx < fromIdx;
+
+    // adminRunAction()包住從確認對話框開始的整個流程（不是只包fetch）：下拉選單一開始
+    // 觸發就立刻進入鎖定狀態，避免快速連續觸發同一個select開出兩個確認視窗、各自確認後
+    // 各送一次API的競態（2026-08-21 Codex獨立檢測發現的缺口）。
+    await adminRunAction(selectEl, null, async () => {
+      let confirmFlag = false;
+      if (isCancel) {
+        const { confirmed } = await adminConfirmDialog({
+          title: '確認取消訂單',
+          message: `確定要取消訂單「${order.friendlyOrderNo || orderId}」嗎？取消為例外流程，請再次確認。`,
+          danger: true,
+          confirmLabel: '確認取消'
+        });
+        if (!confirmed) { selectEl.value = prevStatus; return; } // 取消確認時完全不呼叫API，下拉選單復原成原本狀態
+        confirmFlag = true;
+      } else if (isRegress) {
+        const { confirmed } = await adminConfirmDialog({
+          title: '確認狀態倒退',
+          message: `確定要將訂單「${order.friendlyOrderNo || orderId}」狀態從「${ORDER_STATUS_LABELS[prevStatus]}」倒退為「${ORDER_STATUS_LABELS[nextStatus]}」嗎？`,
+          danger: true,
+          confirmLabel: '確認倒退'
+        });
+        if (!confirmed) { selectEl.value = prevStatus; return; }
+        confirmFlag = true;
+      }
+
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
+          method: 'POST',
+          body: JSON.stringify({ status: nextStatus, confirm: confirmFlag })
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '狀態更新失敗');
+        order.status = data.status;
+        order.statusUpdatedAt = data.statusUpdatedAt;
+        order.statusHistory = data.statusHistory; // 讓記憶體內的訂單資料同步最新歷程，下次開詳情頁不用重新整理頁面
+        renderTable();
+      } catch (e) {
+        console.error(e);
+        alert(e.message || '狀態更新失敗，請確認網路連線後再試一次');
+        selectEl.value = prevStatus;
+      }
+    });
+  }
+
+  // ─── 訂單封存／還原（列表快速操作）：送出前用訂單編號做二次確認，送出期間停用按鈕，
+  // 失敗時顯示錯誤並恢復可點擊、可直接重試；成功後這筆訂單就不再屬於「目前頁籤」，
+  // 直接從記憶體中的 orders 移除並重繪列表（不用整批重新打 API），畫面上會立即消失，
+  // 使用者切到另一個頁籤時就能看到它已經移過去了。
+  async function archiveOrderRow(orderId, btnEl) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    // adminRunAction()包住整個流程（含確認對話框），按鈕從觸發當下就鎖定，避免快速連點
+    // 開出兩個確認視窗、各自確認後各送一次API的競態。
+    await adminRunAction(btnEl, null, async () => {
+      const { confirmed } = await adminConfirmDialog({
+        title: '確認封存訂單',
+        message: `確定要封存訂單「${order.friendlyOrderNo || orderId}」嗎？封存後這筆訂單會移到「已封存」頁籤，需要時可再還原。`,
+        confirmLabel: '確認封存'
+      });
+      if (!confirmed) return; // 取消確認時完全不呼叫API
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/archive`, {
+          method: 'POST',
+          body: JSON.stringify({ confirm: true })
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '封存失敗');
+        orders = orders.filter(o => o.orderId !== orderId);
+        renderTable();
+      } catch (e) {
+        alert(e.message || '封存失敗，請確認網路連線後再試一次');
+      }
+    });
+  }
+
+  async function unarchiveOrderRow(orderId, btnEl) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    await adminRunAction(btnEl, null, async () => {
+      const { confirmed } = await adminConfirmDialog({
+        title: '確認還原訂單',
+        message: `確定要還原訂單「${order.friendlyOrderNo || orderId}」嗎？還原後這筆訂單會移回「目前訂單」頁籤。`,
+        confirmLabel: '確認還原'
+      });
+      if (!confirmed) return;
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/unarchive`, {
+          method: 'POST',
+          body: JSON.stringify({ confirm: true })
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '還原失敗');
+        orders = orders.filter(o => o.orderId !== orderId);
+        renderTable();
+      } catch (e) {
+        alert(e.message || '還原失敗，請確認網路連線後再試一次');
+      }
+    });
+  }
+
+  // 工廠包下載：改用 adminFetch() 取得ZIP的Blob（不再用?token=網址參數傳送管理密碼），
+  // 再用瀏覽器Object URL觸發下載，下載期間停用按鈕避免重複送出，完成或失敗都要恢復按鈕
+  // 文字並revokeObjectURL釋放資源。GET請求本身不需要CSRF Token（見後端csrfProtection()對
+  // GET一律放行），但仍然需要有效的登入Session Cookie才能下載，未登入會由adminFetch()的
+  // 401攔截自動顯示登入畫面。
+  async function downloadFactoryPackage(orderId, btnEl) {
+    const originalText = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = '下載中…';
+    try {
+      const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/factory-package`);
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null);
+        throw new Error((data && data.error) || '工廠包下載失敗');
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${orderId}_factory-package.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      scheduleFactoryStatusRefresh();
+    } catch (e) {
+      showAdminToast(e.message || '工廠包下載失敗', true);
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = originalText;
+    }
+  }
+
+  // 下載完成後延遲重新整理一次列表，讓「工廠包已下載」徽章能自動更新，不用手動按重新整理。
+  function scheduleFactoryStatusRefresh() {
+    setTimeout(loadOrders, 3000);
   }
 
   function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function exportCSV() {
-    const rows = [['時間','客戶','Email','電話','產品','材質','工藝','數量','預估總額','備註']];
-    orders.forEach(o => rows.push([
-      fmtTime(o.savedAt), o.contact?.name || '', o.contact?.email || '', o.contact?.phone || '',
-      o.product?.name || '', o.product?.material || '', o.product?.finish || '',
-      o.product?.qty || 0, o.quote?.total || 0, (o.contact?.note || '').replace(/\n/g, ' ')
-    ]));
-    const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `楊竹訂單_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // ─── 訂單詳情側邊視窗 ─────────────────────────
+  // 訂單資料已經整批載入在 orders 裡（登入時已用有效Session驗證過），開詳情不用
+  // 再打一次 API，也就不會多一個需要另外做權限檢查、或不小心把識別碼放進網址的端點。
+  function openOrderDetail(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    // 訂單負責人／內部備註各自包在獨立的 <div id="..."> 裡：儲存負責人或新增備註成功後
+    // 只重繪對應那一小塊，不會整個詳情面板重建，使用者在另一個欄位打到一半的字不會被清掉。
+    document.getElementById('order-detail-body').innerHTML = `
+      ${renderOrderDetailHtml(order)}
+      <div id="order-detail-archive-section">${renderArchiveSectionHtml(order)}</div>
+      <div id="order-detail-status-section">${renderStatusSectionHtml(order)}</div>
+      <div id="order-detail-history-section">${renderStatusHistoryHtml(order)}</div>
+      <div id="order-detail-pricing-section">${renderPricingAdjustmentSectionHtml(order)}</div>
+      <div id="order-detail-quote-version-section">${renderQuoteVersionSectionHtml(order)}</div>
+      <div id="order-detail-payment-section">${renderPaymentSectionHtml(order)}</div>
+      <div id="order-detail-logistics-section">${renderLogisticsSectionHtml(order)}</div>
+      <div id="order-detail-assignee-section">${renderAssigneeSectionHtml(order)}</div>
+      <div id="order-detail-notes-section">${renderNotesSectionHtml(order)}</div>
+    `;
+    document.getElementById('order-detail-modal').classList.remove('hidden');
   }
 
-  // 自動登入（若之前已存過密碼）
-  (async function init() {
-    const token = getToken();
-    if (!token) return;
-    const ok = await fetchOrders(token);
-    if (ok) {
-      document.getElementById('gate').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      renderTable();
+  // ─── 付款資料：純顯示用的摘要計算，跟 server.js 的 computePaymentSummary() 完全同一套邏輯
+  // （累計收款／累計退款／實收金額／尚欠金額／付款狀態），但這裡只是為了畫面即時呈現，
+  // 真正的驗證與寫入（尤其是退款不可超過可退款餘額）一律以後端為準，前端不做任何攔截判斷。
+  const PAYMENT_TYPE_LABELS = { receive: '收款', refund: '退款' };
+  const PAYMENT_METHOD_LABELS = { bank_transfer: '銀行匯款', cash: '現金', card: '刷卡', other: '其他' };
+  const PAYMENT_STATUS_LABELS = { unpaid: '未付款', partial: '部分付款', paid: '已付款', refunded: '已退款' };
+
+  // ─── 付款交易冪等：同一筆使用者意圖的送出（含失敗重試、頁面重新整理）必須沿用同一組
+  // idempotencyKey，避免網路中斷或使用者手動重試導致後端重複入帳。尚未確認成功的 key 與
+  // 表單內容暫存在 sessionStorage（用訂單 id 分開存放），成功（含後端回報的冪等重放）才刪除，
+  // 這樣即使使用者在請求送出後重新整理頁面，也不會遺失還沒確認成功的 key。
+  const PAYMENT_PENDING_KEY_PREFIX = 'yz_pending_payment_';
+
+  function paymentPendingStorageKey(orderId) {
+    return PAYMENT_PENDING_KEY_PREFIX + orderId;
+  }
+  function loadPendingPayment(orderId) {
+    try {
+      const raw = sessionStorage.getItem(paymentPendingStorageKey(orderId));
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function savePendingPayment(orderId, payload) {
+    try { sessionStorage.setItem(paymentPendingStorageKey(orderId), JSON.stringify(payload)); } catch {}
+  }
+  function clearPendingPayment(orderId) {
+    try { sessionStorage.removeItem(paymentPendingStorageKey(orderId)); } catch {}
+  }
+  // 判斷使用者這次要送出的表單內容，是否就是上次沒送成功的那一筆——是的話重用同一組 key；
+  // 使用者已經把金額／類型等改掉的話，代表是新的付款意圖，要換一組新 key，不能沿用舊的。
+  function paymentPayloadsMatch(a, b) {
+    return a.type === b.type && Number(a.amount) === Number(b.amount) && a.method === b.method &&
+      (a.reference || '') === (b.reference || '') && (a.note || '') === (b.note || '');
+  }
+
+  function computePaymentSummary(o) {
+    const txs = Array.isArray(o.paymentTransactions) ? o.paymentTransactions : [];
+    let totalReceived = 0, totalRefunded = 0;
+    txs.forEach(t => {
+      if (t.type === 'receive' && typeof t.amount === 'number' && Number.isFinite(t.amount)) totalReceived += t.amount;
+      else if (t.type === 'refund' && typeof t.amount === 'number' && Number.isFinite(t.amount)) totalRefunded += t.amount;
+    });
+    const netReceived = totalReceived - totalRefunded;
+    const target = resolveReceivableTotal(o);
+    const owed = target !== null ? Math.max(0, target - netReceived) : null;
+    let paymentStatus;
+    if (totalReceived === 0) paymentStatus = 'unpaid';
+    else if (netReceived <= 0) paymentStatus = 'refunded';
+    else if (target !== null && netReceived >= target) paymentStatus = 'paid';
+    else paymentStatus = 'partial';
+    return { totalReceived, totalRefunded, netReceived, owed, paymentStatus };
+  }
+
+  function renderPaymentSectionHtml(o) {
+    const summary = computePaymentSummary(o);
+    const txs = Array.isArray(o.paymentTransactions) ? o.paymentTransactions : [];
+    const timelineHtml = txs.length
+      ? txs.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(t => `
+          <div class="payment-history-item">
+            <div class="payment-history-main">
+              <span class="payment-type-tag payment-type-${escHtml(t.type)}">${escHtml(PAYMENT_TYPE_LABELS[t.type] || t.type || '--')}</span>
+              ${fmtMoney(t.amount)}　${escHtml(PAYMENT_METHOD_LABELS[t.method] || t.method || '--')}${t.reference ? '　編號：' + escHtml(t.reference) : ''}
+            </div>
+            <div class="payment-history-meta">${escHtml(fmtTime(t.createdAt))} · ${escHtml(t.actor || '--')}</div>
+            ${t.note ? `<div class="payment-history-note">${escHtml(t.note)}</div>` : ''}
+          </div>
+        `).join('')
+      : '<div style="color:var(--gray-400);font-size:12.5px;">尚無付款紀錄</div>';
+
+    const summaryGridHtml = `
+      <div class="payment-summary-grid">
+        <div><span class="payment-summary-label">付款狀態</span><span class="status-badge status-payment-${summary.paymentStatus}">${escHtml(PAYMENT_STATUS_LABELS[summary.paymentStatus])}</span></div>
+        <div><span class="payment-summary-label">累計收款</span>${fmtMoney(summary.totalReceived)}</div>
+        <div><span class="payment-summary-label">累計退款</span>${fmtMoney(summary.totalRefunded)}</div>
+        <div><span class="payment-summary-label">實收金額</span>${fmtMoney(summary.netReceived)}</div>
+        <div><span class="payment-summary-label">尚欠金額</span>${summary.owed === null ? '--' : fmtMoney(summary.owed)}</div>
+      </div>`;
+
+    // 已封存訂單只顯示付款摘要與時間軸（唯讀），不提供新增付款交易的表單，避免修改唯讀訂單。
+    if (isOrderArchived(o)) {
+      return `
+        <h4>付款資料</h4>
+        ${summaryGridHtml}
+        <div class="payment-history-list">${timelineHtml}</div>
+      `;
     }
+
+    // 若有尚未確認成功的付款送出（送出後失敗、或送出後使用者重新整理了頁面），
+    // 用暫存的表單內容還原輸入框，讓「重試」自然而然就是送出同一組內容＋同一組 key。
+    const pending = loadPendingPayment(o.orderId);
+    const formDefaults = pending || { type: 'receive', amount: '', method: 'bank_transfer', reference: '', note: '' };
+    const pendingNoticeHtml = pending
+      ? '<div style="color:#b45309;font-size:11.5px;margin-top:6px;">偵測到上次付款送出可能尚未完成，已還原表單內容，請確認後直接送出即可（不會重複入帳）。</div>'
+      : '';
+
+    return `
+      <h4>付款資料</h4>
+      ${summaryGridHtml}
+      <div class="payment-history-list">${timelineHtml}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <select id="order-detail-payment-type">
+          <option value="receive" ${formDefaults.type === 'receive' ? 'selected' : ''}>收款</option>
+          <option value="refund" ${formDefaults.type === 'refund' ? 'selected' : ''}>退款</option>
+        </select>
+        <input type="number" id="order-detail-payment-amount" placeholder="金額" min="0" step="1" style="width:110px;" value="${escHtml(formDefaults.amount)}">
+        <select id="order-detail-payment-method">
+          <option value="bank_transfer" ${formDefaults.method === 'bank_transfer' ? 'selected' : ''}>銀行匯款</option>
+          <option value="cash" ${formDefaults.method === 'cash' ? 'selected' : ''}>現金</option>
+          <option value="card" ${formDefaults.method === 'card' ? 'selected' : ''}>刷卡</option>
+          <option value="other" ${formDefaults.method === 'other' ? 'selected' : ''}>其他</option>
+        </select>
+        <input type="text" id="order-detail-payment-reference" placeholder="交易／匯款編號（選填）" maxlength="100" style="flex:1;min-width:140px;" value="${escHtml(formDefaults.reference)}">
+      </div>
+      <textarea id="order-detail-payment-note" maxlength="500" rows="2" placeholder="內部說明（選填）" style="width:100%;margin-top:6px;">${escHtml(formDefaults.note)}</textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+        <button id="order-detail-payment-add-btn" onclick="addPaymentTransaction('${o.orderId}')">新增付款交易</button>
+      </div>
+      <div id="order-detail-payment-error" class="detail-field-error"></div>
+      ${pendingNoticeHtml}
+    `;
+  }
+
+  async function addPaymentTransaction(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const typeEl      = document.getElementById('order-detail-payment-type');
+    const amountEl     = document.getElementById('order-detail-payment-amount');
+    const methodEl     = document.getElementById('order-detail-payment-method');
+    const referenceEl  = document.getElementById('order-detail-payment-reference');
+    const noteEl       = document.getElementById('order-detail-payment-note');
+    const btn          = document.getElementById('order-detail-payment-add-btn');
+    const errEl        = document.getElementById('order-detail-payment-error');
+
+    const type   = typeEl.value;
+    const amount = Number(amountEl.value);
+    const method = methodEl.value;
+    const reference = referenceEl.value;
+    const note   = noteEl.value;
+
+    // 前端只做最基本的「有沒有填一個合理金額」提示，真正的型別／範圍／退款餘額驗證一律交給後端，
+    // 不在這裡重複實作一套規則，避免前後端規則兜不起來。
+    if (amountEl.value === '' || !Number.isFinite(amount) || amount <= 0) {
+      errEl.textContent = '請輸入大於 0 的金額';
+      return;
+    }
+
+    const payload = { type, amount, method, reference, note };
+    // 冪等鍵：如果 sessionStorage 裡有這筆訂單「尚未確認成功」的付款、且表單內容跟上次完全一樣
+    // （代表這是同一筆意圖的重試，不論是使用者手動點第二次，還是頁面重新整理後再送一次），
+    // 就沿用同一組 key；只要使用者改過任何欄位，就視為全新的付款意圖，改用一組新 key。
+    const pending = loadPendingPayment(orderId);
+    const idempotencyKey = (pending && paymentPayloadsMatch(pending, payload)) ? pending.idempotencyKey : crypto.randomUUID();
+    savePendingPayment(orderId, Object.assign({ idempotencyKey }, payload));
+
+    [typeEl, amountEl, methodEl, referenceEl, noteEl, btn].forEach(el => el.disabled = true);
+    errEl.textContent = '';
+    try {
+      const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/payment-transactions`, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign({ idempotencyKey }, payload))
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error((data && data.error) || '付款交易新增失敗');
+      order.paymentTransactions = data.paymentTransactions;
+      // 成功（含後端回報的冪等重放 idempotentReplay:true）才清除暫存的 key／表單內容，
+      // 下一次送出會是全新的付款意圖、產生全新的 key。重繪整個付款區塊，連帶重建空白表單。
+      clearPendingPayment(orderId);
+      document.getElementById('order-detail-payment-section').innerHTML = renderPaymentSectionHtml(order);
+    } catch (e) {
+      // 失敗時保留使用者剛才輸入的內容與 sessionStorage 裡的同一組 key，不重繪、只顯示錯誤
+      // 並恢復可編輯；使用者直接重試（或重新整理頁面後再試）都會沿用同一組 key，不會重複入帳。
+      errEl.textContent = e.message;
+      [typeEl, amountEl, methodEl, referenceEl, noteEl, btn].forEach(el => el.disabled = false);
+    }
+  }
+
+  // ─── 物流資料：追加式紀錄，跟付款交易同一套冪等設計（sessionStorage 暫存尚未確認成功的
+  // key／表單內容，成功才清除），完全獨立於訂單狀態與付款資料之外，純顯示計算不影響任何寫入。
+  const LOGISTICS_STATUS_LABELS = { preparing: '備貨中', shipped: '已出貨', delivered: '已送達', returned: '已退回' };
+  const LOGISTICS_PENDING_KEY_PREFIX = 'yz_pending_logistics_';
+
+  function logisticsPendingStorageKey(orderId) {
+    return LOGISTICS_PENDING_KEY_PREFIX + orderId;
+  }
+  function loadPendingLogistics(orderId) {
+    try {
+      const raw = sessionStorage.getItem(logisticsPendingStorageKey(orderId));
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function savePendingLogistics(orderId, payload) {
+    try { sessionStorage.setItem(logisticsPendingStorageKey(orderId), JSON.stringify(payload)); } catch {}
+  }
+  function clearPendingLogistics(orderId) {
+    try { sessionStorage.removeItem(logisticsPendingStorageKey(orderId)); } catch {}
+  }
+  // 判斷使用者這次要送出的表單內容，是否就是上次沒送成功的那一筆——是的話重用同一組 key；
+  // 使用者已經把物流商／狀態等改掉的話，代表是新的物流更新意圖，要換一組新 key。
+  function logisticsPayloadsMatch(a, b) {
+    return a.carrier === b.carrier && (a.trackingNumber || '') === (b.trackingNumber || '') &&
+      a.status === b.status && (a.note || '') === (b.note || '');
+  }
+
+  // 只讀取伺服器端追加式寫入的 logisticsHistory 算出「最新一筆」當摘要，不猜測、不偽造任何紀錄；
+  // 舊訂單沒有這個欄位時安全視為空陣列，摘要一律顯示「尚無物流紀錄」。
+  function computeLogisticsSummary(o) {
+    const records = Array.isArray(o.logisticsHistory) ? o.logisticsHistory : [];
+    if (!records.length) return { latest: null };
+    const sorted = records.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return { latest: sorted[0] };
+  }
+
+  function renderLogisticsSectionHtml(o) {
+    const summary = computeLogisticsSummary(o);
+    const records = Array.isArray(o.logisticsHistory) ? o.logisticsHistory : [];
+    const timelineHtml = records.length
+      ? records.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(r => `
+          <div class="logistics-history-item">
+            <div class="logistics-history-main">
+              <span class="status-badge status-logistics-${escHtml(r.status)}">${escHtml(LOGISTICS_STATUS_LABELS[r.status] || r.status || '--')}</span>
+              ${escHtml(r.carrier || '--')}${r.trackingNumber ? '　單號：' + escHtml(r.trackingNumber) : ''}
+            </div>
+            <div class="logistics-history-meta">${escHtml(fmtTime(r.createdAt))} · ${escHtml(r.actor || '--')}</div>
+            ${r.note ? `<div class="logistics-history-note">${escHtml(r.note)}</div>` : ''}
+          </div>
+        `).join('')
+      : '<div style="color:var(--gray-400);font-size:12.5px;">尚無物流紀錄</div>';
+
+    const summaryHtml = summary.latest
+      ? `
+        <div class="payment-summary-grid">
+          <div><span class="payment-summary-label">最新狀態</span><span class="status-badge status-logistics-${escHtml(summary.latest.status)}">${escHtml(LOGISTICS_STATUS_LABELS[summary.latest.status] || summary.latest.status)}</span></div>
+          <div><span class="payment-summary-label">物流商</span>${escHtml(summary.latest.carrier || '--')}</div>
+          <div><span class="payment-summary-label">追蹤單號</span>${escHtml(summary.latest.trackingNumber || '--')}</div>
+        </div>`
+      : '<div style="color:var(--gray-400);font-size:12.5px;margin-bottom:8px;">尚未建立任何物流紀錄</div>';
+
+    // 已封存訂單只顯示物流摘要與時間軸（唯讀），不提供新增物流紀錄的表單，避免修改唯讀訂單。
+    if (isOrderArchived(o)) {
+      return `
+        <h4>物流資料</h4>
+        ${summaryHtml}
+        <div class="payment-history-list">${timelineHtml}</div>
+      `;
+    }
+
+    // 若有尚未確認成功的物流送出（送出後失敗、或送出後使用者重新整理了頁面），
+    // 用暫存的表單內容還原輸入框，讓「重試」自然而然就是送出同一組內容＋同一組 key。
+    const pending = loadPendingLogistics(o.orderId);
+    const formDefaults = pending || { carrier: '', trackingNumber: '', status: 'preparing', note: '' };
+    const pendingNoticeHtml = pending
+      ? '<div style="color:#b45309;font-size:11.5px;margin-top:6px;">偵測到上次物流送出可能尚未完成，已還原表單內容，請確認後直接送出即可（不會重複新增）。</div>'
+      : '';
+
+    return `
+      <h4>物流資料</h4>
+      ${summaryHtml}
+      <div class="payment-history-list">${timelineHtml}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <input type="text" id="order-detail-logistics-carrier" placeholder="物流商" maxlength="50" style="width:120px;" value="${escHtml(formDefaults.carrier)}">
+        <input type="text" id="order-detail-logistics-tracking" placeholder="追蹤單號（選填）" maxlength="100" style="flex:1;min-width:140px;" value="${escHtml(formDefaults.trackingNumber)}">
+        <select id="order-detail-logistics-status">
+          <option value="preparing" ${formDefaults.status === 'preparing' ? 'selected' : ''}>備貨中</option>
+          <option value="shipped" ${formDefaults.status === 'shipped' ? 'selected' : ''}>已出貨</option>
+          <option value="delivered" ${formDefaults.status === 'delivered' ? 'selected' : ''}>已送達</option>
+          <option value="returned" ${formDefaults.status === 'returned' ? 'selected' : ''}>已退回</option>
+        </select>
+      </div>
+      <textarea id="order-detail-logistics-note" maxlength="500" rows="2" placeholder="備註（選填）" style="width:100%;margin-top:6px;">${escHtml(formDefaults.note)}</textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+        <button id="order-detail-logistics-add-btn" onclick="addLogisticsRecord('${o.orderId}')">新增物流紀錄</button>
+      </div>
+      <div id="order-detail-logistics-error" class="detail-field-error"></div>
+      ${pendingNoticeHtml}
+    `;
+  }
+
+  async function addLogisticsRecord(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const carrierEl  = document.getElementById('order-detail-logistics-carrier');
+    const trackingEl = document.getElementById('order-detail-logistics-tracking');
+    const statusEl   = document.getElementById('order-detail-logistics-status');
+    const noteEl     = document.getElementById('order-detail-logistics-note');
+    const btn        = document.getElementById('order-detail-logistics-add-btn');
+    const errEl      = document.getElementById('order-detail-logistics-error');
+
+    const carrier = carrierEl.value.trim();
+    const trackingNumber = trackingEl.value;
+    const status = statusEl.value;
+    const note = noteEl.value;
+
+    // 前端只做最基本的「物流商不可空白」提示，真正的型別／長度／狀態驗證一律交給後端，
+    // 不在這裡重複實作一套規則，避免前後端規則兜不起來。
+    if (!carrier) {
+      errEl.textContent = '請輸入物流商';
+      return;
+    }
+
+    const payload = { carrier, trackingNumber, status, note };
+    // 冪等鍵：規則跟付款交易完全一致——沿用上次未確認成功的 key（內容相同時），
+    // 使用者改過任何欄位就視為新的物流更新意圖，改用一組新 key。
+    const pending = loadPendingLogistics(orderId);
+    const idempotencyKey = (pending && logisticsPayloadsMatch(pending, payload)) ? pending.idempotencyKey : crypto.randomUUID();
+    savePendingLogistics(orderId, Object.assign({ idempotencyKey }, payload));
+
+    [carrierEl, trackingEl, statusEl, noteEl, btn].forEach(el => el.disabled = true);
+    errEl.textContent = '';
+    try {
+      const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/logistics`, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign({ idempotencyKey }, payload))
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error((data && data.error) || '物流紀錄新增失敗');
+      order.logisticsHistory = data.logisticsHistory;
+      // 成功（含後端回報的冪等重放 idempotentReplay:true）才清除暫存的 key／表單內容。
+      clearPendingLogistics(orderId);
+      document.getElementById('order-detail-logistics-section').innerHTML = renderLogisticsSectionHtml(order);
+    } catch (e) {
+      // 失敗時保留使用者剛才輸入的內容與 sessionStorage 裡的同一組 key，不重繪、只顯示錯誤
+      // 並恢復可編輯；使用者直接重試（或重新整理頁面後再試）都會沿用同一組 key，不會重複新增。
+      errEl.textContent = e.message;
+      [carrierEl, trackingEl, statusEl, noteEl, btn].forEach(el => el.disabled = false);
+    }
+  }
+
+  // ─── 人工調價：只呼叫現有 POST /api/orders/:orderId/pricing-adjustments，不重新實作任何
+  // 計算公式——折扣／額外費用／運費／稅額／最終總額一律直接顯示後端回傳或已存檔的欄位值，
+  // 前端完全不自己算。新台幣整數金額全部沿用既有 fmtMoney()（undefined／null／NaN 一律
+  // 安全顯示為「--」，不會出現原始字樣）；priceOnInquiry 商品在還沒有任何人工調整紀錄之前，
+  // 畫面上完全不顯示金額數字，只顯示「尚待業務人工報價」，避免看起來像系統自動算出假總額。
+  // 冪等設計跟付款交易／物流紀錄同一套：sessionStorage 暫存尚未確認成功的 key 與表單內容，
+  // 用訂單 id 分開存放，成功（含後端回報的冪等重放 idempotentReplay:true）才清除。
+  const PRICING_ADJUSTMENT_PENDING_KEY_PREFIX = 'yz_pending_pricing_adjustment_';
+  const PRICING_SOURCE_LABELS = { auto_quote: '系統自動報價', manual_inquiry: '詢價商品人工基準價' };
+
+  function pricingAdjustmentPendingStorageKey(orderId) {
+    return PRICING_ADJUSTMENT_PENDING_KEY_PREFIX + orderId;
+  }
+  function getPendingPricingAdjustment(orderId) {
+    try {
+      const raw = sessionStorage.getItem(pricingAdjustmentPendingStorageKey(orderId));
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function savePendingPricingAdjustment(orderId, payload) {
+    try { sessionStorage.setItem(pricingAdjustmentPendingStorageKey(orderId), JSON.stringify(payload)); } catch {}
+  }
+  function clearPendingPricingAdjustment(orderId) {
+    try { sessionStorage.removeItem(pricingAdjustmentPendingStorageKey(orderId)); } catch {}
+  }
+  // 判斷使用者這次要送出的表單內容，是否就是上次沒送成功的那一筆——是的話重用同一組 key；
+  // 使用者已經把折扣／額外費用／運費／稅率／原因／人工基準金額任何一個欄位改掉的話，
+  // 代表是新的調整意圖，要換一組新 key，不能沿用舊的。
+  function pricingAdjustmentPayloadsMatch(a, b) {
+    const normBase = v => (v === undefined || v === null || v === '') ? null : Number(v);
+    return Number(a.discountAmount) === Number(b.discountAmount) &&
+      Number(a.extraFee) === Number(b.extraFee) &&
+      Number(a.shippingFee) === Number(b.shippingFee) &&
+      Number(a.taxRate) === Number(b.taxRate) &&
+      (a.reason || '') === (b.reason || '') &&
+      normBase(a.manualBaseAmount) === normBase(b.manualBaseAmount);
+  }
+
+  // 目前應顯示的報價：有人工調整紀錄就用最後一筆（依 createdAt 排序，不受寫入順序影響），
+  // 完全沒有調整過就是原始自動報價；純粹讀取既有欄位做顯示，不重新計算任何金額。
+  function latestPricingAdjustment(o) {
+    const adjustments = Array.isArray(o.pricingAdjustments) ? o.pricingAdjustments : [];
+    if (!adjustments.length) return null;
+    return adjustments.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  }
+
+  function renderPricingAdjustmentSectionHtml(o) {
+    const isPriceOnInquiry = !!(o.quote && o.quote.priceOnInquiry === true);
+    const latest = latestPricingAdjustment(o);
+    const adjustments = Array.isArray(o.pricingAdjustments)
+      ? o.pricingAdjustments.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      : [];
+
+    const originalQuoteText = isPriceOnInquiry
+      ? '詢價商品，無系統自動報價'
+      : fmtMoney(o.quote && o.quote.total);
+
+    const currentFinalText = latest
+      ? fmtMoney(latest.finalTotal)
+      : (isPriceOnInquiry ? '尚待業務人工報價' : fmtMoney(o.quote && o.quote.total));
+
+    const summaryGridHtml = `
+      <div class="payment-summary-grid">
+        <div><span class="payment-summary-label">系統原始報價</span>${escHtml(originalQuoteText)}</div>
+        <div><span class="payment-summary-label">目前最終報價</span>${escHtml(currentFinalText)}</div>
+        <div><span class="payment-summary-label">折扣金額</span>${latest ? fmtMoney(latest.discountAmount) : '--'}</div>
+        <div><span class="payment-summary-label">額外費用</span>${latest ? fmtMoney(latest.extraFee) : '--'}</div>
+        <div><span class="payment-summary-label">運費</span>${latest ? fmtMoney(latest.shippingFee) : '--'}</div>
+        <div><span class="payment-summary-label">稅率及稅額</span>${latest ? `${escHtml(String(latest.taxRate))}%（${fmtMoney(latest.taxAmount)}）` : '--'}</div>
+        <div><span class="payment-summary-label">最終總額</span>${escHtml(currentFinalText)}</div>
+        <div><span class="payment-summary-label">最近調整</span>${latest ? `${escHtml(fmtTime(latest.createdAt))} · ${escHtml(latest.reason || '--')}` : '尚無調整紀錄'}</div>
+      </div>`;
+
+    const historyHtml = adjustments.length
+      ? adjustments.map(a => `
+          <div class="payment-history-item">
+            <div class="payment-history-main">
+              ${fmtMoney(a.baseAmount)} → ${fmtMoney(a.finalTotal)}
+              <span style="color:var(--gray-400);">（${escHtml(PRICING_SOURCE_LABELS[a.baseSource] || a.baseSource || '--')}）</span>
+            </div>
+            <div class="payment-history-meta">${escHtml(fmtTime(a.createdAt))} · ${escHtml(a.actor || '--')}</div>
+            <div class="payment-history-note">折扣 ${fmtMoney(a.discountAmount)}　額外費用 ${fmtMoney(a.extraFee)}　運費 ${fmtMoney(a.shippingFee)}　稅率 ${escHtml(String(a.taxRate))}%（稅額 ${fmtMoney(a.taxAmount)}）</div>
+            ${a.reason ? `<div class="payment-history-note">原因：${escHtml(a.reason)}</div>` : ''}
+          </div>
+        `).join('')
+      : '<div style="color:var(--gray-400);font-size:12.5px;">尚無人工調整紀錄</div>';
+
+    // 已封存訂單只顯示目前報價與歷程（唯讀），不提供人工調價表單——後端本來就會用既有
+    // guardOrderNotArchived() 擋下已封存訂單（409），這裡只是連表單都不顯示，不讓管理員
+    // 白填一次被拒絕；不可只靠前端這道防護，後端的 409 判斷順序完全沒有被改動。
+    if (isOrderArchived(o)) {
+      return `
+        <h4>人工調價</h4>
+        ${summaryGridHtml}
+        <div class="payment-history-list">${historyHtml}</div>
+      `;
+    }
+
+    // 若有尚未確認成功的調價送出（送出後失敗、或送出後使用者重新整理了頁面），
+    // 用暫存的表單內容還原輸入框，讓「重試」自然而然就是送出同一組內容＋同一組 key，
+    // 不會因為重新整理就換一組新的 idempotencyKey。
+    const pending = getPendingPricingAdjustment(o.orderId);
+    const formDefaults = pending || { discountAmount: 0, extraFee: 0, shippingFee: 0, taxRate: 0, reason: '', manualBaseAmount: '' };
+    const pendingNoticeHtml = pending
+      ? '<div style="color:#b45309;font-size:11.5px;margin-top:6px;">上次送出尚未確認成功，重新送出會沿用同一識別碼（不會重複建立調整紀錄）。</div>'
+      : '';
+    const manualBaseAmountValue = (formDefaults.manualBaseAmount === undefined || formDefaults.manualBaseAmount === null || formDefaults.manualBaseAmount === '')
+      ? '' : formDefaults.manualBaseAmount;
+
+    return `
+      <h4>人工調價</h4>
+      ${summaryGridHtml}
+      <div class="payment-history-list">${historyHtml}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <input type="number" id="order-detail-pricing-discount" placeholder="折扣金額" min="0" step="1" style="width:110px;" value="${escHtml(formDefaults.discountAmount)}">
+        <input type="number" id="order-detail-pricing-extra" placeholder="額外費用" min="0" step="1" style="width:110px;" value="${escHtml(formDefaults.extraFee)}">
+        <input type="number" id="order-detail-pricing-shipping" placeholder="運費" min="0" step="1" style="width:110px;" value="${escHtml(formDefaults.shippingFee)}">
+        <input type="number" id="order-detail-pricing-taxrate" placeholder="稅率（%）" min="0" max="100" step="0.01" style="width:110px;" value="${escHtml(formDefaults.taxRate)}">
+        ${isPriceOnInquiry ? `<input type="number" id="order-detail-pricing-manualbase" placeholder="人工基準金額（必填）" min="1" step="1" style="width:150px;" value="${escHtml(manualBaseAmountValue)}">` : ''}
+      </div>
+      <textarea id="order-detail-pricing-reason" maxlength="500" rows="2" placeholder="調整原因（必填）" style="width:100%;margin-top:6px;">${escHtml(formDefaults.reason)}</textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+        <button id="order-detail-pricing-submit-btn" onclick="submitPricingAdjustment('${o.orderId}')">儲存人工調價</button>
+      </div>
+      <div id="order-detail-pricing-error" class="detail-field-error"></div>
+      ${pendingNoticeHtml}
+    `;
+  }
+
+  async function submitPricingAdjustment(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const isPriceOnInquiry = !!(order.quote && order.quote.priceOnInquiry === true);
+
+    const discountEl   = document.getElementById('order-detail-pricing-discount');
+    const extraEl      = document.getElementById('order-detail-pricing-extra');
+    const shippingEl   = document.getElementById('order-detail-pricing-shipping');
+    const taxRateEl    = document.getElementById('order-detail-pricing-taxrate');
+    const reasonEl     = document.getElementById('order-detail-pricing-reason');
+    const manualBaseEl = document.getElementById('order-detail-pricing-manualbase'); // 只有 priceOnInquiry 商品才存在
+    const btn          = document.getElementById('order-detail-pricing-submit-btn');
+    const errEl        = document.getElementById('order-detail-pricing-error');
+
+    const discountAmount   = discountEl.value === '' ? 0 : Number(discountEl.value);
+    const extraFee         = extraEl.value === '' ? 0 : Number(extraEl.value);
+    const shippingFee      = shippingEl.value === '' ? 0 : Number(shippingEl.value);
+    const taxRate           = taxRateEl.value === '' ? 0 : Number(taxRateEl.value);
+    const reason             = reasonEl.value.trim();
+    const manualBaseAmount   = manualBaseEl ? (manualBaseEl.value === '' ? null : Number(manualBaseEl.value)) : null;
+
+    // 前端只做最基本的必填與數字格式檢查，真正的型別／範圍／安全整數溢位驗證一律交給後端，
+    // 不在這裡重複實作一套規則，避免前後端規則兜不起來（跟付款交易／物流紀錄同一套原則）。
+    if (!Number.isInteger(discountAmount) || discountAmount < 0) { errEl.textContent = '折扣金額必須是不小於 0 的整數'; return; }
+    if (!Number.isInteger(extraFee) || extraFee < 0) { errEl.textContent = '額外費用必須是不小於 0 的整數'; return; }
+    if (!Number.isInteger(shippingFee) || shippingFee < 0) { errEl.textContent = '運費必須是不小於 0 的整數'; return; }
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) { errEl.textContent = '稅率必須是 0～100 之間的數字'; return; }
+    if (!reason) { errEl.textContent = '請填寫調整原因'; return; }
+    if (isPriceOnInquiry && (!Number.isInteger(manualBaseAmount) || manualBaseAmount < 1)) {
+      errEl.textContent = '詢價商品必須填寫人工基準金額（正整數）';
+      return;
+    }
+
+    const payload = { discountAmount, extraFee, shippingFee, taxRate, reason };
+    if (isPriceOnInquiry) payload.manualBaseAmount = manualBaseAmount;
+
+    // 冪等鍵：規則跟付款交易／物流紀錄完全一致——內容跟上次未確認成功的那筆完全相同就沿用
+    // 同一組 key（代表這是同一次調整意圖的重試），使用者改過任何欄位就換一組新 key。
+    const pending = getPendingPricingAdjustment(orderId);
+    const idempotencyKey = (pending && pricingAdjustmentPayloadsMatch(pending, payload)) ? pending.idempotencyKey : crypto.randomUUID();
+    savePendingPricingAdjustment(orderId, Object.assign({ idempotencyKey }, payload));
+
+    const fieldsToDisable = [discountEl, extraEl, shippingEl, taxRateEl, reasonEl, btn];
+    if (manualBaseEl) fieldsToDisable.push(manualBaseEl);
+    fieldsToDisable.forEach(el => el.disabled = true);
+    errEl.textContent = '';
+
+    try {
+      const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/pricing-adjustments`, {
+        method: 'POST',
+        body: JSON.stringify(Object.assign({ idempotencyKey }, payload))
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error((data && data.error) || '人工調價儲存失敗');
+
+      // 只信任後端回傳的 adjustment／currentPricing 更新畫面，不自行認定計算結果；用 id
+      // 判斷是否已存在（idempotentReplay:true 時後端回傳的是已經存在的那一筆），避免同一筆
+      // 冪等重放在畫面上被重複疊加成兩筆歷程。
+      if (!Array.isArray(order.pricingAdjustments)) order.pricingAdjustments = [];
+      const exists = order.pricingAdjustments.some(a => a.id === data.adjustment.id);
+      if (!exists) order.pricingAdjustments.push(data.adjustment);
+
+      // 成功（含後端回報的冪等重放 idempotentReplay:true）才清除暫存的 key／表單內容，
+      // 下一次送出會是全新的調整意圖、產生全新的 key。只重繪人工調價區塊，不重建整個詳情
+      // 面板，避免影響付款／物流／備註等其他表單裡使用者可能還沒送出的內容。
+      clearPendingPricingAdjustment(orderId);
+      document.getElementById('order-detail-pricing-section').innerHTML = renderPricingAdjustmentSectionHtml(order);
+    } catch (e) {
+      // 失敗（含網路中斷）時保留使用者剛才輸入的內容與 sessionStorage 裡的同一組 key，
+      // 不重繪、只顯示錯誤並恢復可編輯；使用者直接重試（或重新整理頁面後再試）都會沿用
+      // 同一組 key，後端冪等機制保證就算「其實已經寫入成功、只是回應遺失」也不會重複入帳。
+      errEl.textContent = e.message;
+      fieldsToDisable.forEach(el => el.disabled = false);
+    }
+  }
+
+  // ─── 報價版本及有效期限：後台只負責發布與唯讀顯示，串接既有
+  // POST /api/orders/:orderId/quote-versions；版本編號／有效期限／金額快照全部由後端
+  // 產生與計算，前端完全不自行推算，只信任後端回傳的 quoteVersion／quoteVersions。
+  // 已發布版本不可修改或刪除（後端本來就沒有 PUT/PATCH/DELETE），畫面上也不提供任何
+  // 編輯／刪除／覆蓋按鈕，價格變動一律只能發布下一版。
+  // 冪等設計跟付款交易／物流紀錄／人工調價同一套：sessionStorage 暫存尚未確認成功的
+  // key 與表單內容，用訂單 id 分開存放，成功（含後端回報的冪等重放 idempotentReplay:true）
+  // 才清除。
+  const QUOTE_VERSION_PENDING_KEY_PREFIX = 'yz_pending_quote_version_';
+  const QUOTE_VERSION_SOURCE_LABELS = { auto_quote: '系統自動報價', manual_inquiry: '詢價商品人工基準價' };
+
+  function quoteVersionPendingStorageKey(orderId) {
+    return QUOTE_VERSION_PENDING_KEY_PREFIX + orderId;
+  }
+  function getPendingQuoteVersion(orderId) {
+    try {
+      const raw = sessionStorage.getItem(quoteVersionPendingStorageKey(orderId));
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function savePendingQuoteVersion(orderId, payload) {
+    try { sessionStorage.setItem(quoteVersionPendingStorageKey(orderId), JSON.stringify(payload)); } catch {}
+  }
+  function clearPendingQuoteVersion(orderId) {
+    try { sessionStorage.removeItem(quoteVersionPendingStorageKey(orderId)); } catch {}
+  }
+  // 嚴格比較，完全不做任何強制轉型：
+  // - a、b 必須都是有效物件，否則直接視為不同意圖。
+  // - validDays 兩邊都必須是 number／有限／整數／介於 1～365，再用 === 嚴格比較；
+  //   不合法（缺漏、字串、小數、NaN、超出範圍）一律視為不同，不可用 Number() 硬轉。
+  // - notes 兩邊都必須已經是字串才可能相符，任一邊不是字串（例如 pending 曾被寫入非法
+  //   型別 123／{}／null／缺漏）一律直接視為不同，不可轉成空字串比較——這正是要修正的
+  //   問題：舊版把非字串 notes 正規化成 ''，會讓「pending.notes=123」跟「目前 notes=''」
+  //   被誤判成同一次發布意圖而錯誤沿用不該沿用的 idempotencyKey。兩邊都是字串時才用
+  //   trim() 後的文字比較（正常表單送出的 notes 永遠已經是字串，這裡的型別檢查只是防止
+  //   pending 內容被外部竄改成不合法型別時被誤判為相同）。
+  function quoteVersionPayloadsMatch(a, b) {
+    if (!a || typeof a !== 'object' || !b || typeof b !== 'object') return false;
+
+    const validDaysValid = v => typeof v === 'number' && Number.isFinite(v) && Number.isInteger(v) && v >= 1 && v <= 365;
+    if (!validDaysValid(a.validDays) || !validDaysValid(b.validDays)) return false;
+    if (a.validDays !== b.validDays) return false;
+
+    if (typeof a.notes !== 'string' || typeof b.notes !== 'string') return false;
+    return a.notes.trim() === b.notes.trim();
+  }
+
+  // 舊訂單沒有 quoteVersions 欄位、或欄位不是陣列時一律安全視為空陣列；陣列裡混入
+  // 非物件的異常項目也直接濾掉，避免單筆壞資料讓整個訂單詳情面板崩潰。
+  function quoteVersionsArray(o) {
+    return Array.isArray(o.quoteVersions) ? o.quoteVersions.filter(v => v && typeof v === 'object') : [];
+  }
+  // 「最新版本」＝ versionNumber 最大的那一筆（不是陣列最後一筆，避免資料手動編輯過、
+  // 追加順序跟版本號不一致時判斷錯誤）；versionNumber 格式異常時退而用 createdAt 排序。
+  function sortedQuoteVersionsDesc(o) {
+    return quoteVersionsArray(o).slice().sort((a, b) => {
+      const an = (typeof a.versionNumber === 'number' && Number.isInteger(a.versionNumber)) ? a.versionNumber : -Infinity;
+      const bn = (typeof b.versionNumber === 'number' && Number.isInteger(b.versionNumber)) ? b.versionNumber : -Infinity;
+      if (an !== bn) return bn - an;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+  }
+  function latestQuoteVersion(o) {
+    const sorted = sortedQuoteVersionsDesc(o);
+    return sorted.length ? sorted[0] : null;
+  }
+
+  // 純畫面判斷：只比較 validUntil 跟目前時間，不會因為打開這個頁面就去改寫訂單 JSON，
+  // 也沒有任何背景自動更新的 API——過期與否永遠是「當下看的那一刻」重新算出來的。
+  function quoteVersionDisplayStatus(version) {
+    const raw = version && version.validUntil;
+    if (!raw) return { key: 'invalid', label: '日期異常' };
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return { key: 'invalid', label: '日期異常' };
+    return d.getTime() >= Date.now() ? { key: 'valid', label: '有效' } : { key: 'expired', label: '已過期' };
+  }
+
+  // 純粹給 confirm() 對話框顯示用的「預估下一版名稱」，不是權威版本號——真正的
+  // versionNumber／versionLabel 一律以後端回傳為準，這裡算錯或跟後端不同也不影響任何
+  // 實際寫入的資料，純粹讓使用者發布前看得懂自己要建立的是第幾版。
+  function estimateNextQuoteVersionLabel(o) {
+    let max = 0;
+    quoteVersionsArray(o).forEach(v => {
+      if (typeof v.versionNumber === 'number' && Number.isInteger(v.versionNumber) && v.versionNumber > max) max = v.versionNumber;
+    });
+    return 'V' + (max + 1);
+  }
+
+  function renderQuoteVersionHistoryItemHtml(v, o, latest) {
+    const status = quoteVersionDisplayStatus(v);
+    const versionLabel = escHtml(v.versionLabel || (typeof v.versionNumber === 'number' ? ('V' + v.versionNumber) : '--'));
+    const product = (v.productSnapshot && typeof v.productSnapshot === 'object') ? v.productSnapshot : {};
+    const customer = (v.customerSnapshot && typeof v.customerSnapshot === 'object') ? v.customerSnapshot : {};
+    const pricing = (v.pricingSnapshot && typeof v.pricingSnapshot === 'object') ? v.pricingSnapshot : {};
+    const baseSourceLabel = pricing.baseSource
+      ? (QUOTE_VERSION_SOURCE_LABELS[pricing.baseSource] || '未知來源')
+      : '--';
+    const validDaysText = (typeof v.validDays === 'number' && Number.isFinite(v.validDays)) ? String(v.validDays) : '--';
+    const taxRateText = (typeof pricing.taxRate === 'number' && Number.isFinite(pricing.taxRate)) ? (String(pricing.taxRate) + '%') : '--';
+    return `
+      <div class="quote-version-history-item">
+        <div class="quote-version-history-main">
+          ${versionLabel}
+          <span class="status-badge status-quoteversion-${status.key}">${escHtml(status.label)}</span>
+        </div>
+        <div class="quote-version-history-meta">發布時間：${escHtml(fmtTime(v.createdAt))}　有效期限：${escHtml(fmtTime(v.validUntil))}（${escHtml(validDaysText)} 天）　發布者：${escHtml(v.actor || '--')}</div>
+        <div style="margin-top:6px;">
+          <button type="button" onclick="previewQuoteVersion('${o.orderId}','${v.id}')">預覽正式報價單</button>
+        </div>
+        ${v.notes ? `<div class="quote-version-history-note">備註：${escHtml(v.notes)}</div>` : ''}
+        <div class="quote-version-history-block">
+          <div class="quote-version-history-block-title">商品快照</div>
+          商品名稱 ${escHtml(product.name || '--')}　材質 ${escHtml(product.material || '--')}　工藝 ${escHtml(product.finish || '--')}　容量 ${escHtml(product.capacity != null ? String(product.capacity) : '--')}　數量 ${fmtQty(product.qty)}
+        </div>
+        <div class="quote-version-history-block">
+          <div class="quote-version-history-block-title">客戶快照</div>
+          姓名 ${escHtml(customer.name || '--')}　Email ${escHtml(customer.email || '--')}　電話 ${escHtml(customer.phone || '--')}
+        </div>
+        <div class="quote-version-history-block">
+          <div class="quote-version-history-block-title">金額快照</div>
+          基準金額 ${fmtMoney(pricing.baseAmount)}（${escHtml(baseSourceLabel)}）　折扣 ${fmtMoney(pricing.discountAmount)}　額外費用 ${fmtMoney(pricing.extraFee)}　運費 ${fmtMoney(pricing.shippingFee)}　稅率 ${escHtml(taxRateText)}（稅額 ${fmtMoney(pricing.taxAmount)}）　稅前金額 ${fmtMoney(pricing.preTaxAmount)}　最終總額 ${fmtMoney(pricing.finalTotal)}
+        </div>
+        ${renderCustomerAccessLinkHtml(o, v, latest)}
+      </div>
+    `;
+  }
+
+  // ─── 正式報價單預覽／列印：開新視窗（quote-print.html），只用 postMessage 把「這一個
+  // 報價版本」的固定快照欄位（productSnapshot／customerSnapshot／pricingSnapshot／
+  // versionLabel／createdAt／validUntil／notes）傳過去，完全不呼叫任何 API、不新增
+  // 後端路由——新視窗本身沒有 orderId、沒有登入Session，也就沒有任何管道能讀到
+  // 會隨時間變動的目前訂單資料（狀態、負責人、付款、物流……），只可能顯示這一次
+  // 明確傳入的快照內容。深層複製（JSON.parse(JSON.stringify(...))）確保新視窗跟
+  // orders 陣列不共用任何可變參照，預覽/列印不可能反過來改到後台記憶體裡的訂單資料，
+  // 也完全不會寫入 order 物件或呼叫任何寫入類 API。
+  function previewQuoteVersion(orderId, versionId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const version = quoteVersionsArray(order).find(v => v.id === versionId);
+    if (!version) return;
+
+    const latest = latestQuoteVersion(order);
+    const isLatest = !!(latest && version.id === latest.id);
+
+    const payload = JSON.parse(JSON.stringify({
+      versionLabel: version.versionLabel,
+      createdAt: version.createdAt,
+      validUntil: version.validUntil,
+      notes: version.notes || '',
+      productSnapshot: version.productSnapshot || {},
+      customerSnapshot: version.customerSnapshot || {},
+      pricingSnapshot: version.pricingSnapshot || {},
+      isLatest
+    }));
+
+    const printWindow = window.open('quote-print.html', '_blank');
+    if (!printWindow) {
+      alert('無法開啟報價單視窗，請確認瀏覽器未封鎖彈出視窗後再試一次。');
+      return;
+    }
+
+    // 新視窗載入完成後會自己主動送出 ready 訊號（可能重試多次，涵蓋視窗還沒完成
+    // 載入監聽器就被觸發的競速情況）；收到第一次 ready 訊號就回傳資料，最多等待
+    // 10 秒後自動移除監聽器，避免在背景無限期留著。
+    function handleMessage(event) {
+      if (event.source !== printWindow) return;
+      if (event.origin !== location.origin) return;
+      if (!event.data || event.data.type !== 'quote-print-ready') return;
+      printWindow.postMessage({ type: 'quote-print-data', payload }, location.origin);
+    }
+    window.addEventListener('message', handleMessage);
+    setTimeout(() => window.removeEventListener('message', handleMessage), 10000);
+  }
+
+  // ─── 客戶確認連結：只有「訂單未封存、此版本是最新版本、尚未過期、尚未收到客戶回覆」
+  // 同時成立時才顯示按鈕，其餘情況一律只顯示原因、不顯示按鈕——這四個條件跟後端
+  // POST .../customer-access 既有的四道前置檢查（guardOrderNotArchived／
+  // isLatestQuoteVersion／checkQuoteVersionNotExpired／customerResponse 是否已存在）
+  // 完全對應，前端只是提前擋掉一定會失敗的操作，真正的權威判斷仍然在後端。
+  // 原始 Token 只存在 API 回應這一次：只用來組成連結顯示在畫面上讓管理員複製，絕不
+  // 寫入 order 物件、localStorage、sessionStorage、console 或網址 query string，
+  // 關閉或重新整理頁面後就再也拿不到，跟後端「原始 token 只回傳這一次」的設計一致。
+  // 這段固定警告文字是純靜態字串（不含任何使用者或伺服器資料），首次渲染（已經有
+  // customerAccess，例如重新整理頁面後）與產生連結成功當下（generateCustomerAccessLink()
+  // 動態插入）共用同一份常數，避免兩處各自維護、日後改字漏改其中一邊。
+  const QUOTE_VERSION_CUSTOMER_LINK_REGENERATE_WARNING_HTML =
+    '<div style="color:#b45309;font-size:11.5px;margin-top:4px;">已產生過確認連結；重新產生後，舊連結會立即失效、無法再使用。</div>';
+
+  function renderCustomerAccessLinkHtml(o, v, latest) {
+    const isLatest = !!(latest && v.id === latest.id);
+    const archived = isOrderArchived(o);
+    const status = quoteVersionDisplayStatus(v);
+    const notValid = status.key !== 'valid';
+    const responded = !!v.customerResponse;
+
+    let reason = '';
+    if (archived) {
+      reason = '訂單已封存，無法產生客戶確認連結。';
+    } else if (!isLatest) {
+      reason = '非最新版本，無法產生客戶確認連結。';
+    } else if (notValid) {
+      reason = '此版本已過期，無法產生客戶確認連結。';
+    } else if (responded) {
+      const decisionLabel = v.customerResponse.decision === 'accepted' ? '已接受'
+        : (v.customerResponse.decision === 'rejected' ? '已拒絕' : '已回覆');
+      reason = `此版本已收到客戶回覆（${escHtml(decisionLabel)}），無法再產生確認連結。`;
+    }
+
+    if (reason) {
+      return `<div style="margin-top:8px;font-size:12px;color:var(--gray-400);">${reason}</div>`;
+    }
+
+    const hasExisting = !!v.customerAccess;
+    const btnLabel = hasExisting ? '重新產生連結' : '產生確認連結';
+    const warningHtml = hasExisting ? QUOTE_VERSION_CUSTOMER_LINK_REGENERATE_WARNING_HTML : '';
+
+    return `
+      <div style="margin-top:8px;">
+        <button type="button" id="qc-link-btn-${v.id}" onclick="generateCustomerAccessLink('${o.orderId}','${v.id}')">${btnLabel}</button>
+        <div id="qc-link-warning-${v.id}">${warningHtml}</div>
+        <div id="qc-link-area-${v.id}"></div>
+        <div id="qc-link-error-${v.id}" class="detail-field-error"></div>
+      </div>
+    `;
+  }
+
+  async function generateCustomerAccessLink(orderId, versionId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const version = quoteVersionsArray(order).find(v => v.id === versionId);
+    if (!version) return;
+
+    const btn = document.getElementById(`qc-link-btn-${versionId}`);
+    const areaEl = document.getElementById(`qc-link-area-${versionId}`);
+    const errEl = document.getElementById(`qc-link-error-${versionId}`);
+    const warningEl = document.getElementById(`qc-link-warning-${versionId}`);
+    if (!btn || !areaEl || !errEl) return;
+
+    // 二次確認：重新產生時訊息明確警告舊連結會立即失效；取消的話完全不呼叫 API、
+    // 不改變任何畫面或資料狀態。adminRunAction()包住整個流程（含確認對話框），按鈕從
+    // 觸發當下就鎖定，避免快速連點開出兩個確認視窗、各自確認後各送一次API的競態；
+    // busyText仍傳null（只借用disable＋防重複送出防護），文字繼續自己手動管理——
+    // 成功時按鈕文字要永久改成「重新產生連結」（不是恢復成呼叫前的文字），這跟
+    // adminRunAction()「一律恢復成呼叫前原始文字」的通用行為衝突，所以不能用busyText參數。
+    const isRegenerate = !!version.customerAccess;
+    await adminRunAction(btn, null, async () => {
+      const { confirmed } = await adminConfirmDialog({
+        title: isRegenerate ? '確認重新產生連結' : '確認產生連結',
+        message: isRegenerate
+          ? '重新產生連結後，舊的客戶確認連結會立即失效、無法再使用，確定要重新產生嗎？'
+          : '確定要產生客戶確認連結嗎？',
+        danger: isRegenerate,
+        confirmLabel: isRegenerate ? '確認重新產生' : '確認產生'
+      });
+      if (!confirmed) return; // 取消確認時完全不呼叫API、不改變任何畫面或資料狀態
+      errEl.textContent = '';
+
+      const originalLabel = btn.textContent;
+      btn.textContent = '產生中…';
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/quote-versions/${encodeURIComponent(versionId)}/customer-access`, {
+          method: 'POST'
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '確認連結建立失敗');
+        if (!data || typeof data.token !== 'string') throw new Error('伺服器回應格式異常，未取得連結');
+
+        // Token 只在這次回應中出現一次，只用來組成連結字串顯示在畫面上；不寫進 order
+        // 物件、不存進任何瀏覽器儲存空間、不印到 console，也不會出現在網址上。
+        const link = `${location.origin}/quote-confirmation.html#token=${data.token}`;
+
+        // 本地只記錄「已經產生過連結」這個事實（不含 tokenHash，前端本來就拿不到、
+        // 也不需要），讓畫面之後重繪時按鈕文字能正確顯示成「重新產生連結」。
+        version.customerAccess = { createdAt: new Date().toISOString(), expiresAt: data.expiresAt };
+
+        // 產生成功當下就要能看到「重新產生會讓舊連結失效」的警告，不能等到下一次整個
+        // 報價版本區塊重繪才出現——這裡插入的是完全固定的靜態字串，不含任何使用者或
+        // 伺服器資料，所以用 innerHTML 賦值不會有 XSS 疑慮。
+        if (warningEl) warningEl.innerHTML = QUOTE_VERSION_CUSTOMER_LINK_REGENERATE_WARNING_HTML;
+
+        areaEl.innerHTML = '';
+        const wrap = document.createElement('div');
+        wrap.style.marginTop = '6px';
+
+        const linkInput = document.createElement('input');
+        linkInput.type = 'text';
+        linkInput.readOnly = true;
+        linkInput.value = link;
+        linkInput.id = `qc-link-input-${versionId}`;
+        linkInput.style.cssText = 'width:100%;font-size:12px;';
+        linkInput.addEventListener('focus', () => linkInput.select());
+
+        const copyRow = document.createElement('div');
+        copyRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:4px;';
+
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.textContent = '複製連結';
+        copyBtn.onclick = function () { copyCustomerAccessLink(versionId); };
+
+        const copiedLabel = document.createElement('span');
+        copiedLabel.id = `qc-link-copied-${versionId}`;
+        copiedLabel.style.cssText = 'font-size:11.5px;color:var(--green);';
+
+        copyRow.appendChild(copyBtn);
+        copyRow.appendChild(copiedLabel);
+        wrap.appendChild(linkInput);
+        wrap.appendChild(copyRow);
+        areaEl.appendChild(wrap);
+
+        btn.textContent = '重新產生連結';
+      } catch (e) {
+        errEl.textContent = e.message;
+        btn.textContent = originalLabel;
+      }
+    });
+  }
+
+  function copyCustomerAccessLink(versionId) {
+    const input = document.getElementById(`qc-link-input-${versionId}`);
+    const copiedLabel = document.getElementById(`qc-link-copied-${versionId}`);
+    if (!input) return;
+
+    function showCopied() {
+      if (!copiedLabel) return;
+      copiedLabel.textContent = '已複製';
+      setTimeout(() => { copiedLabel.textContent = ''; }, 2000);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(input.value).then(showCopied).catch(() => {
+        input.select();
+        document.execCommand('copy');
+        showCopied();
+      });
+    } else {
+      input.select();
+      document.execCommand('copy');
+      showCopied();
+    }
+  }
+
+  function renderQuoteVersionSectionHtml(o) {
+    const versions = quoteVersionsArray(o);
+    const latest = latestQuoteVersion(o);
+
+    const summaryGridHtml = latest ? `
+      <div class="payment-summary-grid">
+        <div><span class="payment-summary-label">已發布版本數量</span>${versions.length}</div>
+        <div><span class="payment-summary-label">最新版本</span>${escHtml(latest.versionLabel || (typeof latest.versionNumber === 'number' ? ('V' + latest.versionNumber) : '--'))}</div>
+        <div><span class="payment-summary-label">最新版本最終總額</span>${fmtMoney(latest.pricingSnapshot && latest.pricingSnapshot.finalTotal)}</div>
+        <div><span class="payment-summary-label">發布時間</span>${escHtml(fmtTime(latest.createdAt))}</div>
+        <div><span class="payment-summary-label">有效期限</span>${escHtml(fmtTime(latest.validUntil))}</div>
+        <div><span class="payment-summary-label">目前狀態</span><span class="status-badge status-quoteversion-${quoteVersionDisplayStatus(latest).key}">${escHtml(quoteVersionDisplayStatus(latest).label)}</span></div>
+      </div>`
+      : '<div style="color:var(--gray-400);font-size:12.5px;margin-bottom:10px;">尚未發布正式報價版本</div>';
+
+    const historyHtml = versions.length
+      ? sortedQuoteVersionsDesc(o).map(v => renderQuoteVersionHistoryItemHtml(v, o, latest)).join('')
+      : '';
+
+    // 已封存訂單只顯示目前狀態摘要與完整歷程（唯讀），不提供發布表單或按鈕——後端本來就會用
+    // 既有 guardOrderNotArchived() 擋下已封存訂單（409），這裡只是連表單都不顯示，不讓管理員
+    // 白填一次被拒絕；不可只靠前端這道防護，後端的 409 判斷順序完全沒有被改動。
+    if (isOrderArchived(o)) {
+      return `
+        <h4>報價版本</h4>
+        ${summaryGridHtml}
+        <div class="payment-history-list">${historyHtml}</div>
+      `;
+    }
+
+    // 若有尚未確認成功的發布送出（送出後失敗、或送出後使用者重新整理了頁面），
+    // 用暫存的表單內容還原輸入框，讓「重試」自然而然就是送出同一組內容＋同一組 key。
+    const pending = getPendingQuoteVersion(o.orderId);
+    const formDefaults = pending || { validDays: systemDefaultQuoteValidDays, notes: '' };
+    const pendingNoticeHtml = pending
+      ? '<div style="color:#b45309;font-size:11.5px;margin-top:6px;">上次發布尚未確認成功，重新送出會沿用同一識別碼，不會重複建立版本。</div>'
+      : '';
+
+    // priceOnInquiry 商品在完成至少一筆人工調價之前完全無法發布——沒有真實金額可用，
+    // 不可自行補 0 元或假價格；後端 resolvePublishablePricing() 本來就會拒絕，這裡只是
+    // 提前停用按鈕、不讓管理員白填一次被拒絕。
+    const isPriceOnInquiry = !!(o.quote && o.quote.priceOnInquiry === true);
+    const hasAdjustment = Array.isArray(o.pricingAdjustments) && o.pricingAdjustments.length > 0;
+    const canPublish = !isPriceOnInquiry || hasAdjustment;
+    const blockedNoticeHtml = canPublish
+      ? ''
+      : '<div style="color:#b45309;font-size:11.5px;margin-top:6px;">詢價商品必須先完成人工調價，才能發布正式報價版本。</div>';
+
+    return `
+      <h4>報價版本</h4>
+      ${summaryGridHtml}
+      <div class="payment-history-list">${historyHtml}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+        <input type="number" id="order-detail-quoteversion-validdays" min="1" max="365" step="1" style="width:110px;" value="${escHtml(formDefaults.validDays)}">
+        <span style="font-size:12px;color:var(--gray-400);">天有效（1～365）</span>
+      </div>
+      <textarea id="order-detail-quoteversion-notes" maxlength="1000" rows="2" placeholder="報價備註（選填）" style="width:100%;margin-top:6px;">${escHtml(formDefaults.notes)}</textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:6px;">
+        <span style="font-size:11px;color:var(--gray-400);">發布後不可修改或刪除；價格變更時請重新發布下一版本。</span>
+        <button id="order-detail-quoteversion-submit-btn" onclick="submitQuoteVersion('${o.orderId}')" ${canPublish ? '' : 'disabled'}>發布新報價版本</button>
+      </div>
+      <div id="order-detail-quoteversion-error" class="detail-field-error"></div>
+      ${blockedNoticeHtml}
+      ${pendingNoticeHtml}
+    `;
+  }
+
+  async function submitQuoteVersion(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+
+    const isPriceOnInquiry = !!(order.quote && order.quote.priceOnInquiry === true);
+    const hasAdjustment = Array.isArray(order.pricingAdjustments) && order.pricingAdjustments.length > 0;
+    const canPublish = !isPriceOnInquiry || hasAdjustment;
+
+    const validDaysEl = document.getElementById('order-detail-quoteversion-validdays');
+    const notesEl     = document.getElementById('order-detail-quoteversion-notes');
+    const btn         = document.getElementById('order-detail-quoteversion-submit-btn');
+    const errEl       = document.getElementById('order-detail-quoteversion-error');
+
+    // 按鈕已經在畫面上被停用，這裡是防止用其他方式（例如主控台）繞過畫面直接呼叫的
+    // 最後一道前端防呆；真正禁止寫入的仍然是後端 resolvePublishablePricing()。
+    if (!canPublish) {
+      errEl.textContent = '詢價商品必須先完成人工調價，才能發布正式報價版本。';
+      return;
+    }
+
+    // 前端只做最基本的必填與格式檢查，真正的範圍／格式驗證一律以後端 validatePublishFields()
+    // 為準，不在這裡重複實作一套規則，避免前後端規則兜不起來（跟付款交易／人工調價同一套原則）。
+    const validDays = Number(validDaysEl.value);
+    if (validDaysEl.value === '' || !Number.isInteger(validDays) || validDays < 1 || validDays > 365) {
+      errEl.textContent = '有效天數必須是 1～365 之間的正整數';
+      return;
+    }
+    const notes = notesEl.value.trim();
+    if (notes.length > 1000) {
+      errEl.textContent = '報價備註長度不可超過 1000 字';
+      return;
+    }
+
+    // 發布前二次確認：取消的話完全不建立 idempotencyKey、不寫入 sessionStorage、
+    // 不呼叫任何 API，表單內容原封不動保留，讓使用者可以直接修改後再送一次。adminRunAction()
+    // 包住從確認對話框開始的整個流程，按鈕從觸發當下就鎖定，避免快速連點開出兩個確認視窗、
+    // 各自確認後各送一次API的競態；busyText傳null（只借用disable＋防重複送出防護），
+    // 「發布中…」文字改成確認後才手動設定，避免使用者在還沒確認前就看到「發布中」字樣。
+    const nextLabel = estimateNextQuoteVersionLabel(order);
+    const originalBtnLabel = btn.textContent;
+    await adminRunAction(btn, null, async () => {
+      const { confirmed } = await adminConfirmDialog({
+        title: '確認發布報價版本',
+        message: `即將發布報價版本「${nextLabel}」，有效天數 ${validDays} 天。發布後不可修改或刪除，價格變更時請重新發布下一版本，確定要發布嗎？`,
+        danger: true,
+        confirmLabel: '確認發布'
+      });
+      if (!confirmed) return; // 取消確認時完全不建立idempotencyKey、不寫入sessionStorage、不呼叫API，表單內容原封不動保留
+
+      const payload = { validDays, notes };
+      // 冪等鍵：規則跟付款交易／物流紀錄／人工調價完全一致——內容跟上次未確認成功的那筆完全
+      // 相同就沿用同一組 key（代表這是同一次發布意圖的重試），使用者改過有效天數或備註就換一組新 key。
+      const pending = getPendingQuoteVersion(orderId);
+      const idempotencyKey = (pending && quoteVersionPayloadsMatch(pending, payload)) ? pending.idempotencyKey : crypto.randomUUID();
+      savePendingQuoteVersion(orderId, Object.assign({ idempotencyKey }, payload));
+
+      errEl.textContent = '';
+      btn.textContent = '發布中…';
+      validDaysEl.disabled = true; notesEl.disabled = true;
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/quote-versions`, {
+          method: 'POST',
+          body: JSON.stringify(Object.assign({ idempotencyKey }, payload))
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '報價版本發布失敗');
+
+        // 只信任後端回傳的 quoteVersions 更新畫面：後端每次都回傳完整、依追加順序排列的陣列
+        // （不論這次是新建版本還是冪等重放），直接整批取代即可，不用自己判斷是否重複、不用
+        // 自己編版本號、不用自己算 validUntil 或金額快照。
+        order.quoteVersions = Array.isArray(data.quoteVersions) ? data.quoteVersions : order.quoteVersions;
+
+        // 成功（含後端回報的冪等重放 idempotentReplay:true）才清除暫存的 key／表單內容，
+        // 下一次送出會是全新的發布意圖、產生全新的 key。只重繪報價版本區塊，不重建整個詳情
+        // 面板，避免影響人工調價／付款／物流／備註等其他表單裡使用者可能還沒送出的內容——
+        // 這個區塊本來就含有btn自己，重繪後舊按鈕會被替換掉，不需要再手動恢復文字。
+        clearPendingQuoteVersion(orderId);
+        document.getElementById('order-detail-quote-version-section').innerHTML = renderQuoteVersionSectionHtml(order);
+      } catch (e) {
+        // 失敗（含網路中斷）時保留使用者剛才輸入的內容與 sessionStorage 裡的同一組 key，
+        // 不重繪、只顯示錯誤並恢復可編輯；使用者直接重試（或重新整理頁面後再試）都會沿用
+        // 同一組 key，後端冪等機制保證就算「其實已經寫入成功、只是回應遺失」也不會重複建立版本。
+        errEl.textContent = e.message;
+        btn.textContent = originalBtnLabel;
+        validDaysEl.disabled = false; notesEl.disabled = false;
+      }
+    });
+  }
+
+  // ─── 狀態時間軸：唯讀顯示，只讀取伺服器端追加式寫入的 statusHistory，
+  // 前端完全不會自己組出歷史紀錄（缺欄位就是缺欄位，不猜測、不偽造過去的紀錄）。
+  // 舊訂單沒有 statusHistory 欄位時安全視為空陣列，顯示「尚無狀態變更紀錄」。
+  function renderStatusHistoryHtml(o) {
+    const history = Array.isArray(o.statusHistory) ? o.statusHistory : [];
+    const actionLabels = { forward: '前進', regress: '倒退', cancel: '取消', restore: '恢復' };
+    const rowsHtml = history.length
+      ? history.slice().reverse().map(h => {
+          const fromLabel = escHtml(ORDER_STATUS_LABELS[h.from] || h.from || '--');
+          const toLabel   = escHtml(ORDER_STATUS_LABELS[h.to]   || h.to   || '--');
+          const actionLabel = escHtml(actionLabels[h.action] || h.action || '--');
+          return `
+            <div class="status-history-item">
+              <div class="status-history-main">${fromLabel} → ${toLabel}　<span class="status-history-action">${actionLabel}</span></div>
+              <div class="status-history-meta">${escHtml(fmtTime(h.changedAt))} · ${escHtml(h.actor || '--')}</div>
+            </div>
+          `;
+        }).join('')
+      : '<div style="color:var(--gray-400);font-size:12.5px;">尚無狀態變更紀錄</div>';
+    return `
+      <h4>狀態時間軸</h4>
+      <div class="status-history-list">${rowsHtml}</div>
+    `;
+  }
+
+  // ─── 恢復終止狀態：只有訂單目前是「已完成」或「已取消」時才會顯示這個區塊，
+  // 一般狀態變更（前進／倒退／取消）都在列表的狀態欄位操作，這裡是唯一能把終止狀態
+  // 「復原」回流程的入口，且一定要選定目標狀態＋二次確認才會送出。
+  // ─── 訂單封存／還原（詳情頁）：未封存時顯示封存表單（含選填封存原因）；已封存時顯示
+  // 封存資訊（時間／人／原因）＋「還原訂單」按鈕，不提供其他任何編輯操作。
+  function renderArchiveSectionHtml(o) {
+    if (isOrderArchived(o)) {
+      return `
+        <h4>封存資訊</h4>
+        <div style="font-size:12.5px;color:var(--gray-700);line-height:1.8;">
+          封存時間：${escHtml(fmtTime(o.archivedAt))}<br>
+          封存人：${escHtml(o.archivedBy || '--')}<br>
+          封存原因：${escHtml(o.archiveReason || '（未填寫）')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+          <button id="order-detail-unarchive-btn" onclick="unarchiveOrderFromDetail('${o.orderId}')">還原訂單</button>
+        </div>
+        <div id="order-detail-archive-error" class="detail-field-error"></div>
+      `;
+    }
+    return `
+      <h4>封存訂單</h4>
+      <input type="text" id="order-detail-archive-reason" placeholder="封存原因（選填）" maxlength="500" style="width:100%;">
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <button id="order-detail-archive-btn" onclick="archiveOrderFromDetail('${o.orderId}')">封存訂單</button>
+      </div>
+      <div id="order-detail-archive-error" class="detail-field-error"></div>
+    `;
+  }
+
+  async function archiveOrderFromDetail(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const reasonEl = document.getElementById('order-detail-archive-reason');
+    const btn = document.getElementById('order-detail-archive-btn');
+    const errEl = document.getElementById('order-detail-archive-error');
+    await adminRunAction(btn, null, async () => {
+      const { confirmed } = await adminConfirmDialog({
+        title: '確認封存訂單',
+        message: `確定要封存訂單「${order.friendlyOrderNo || orderId}」嗎？封存後這筆訂單會移到「已封存」頁籤。`,
+        confirmLabel: '確認封存'
+      });
+      if (!confirmed) return; // 取消確認時完全不呼叫API
+
+      errEl.textContent = '';
+      reasonEl.disabled = true;
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/archive`, {
+          method: 'POST',
+          body: JSON.stringify({ confirm: true, archiveReason: reasonEl.value })
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '封存失敗');
+        // 封存成功後這筆訂單不再屬於「目前訂單」頁籤，關閉詳情視窗並從列表移除即可，
+        // 不需要整批重新呼叫 API（跟列表快速操作 archiveOrderRow() 是同一套邏輯）。
+        orders = orders.filter(o => o.orderId !== orderId);
+        closeOrderDetail();
+        renderTable();
+      } catch (e) {
+        errEl.textContent = e.message;
+        reasonEl.disabled = false;
+      }
+    });
+  }
+
+  async function unarchiveOrderFromDetail(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const btn = document.getElementById('order-detail-unarchive-btn');
+    const errEl = document.getElementById('order-detail-archive-error');
+    await adminRunAction(btn, null, async () => {
+      const { confirmed } = await adminConfirmDialog({
+        title: '確認還原訂單',
+        message: `確定要還原訂單「${order.friendlyOrderNo || orderId}」嗎？還原後這筆訂單會移回「目前訂單」頁籤。`,
+        confirmLabel: '確認還原'
+      });
+      if (!confirmed) return;
+
+      errEl.textContent = '';
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/unarchive`, {
+          method: 'POST',
+          body: JSON.stringify({ confirm: true })
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '還原失敗');
+        orders = orders.filter(o => o.orderId !== orderId);
+        closeOrderDetail();
+        renderTable();
+      } catch (e) {
+        errEl.textContent = e.message;
+      }
+    });
+  }
+
+  function renderStatusSectionHtml(o) {
+    if (isOrderArchived(o)) return ''; // 已封存訂單不提供狀態編輯／恢復，唯讀由 renderArchiveSectionHtml() 處理
+    const status = orderStatus(o);
+    if (!TERMINAL_STATUSES.includes(status)) return '';
+    // 恢復的定義是把終止狀態的訂單拉回正常流程，目標只能是非終止的流程狀態；
+    // 不可以選到「已完成」或「已取消」——那應該是正常走完流程或再次取消，不是「恢復」。
+    const restoreOptions = ORDER_STATUS_FLOW.filter(s => !TERMINAL_STATUSES.includes(s));
+    return `
+      <h4>恢復訂單狀態</h4>
+      <div style="color:var(--gray-400);font-size:12.5px;margin-bottom:6px;">
+        此訂單目前為終止狀態（${escHtml(ORDER_STATUS_LABELS[status])}），如需變更請選擇要恢復到的狀態並二次確認。
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="order-detail-restore-select">
+          ${restoreOptions.map(s => `<option value="${s}">${escHtml(ORDER_STATUS_LABELS[s])}</option>`).join('')}
+        </select>
+        <button id="order-detail-restore-btn" onclick="restoreOrderStatus('${o.orderId}')">恢復</button>
+      </div>
+      <div id="order-detail-restore-error" class="detail-field-error"></div>
+    `;
+  }
+
+  async function restoreOrderStatus(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const select = document.getElementById('order-detail-restore-select');
+    const btn    = document.getElementById('order-detail-restore-btn');
+    const errEl  = document.getElementById('order-detail-restore-error');
+    const target = select.value;
+    await adminRunAction(btn, null, async () => {
+      const { confirmed } = await adminConfirmDialog({
+        title: '確認恢復訂單狀態',
+        message: `確定要將此訂單從終止狀態恢復為「${ORDER_STATUS_LABELS[target]}」嗎？`,
+        danger: true,
+        confirmLabel: '確認恢復'
+      });
+      if (!confirmed) return; // 取消確認時完全不呼叫API，按鈕與下拉選單維持原狀
+
+      errEl.textContent = '';
+      select.disabled = true;
+      try {
+        const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/restore-status`, {
+          method: 'POST',
+          body: JSON.stringify({ status: target, confirm: true })
+        });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) throw new Error((data && data.error) || '恢復失敗');
+        order.status = data.status;
+        order.statusUpdatedAt = data.statusUpdatedAt;
+        order.statusHistory = data.statusHistory;
+        // 恢復後狀態本身跟「是否為終止狀態」都變了，整個詳情面板一起重繪最保險，
+        // 避免只重繪單一區塊卻讓其他區塊顯示的狀態資訊跟實際情況不一致。
+        document.getElementById('order-detail-body').innerHTML = `
+          ${renderOrderDetailHtml(order)}
+          <div id="order-detail-archive-section">${renderArchiveSectionHtml(order)}</div>
+          <div id="order-detail-status-section">${renderStatusSectionHtml(order)}</div>
+          <div id="order-detail-history-section">${renderStatusHistoryHtml(order)}</div>
+          <div id="order-detail-payment-section">${renderPaymentSectionHtml(order)}</div>
+          <div id="order-detail-logistics-section">${renderLogisticsSectionHtml(order)}</div>
+          <div id="order-detail-assignee-section">${renderAssigneeSectionHtml(order)}</div>
+          <div id="order-detail-notes-section">${renderNotesSectionHtml(order)}</div>
+        `;
+        renderTable(); // 列表的狀態欄位（badge／下拉選單）也要跟著換掉
+      } catch (e) {
+        errEl.textContent = e.message;
+        select.disabled = false;
+      }
+    });
+  }
+
+  // ─── 訂單負責人：純文字欄位，空白代表尚未指派（用 placeholder 顯示，不佔用實際內容）──
+  function renderAssigneeSectionHtml(o) {
+    const assignee = o.assignee || '';
+    // 已封存訂單只顯示目前的負責人文字，不提供輸入框與儲存按鈕（避免修改唯讀訂單）。
+    if (isOrderArchived(o)) {
+      return `
+        <h4>訂單負責人</h4>
+        <div style="font-size:13px;color:var(--gray-700);">${escHtml(assignee || '尚未指派')}</div>
+      `;
+    }
+    return `
+      <h4>訂單負責人</h4>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="order-detail-assignee-input" value="${escHtml(assignee)}" placeholder="尚未指派" maxlength="50" style="flex:1;">
+        <button id="order-detail-assignee-save-btn" onclick="saveOrderAssignee('${o.orderId}')">儲存</button>
+      </div>
+      <div id="order-detail-assignee-error" class="detail-field-error"></div>
+    `;
+  }
+
+  async function saveOrderAssignee(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const input = document.getElementById('order-detail-assignee-input');
+    const btn = document.getElementById('order-detail-assignee-save-btn');
+    const errEl = document.getElementById('order-detail-assignee-error');
+    const value = input.value;
+
+    btn.disabled = true;
+    input.disabled = true;
+    errEl.textContent = '';
+    try {
+      const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/assignee`, {
+        method: 'POST',
+        body: JSON.stringify({ assignee: value })
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error((data && data.error) || '訂單負責人更新失敗');
+      order.assignee = data.assignee;
+      // 成功後立即用伺服器回傳的實際值重繪，畫面跟後端資料一定一致（不是直接信任使用者輸入的原始字串）。
+      document.getElementById('order-detail-assignee-section').innerHTML = renderAssigneeSectionHtml(order);
+    } catch (e) {
+      // 失敗時保留使用者剛才輸入的內容，只顯示錯誤訊息並恢復可編輯，不重繪、不清空輸入框。
+      errEl.textContent = e.message;
+      btn.disabled = false;
+      input.disabled = false;
+    }
+  }
+
+  // ─── 內部備註：追加式紀錄，畫面上新到舊排序，永遠不提供編輯或刪除舊紀錄的功能 ──
+  function renderNotesSectionHtml(o) {
+    const notes = Array.isArray(o.internalNotes) ? o.internalNotes : [];
+    const notesHtml = notes.length
+      ? notes.slice().reverse().map(n => `
+          <div class="internal-note-item">
+            <div class="internal-note-meta">${escHtml(fmtTime(n.createdAt))} · ${escHtml(n.actor || '--')}</div>
+            <div class="internal-note-content">${escHtml(n.content)}</div>
+          </div>
+        `).join('')
+      : '<div style="color:var(--gray-400);font-size:12.5px;">尚無內部備註</div>';
+    // 已封存訂單只顯示既有備註清單，不提供新增備註的輸入框與按鈕（避免修改唯讀訂單）。
+    if (isOrderArchived(o)) {
+      return `
+        <h4>內部備註（僅後台可見，與客戶備註分開存放）</h4>
+        <div class="internal-note-list">${notesHtml}</div>
+      `;
+    }
+    return `
+      <h4>內部備註（僅後台可見，與客戶備註分開存放）</h4>
+      <div class="internal-note-list">${notesHtml}</div>
+      <textarea id="order-detail-note-input" maxlength="2000" rows="3" placeholder="新增一筆內部備註…" style="width:100%;margin-top:8px;"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+        <button id="order-detail-note-add-btn" onclick="addInternalNote('${o.orderId}')">新增備註</button>
+      </div>
+      <div id="order-detail-note-error" class="detail-field-error"></div>
+    `;
+  }
+
+  async function addInternalNote(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const textarea = document.getElementById('order-detail-note-input');
+    const btn = document.getElementById('order-detail-note-add-btn');
+    const errEl = document.getElementById('order-detail-note-error');
+    const content = textarea.value;
+
+    btn.disabled = true;
+    textarea.disabled = true;
+    errEl.textContent = '';
+    try {
+      const resp = await adminFetch(`/api/orders/${encodeURIComponent(orderId)}/internal-notes`, {
+        method: 'POST',
+        body: JSON.stringify({ content })
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error((data && data.error) || '備註新增失敗');
+      order.internalNotes = data.internalNotes;
+      // 重繪整個備註區塊：連帶重建一個全新的空白 textarea，等同「送出後自動清空輸入框」。
+      document.getElementById('order-detail-notes-section').innerHTML = renderNotesSectionHtml(order);
+    } catch (e) {
+      // 失敗時保留使用者剛才輸入的備註內容，不清空 textarea，只顯示錯誤並恢復可編輯。
+      errEl.textContent = e.message;
+      btn.disabled = false;
+      textarea.disabled = false;
+    }
+  }
+
+  function closeOrderDetail() {
+    document.getElementById('order-detail-modal').classList.add('hidden');
+  }
+
+  // 每一列缺漏的欄位都要顯示「--」，不能因為舊訂單缺欄位就出現 undefined／NaN／Invalid Date
+  // 或整頁壞掉——所有數字/時間都經過 fmtMoney()／fmtQty()／fmtTime() 統一處理。
+  function renderOrderDetailHtml(o) {
+    const status = orderStatus(o);
+    const rows = [
+      ['訂單編號', escHtml(o.friendlyOrderNo || o.orderId || '--')],
+      ['建立時間', escHtml(fmtTime(o.savedAt))],
+      ['客戶姓名', escHtml(o.contact?.name || '--')],
+      ['Email', escHtml(o.contact?.email || '--')],
+      ['電話', escHtml(o.contact?.phone || '--')],
+      ['客戶備註', escHtml(o.contact?.note || '--')],
+      ['商品名稱', escHtml(o.product?.name || '--')],
+      ['材質', escHtml(o.product?.material || '--')],
+      ['工藝', escHtml(o.product?.finish || '--')],
+      ['容量', escHtml(o.product?.capacity || '--')],
+      ['數量', fmtQty(o.product?.qty)],
+      ['單價', fmtMoney(o.quote?.unitPrice)],
+      ['小計', fmtMoney(o.quote?.subtotal)],
+      ['開版／設置費', fmtMoney(o.quote?.setupFee)],
+      ['預估總額', fmtMoney(o.quote?.total)],
+      ['訂單狀態', escHtml((ORDER_STATUS_LABELS[status] || status || '--') + (TERMINAL_STATUSES.includes(status) ? '（終止狀態）' : ''))],
+      ['狀態更新時間', escHtml(fmtTime(o.statusUpdatedAt))],
+      ['工廠包下載時間', escHtml(fmtTime(o.factoryPackageDownloadedAt))],
+      ['封存狀態', isOrderArchived(o) ? '已封存' : '未封存']
+    ];
+    return `<div style="display:flex;justify-content:space-between;align-items:center;">`
+      + `<h3>訂單詳情</h3>`
+      + `<button class="btn btn-primary btn-sm" onclick="printOrder('${o.orderId}')">列印</button>`
+      + `</div>`
+      + '<table class="order-detail-table">'
+      + rows.map(([label, value]) => `<tr><th>${escHtml(label)}</th><td>${value}</td></tr>`).join('')
+      + '</table>';
+  }
+
+  // ─── 訂單列印：純前端功能，直接讀取記憶體內已載入的 orders 資料組出「後台內部
+  // 訂單工作單」，不新增任何 API、不把管理密碼放進網址，也不呼叫任何寫入 API。
+  // 用專用的 #print-area 區塊＋CSS「印刷時把 body 其他內容全部隱藏」的技巧，
+  // 確保 window.print() 只印出這一筆訂單，不會印到後台導覽列/篩選器/表單/其他訂單。
+  // 所有動態文字一律經過 escHtml()，缺欄位一律顯示「--」，不猜測、不偽造資料。
+  function buildPrintHtml(o) {
+    const status = orderStatus(o);
+    const paymentSummary = computePaymentSummary(o);
+    const logisticsSummary = computeLogisticsSummary(o);
+    const latest = logisticsSummary.latest;
+    const notes = Array.isArray(o.internalNotes) ? o.internalNotes.slice().reverse() : [];
+    const history = Array.isArray(o.statusHistory) ? o.statusHistory.slice().reverse() : [];
+    const actionLabels = { forward: '前進', regress: '倒退', cancel: '取消', restore: '恢復' };
+
+    const notesHtml = notes.length
+      ? notes.map(n => `
+          <div class="print-list-item">
+            <div class="print-list-content">${escHtml(n.content || '--')}</div>
+            <div class="print-list-meta">${escHtml(fmtTime(n.createdAt))} · ${escHtml(n.actor || '--')}</div>
+          </div>`).join('')
+      : '<div class="print-empty">尚無內部備註</div>';
+
+    const historyHtml = history.length
+      ? history.map(h => `
+          <div class="print-list-item">
+            <div class="print-list-content">${escHtml(ORDER_STATUS_LABELS[h.from] || h.from || '--')} → ${escHtml(ORDER_STATUS_LABELS[h.to] || h.to || '--')}　${escHtml(actionLabels[h.action] || h.action || '--')}</div>
+            <div class="print-list-meta">${escHtml(fmtTime(h.changedAt))} · ${escHtml(h.actor || '--')}</div>
+          </div>`).join('')
+      : '<div class="print-empty">尚無狀態變更紀錄</div>';
+
+    return `
+      <div class="print-header">
+        <h1>楊竹科技 — 後台內部訂單工作單</h1>
+        <div class="print-meta">列印時間：${escHtml(fmtTime(new Date().toISOString()))}</div>
+      </div>
+
+      <table class="print-table">
+        <tr><th>訂單編號</th><td>${escHtml(o.friendlyOrderNo || o.orderId || '--')}</td>
+            <th>建立時間</th><td>${escHtml(fmtTime(o.savedAt))}</td></tr>
+        <tr><th>訂單狀態</th><td>${escHtml(ORDER_STATUS_LABELS[status] || status || '--')}</td>
+            <th>封存狀態</th><td>${isOrderArchived(o) ? '已封存' : '未封存'}</td></tr>
+        <tr><th>訂單負責人</th><td colspan="3">${escHtml(o.assignee || '尚未指派')}</td></tr>
+      </table>
+
+      <h2>客戶資訊</h2>
+      <table class="print-table">
+        <tr><th>客戶姓名</th><td>${escHtml(o.contact?.name || '--')}</td>
+            <th>Email</th><td>${escHtml(o.contact?.email || '--')}</td></tr>
+        <tr><th>電話</th><td colspan="3">${escHtml(o.contact?.phone || '--')}</td></tr>
+      </table>
+
+      <h2>商品資訊</h2>
+      <table class="print-table">
+        <tr><th>商品名稱</th><td>${escHtml(o.product?.name || '--')}</td>
+            <th>數量</th><td>${fmtQty(o.product?.qty)}</td></tr>
+        <tr><th>材質</th><td>${escHtml(o.product?.material || '--')}</td>
+            <th>工藝</th><td>${escHtml(o.product?.finish || '--')}</td></tr>
+        <tr><th>容量</th><td colspan="3">${escHtml(o.product?.capacity || '--')}</td></tr>
+      </table>
+
+      <h2>報價資訊</h2>
+      <table class="print-table">
+        <tr><th>單價</th><td>${fmtMoney(o.quote?.unitPrice)}</td>
+            <th>小計</th><td>${fmtMoney(o.quote?.subtotal)}</td></tr>
+        <tr><th>其他費用</th><td>${fmtMoney(o.quote?.setupFee)}</td>
+            <th>總額</th><td>${fmtMoney(o.quote?.total)}</td></tr>
+      </table>
+
+      <h2>付款摘要</h2>
+      <table class="print-table">
+        <tr><th>付款狀態</th><td>${escHtml(PAYMENT_STATUS_LABELS[paymentSummary.paymentStatus] || '--')}</td>
+            <th>累計收款</th><td>${fmtMoney(paymentSummary.totalReceived)}</td></tr>
+        <tr><th>累計退款</th><td>${fmtMoney(paymentSummary.totalRefunded)}</td>
+            <th>實收金額</th><td>${fmtMoney(paymentSummary.netReceived)}</td></tr>
+        <tr><th>尚欠金額</th><td colspan="3">${paymentSummary.owed === null ? '--' : fmtMoney(paymentSummary.owed)}</td></tr>
+      </table>
+
+      <h2>物流摘要</h2>
+      <table class="print-table">
+        <tr><th>最新物流狀態</th><td>${latest ? escHtml(LOGISTICS_STATUS_LABELS[latest.status] || latest.status || '--') : '--'}</td>
+            <th>物流商</th><td>${latest ? escHtml(latest.carrier || '--') : '--'}</td></tr>
+        <tr><th>追蹤單號</th><td colspan="3">${latest ? escHtml(latest.trackingNumber || '--') : '--'}</td></tr>
+      </table>
+
+      <h2>內部備註</h2>
+      <div class="print-list">${notesHtml}</div>
+
+      <h2>狀態歷程</h2>
+      <div class="print-list">${historyHtml}</div>
+    `;
+  }
+
+  // 上一次註冊的 afterprint 清除函式：每次列印前先移除舊的監聽再重新註冊一個新的，
+  // 避免使用者連續列印多筆訂單時，舊的監聽疊加造成清除邏輯被重複觸發。
+  let printCleanupHandler = null;
+
+  // 列印只讀取 orders 記憶體資料組字串塞進 #print-area，完全不呼叫任何 fetch／寫入 API，
+  // 不會、也不可能修改 orders、訂單 JSON、付款、物流、狀態或封存欄位。
+  function printOrder(orderId) {
+    const order = orders.find(o => o.orderId === orderId);
+    if (!order) return;
+    const area = document.getElementById('print-area');
+    area.innerHTML = buildPrintHtml(order);
+
+    if (printCleanupHandler) {
+      window.removeEventListener('afterprint', printCleanupHandler);
+    }
+    // afterprint 在使用者實際列印完成或取消列印對話框後都會觸發，用它來清空暫存內容，
+    // 避免 #print-area 一直殘留上一筆訂單的資料（雖然畫面上本來就看不到，但清乾淨較安全）。
+    printCleanupHandler = function () {
+      area.innerHTML = '';
+      window.removeEventListener('afterprint', printCleanupHandler);
+      printCleanupHandler = null;
+    };
+    window.addEventListener('afterprint', printCleanupHandler);
+
+    window.print();
+  }
+
+  // 匯出「目前篩選結果」（跟畫面上表格顯示的是同一份 getFilteredOrders()），
+  // 不是全部訂單，確保畫面跟下載內容不會對不上。改用後端 /api/orders/export 產生真正的
+  // .xlsx（原本是純前端組CSV文字），防呆機制：isExportingOrders旗標防止連續重複點擊，
+  // 按鈕在下載期間disable並顯示「匯出中…」。
+  let isExportingOrders = false;
+  async function exportOrdersXlsx() {
+    if (isExportingOrders) return;
+    const filtered = getFilteredOrders();
+    if (!filtered.length) {
+      alert('目前篩選結果沒有任何訂單可以匯出，請調整篩選條件');
+      return;
+    }
+    const btn = document.getElementById('btn-export-orders-xlsx');
+    const originalText = btn.textContent;
+    isExportingOrders = true;
+    btn.disabled = true;
+    btn.textContent = '匯出中…';
+    try {
+      const rows = filtered.map(o => ({
+        orderNo: o.friendlyOrderNo || '', time: fmtTime(o.savedAt), name: o.contact?.name || '',
+        email: o.contact?.email || '', phone: o.contact?.phone || '',
+        product: o.product?.name || '', material: o.product?.material || '', finish: o.product?.finish || '',
+        qty: o.product?.qty || 0, total: o.quote?.total || 0,
+        status: ORDER_STATUS_LABELS[orderStatus(o)] || '', downloaded: o.factoryPackageDownloadedAt ? '是' : '否',
+        note: (o.contact?.note || '').replace(/\n/g, ' ')
+      }));
+      const resp = await adminFetch('/api/orders/export', { method: 'POST', body: JSON.stringify({ rows }) });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null);
+        throw new Error((data && data.error) || '匯出失敗，請稍後再試');
+      }
+      await adminDownloadBlob(resp, `楊竹訂單_${new Date().toISOString().slice(0,10)}.xlsx`);
+    } catch (e) {
+      alert(e.message || '匯出失敗，請稍後再試');
+    } finally {
+      isExportingOrders = false;
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+
+  // 自動登入：確認伺服器端Session（HttpOnly Cookie）是否仍然有效，有效才直接進入後台，
+  // 不需要、也不可能再從localStorage讀回密碼。
+  (async function init() {
+    const ok = await checkAdminSession();
+    if (!ok) return;
+    const loaded = await prepareAdminAppData();
+    if (loaded) showAdminApp();
   })();
 
+  document.getElementById('gate-username').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('gate-input').focus();
+  });
   document.getElementById('gate-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') tryLogin();
   });

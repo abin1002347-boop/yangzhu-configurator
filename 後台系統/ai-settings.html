@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 功能設定 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>AI 功能設定<button type="button" class="admin-help-icon" data-help-key="aiSettings" aria-label="說明">?</button></h1>
+        <p>管理四項既有 AI 功能的啟用狀態、模型與主要固定提示詞，儲存後下一次請求立即生效，不需要重新啟動伺服器。本頁不管理 API Key。</p>
+      </div>
+    </div>
+
+    <p id="ai-settings-status">載入中…</p>
+
+    <div id="ai-settings-form" class="hidden">
+
+      <div class="card" style="max-width:720px;margin-bottom:20px;">
+        <h2 style="margin-top:0;">AI 功能開關與模型</h2>
+
+        <div class="form-group ai-feature-row">
+          <label>
+            <input type="checkbox" id="ai-feature-generate_image-enabled">
+            AI 生圖（卡片背景設計）
+          </label>
+          <p class="ai-feature-desc">POST /api/generate-image — 客戶輸入描述，AI 生成卡片背景印刷圖案</p>
+          <label for="ai-feature-generate_image-model">模型</label>
+          <select id="ai-feature-generate_image-model">
+            <option value="dall-e-3">dall-e-3</option>
+          </select>
+        </div>
+
+        <div class="form-group ai-feature-row">
+          <label>
+            <input type="checkbox" id="ai-feature-generate_design-enabled">
+            AI 設計文字建議
+          </label>
+          <p class="ai-feature-desc">POST /api/generate-design — 根據客戶描述生成印刷文字方案</p>
+          <label for="ai-feature-generate_design-model">模型</label>
+          <select id="ai-feature-generate_design-model">
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+          </select>
+        </div>
+
+        <div class="form-group ai-feature-row">
+          <label>
+            <input type="checkbox" id="ai-feature-black_card_pattern-enabled">
+            尊爵不凡黑卡圖案生成
+          </label>
+          <p class="ai-feature-desc">POST /api/black-card-pattern-candidates — 客戶輸入文字描述，AI 生成黑卡浮雕圖案候選</p>
+          <label for="ai-feature-black_card_pattern-model">模型</label>
+          <select id="ai-feature-black_card_pattern-model">
+            <option value="gpt-image-1">gpt-image-1</option>
+          </select>
+        </div>
+
+        <div class="form-group ai-feature-row">
+          <label>
+            <input type="checkbox" id="ai-feature-cartoon_image-enabled">
+            Q版卡通化
+          </label>
+          <p class="ai-feature-desc">POST /api/cartoon-image — 客戶上傳照片，AI 生成Q版肖像</p>
+          <label for="ai-feature-cartoon_image-model">模型</label>
+          <select id="ai-feature-cartoon_image-model">
+            <option value="gpt-image-1">gpt-image-1</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:720px;margin-bottom:20px;">
+        <h2 style="margin-top:0;">主要固定提示詞</h2>
+
+        <div class="form-group ai-prompt-row">
+          <label for="ai-prompt-generate_image_main-content">generate_image_main（所屬功能：AI 生圖）</label>
+          <p class="ai-feature-desc">必須保留佔位符：{{PRODUCT_NAME}}、{{USER_INPUT}}（送出前會被實際商品名稱與客戶輸入取代，缺少任一項無法儲存）</p>
+          <textarea id="ai-prompt-generate_image_main-content" maxlength="10000" rows="4"></textarea>
+          <p class="ai-prompt-count"><span id="ai-prompt-generate_image_main-count">0</span> / 10000 字</p>
+        </div>
+
+        <div class="form-group ai-prompt-row">
+          <label for="ai-prompt-generate_design_system-content">generate_design_system（所屬功能：AI 設計文字建議）</label>
+          <p class="ai-feature-desc">沒有必須保留的佔位符</p>
+          <textarea id="ai-prompt-generate_design_system-content" maxlength="10000" rows="6"></textarea>
+          <p class="ai-prompt-count"><span id="ai-prompt-generate_design_system-count">0</span> / 10000 字</p>
+        </div>
+
+        <div class="form-group ai-prompt-row">
+          <label for="ai-prompt-black_card_pattern_system-content">black_card_pattern_system（所屬功能：尊爵不凡黑卡圖案生成）</label>
+          <p class="ai-feature-desc">必須保留佔位符：{{USER_INPUT}}、{{STYLE_PROMPT}}（送出前會被客戶輸入與風格描述取代，缺少任一項無法儲存）</p>
+          <textarea id="ai-prompt-black_card_pattern_system-content" maxlength="10000" rows="8"></textarea>
+          <p class="ai-prompt-count"><span id="ai-prompt-black_card_pattern_system-count">0</span> / 10000 字</p>
+        </div>
+
+        <div class="form-group ai-prompt-row">
+          <label for="ai-prompt-cartoon_image_base-content">cartoon_image_base（所屬功能：Q版卡通化）</label>
+          <p class="ai-feature-desc">沒有必須保留的佔位符</p>
+          <textarea id="ai-prompt-cartoon_image_base-content" maxlength="10000" rows="4"></textarea>
+          <p class="ai-prompt-count"><span id="ai-prompt-cartoon_image_base-count">0</span> / 10000 字</p>
+        </div>
+
+        <div class="form-group ai-prompt-row">
+          <label for="ai-prompt-cartoon_image_black_card-content">cartoon_image_black_card（所屬功能：Q版卡通化，尊爵不凡黑卡模式）</label>
+          <p class="ai-feature-desc">沒有必須保留的佔位符</p>
+          <textarea id="ai-prompt-cartoon_image_black_card-content" maxlength="10000" rows="4"></textarea>
+          <p class="ai-prompt-count"><span id="ai-prompt-cartoon_image_black_card-count">0</span> / 10000 字</p>
+        </div>
+      </div>
+
+      <div class="admin-form-actions">
+        <button class="btn btn-primary" id="ai-settings-save-btn" onclick="saveAiSettings()" disabled>儲存</button>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="ai-settings-page.js"></script>
+<script>
+  renderAdminNav('ai');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

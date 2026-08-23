@@ -1,0 +1,148 @@
+/* 楊竹科技 — 正式報價單預覽／列印樣式表（自成一體，不載入任何第三方字型或外部資源） */
+
+:root {
+  --qp-ink:    #1F2933;
+  --qp-muted:  #6B7A68;
+  --qp-line:   #D8DED5;
+  --qp-green:  #2D7D46;
+  --qp-amber:  #B45309;
+  --qp-amber-bg: #FEF3E2;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif;
+  background: #e9ece7;
+  color: var(--qp-ink);
+  line-height: 1.6;
+}
+
+.qp-state { width: 100%; }
+
+.qp-loading-text {
+  text-align: center;
+  color: var(--qp-muted);
+  padding: 64px 16px;
+}
+
+.qp-error-box {
+  max-width: 480px;
+  margin: 64px auto;
+  text-align: center;
+  padding: 0 16px;
+}
+.qp-error-box h1 { color: #B3261E; margin-bottom: 8px; font-size: 1.2rem; }
+.qp-error-box p { color: var(--qp-muted); font-size: 0.95rem; }
+
+.qp-toolbar {
+  width: 210mm;
+  max-width: 100%;
+  margin: 16px auto 0;
+  padding: 0 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+.qp-toolbar button {
+  background: var(--qp-green);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.qp-toolbar button:hover { opacity: 0.9; }
+
+.qp-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 16px auto 48px;
+  background: #fff;
+  padding: 18mm 16mm;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+}
+
+.qp-header {
+  text-align: center;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--qp-ink);
+  padding-bottom: 12px;
+}
+.qp-company { font-size: 13px; color: var(--qp-muted); margin-bottom: 4px; }
+.qp-header h1 { font-size: 22px; letter-spacing: 4px; }
+
+.qp-badges { display: flex; gap: 8px; margin-bottom: 14px; }
+/* .qp-badge 的 display:inline-block 特異度跟瀏覽器內建的 [hidden]{display:none} 相同，
+   但作者樣式表本來就會贏過 UA 樣式表，導致單靠 JS 設定 element.hidden=true 蓋不掉這條
+   規則、徽章會一直顯示；這裡明確加一條特異度更高的規則，確保 hidden 屬性永遠優先。 */
+.qp-badge[hidden] { display: none; }
+.qp-badge {
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--qp-line);
+}
+.qp-badge-version { font-weight: 700; border-color: var(--qp-green); color: var(--qp-green); }
+.qp-badge-history { background: #F0F0F0; color: #555; }
+.qp-badge-expired { background: var(--qp-amber-bg); color: var(--qp-amber); border-color: var(--qp-amber); }
+
+h2 {
+  font-size: 14px;
+  margin: 18px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--qp-line);
+  color: #374151;
+}
+h2:first-of-type { border-top: none; padding-top: 0; }
+
+.qp-meta, .qp-field-list { display: grid; gap: 4px; margin-bottom: 4px; }
+.qp-meta-row, .qp-field-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  font-size: 13px;
+  padding: 2px 0;
+  word-break: break-word;
+}
+.qp-meta-row dt, .qp-field-row dt { color: var(--qp-muted); }
+
+.qp-field-final {
+  border-top: 1px solid var(--qp-line);
+  margin-top: 6px;
+  padding-top: 10px;
+}
+.qp-field-final dt, .qp-field-final dd { font-size: 16px; font-weight: 700; color: var(--qp-green); }
+
+.qp-inquiry-note {
+  background: #F2F8F0;
+  color: #1d5a33;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+
+.qp-notes { white-space: pre-wrap; font-size: 13px; }
+
+@media print {
+  @page { size: A4; margin: 18mm 16mm; }
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  .qp-sheet {
+    box-shadow: none;
+    margin: 0;
+    width: auto;
+    min-height: auto;
+    padding: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .qp-toolbar { width: 100%; padding: 0 12px; }
+  .qp-sheet { width: 100%; min-height: auto; padding: 20px; }
+  .qp-meta-row, .qp-field-row { grid-template-columns: 1fr; }
+}

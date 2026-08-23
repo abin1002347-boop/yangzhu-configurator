@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>儀表板 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>儀表板</h1>
+        <p>訂單數、估價總營收、客戶訂單、庫存概況（一鍵掌握營運狀態）</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="dashboard-granularity-select" onchange="onDashboardGranularityChange()">
+          <option value="day">每天</option>
+          <option value="month">每月</option>
+          <option value="quarter">每季</option>
+          <option value="year">每年</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" id="dashboard-export-btn" onclick="exportDashboardXlsx()">匯出 Excel</button>
+        <button class="btn btn-secondary btn-sm" id="dashboard-refresh-btn" onclick="loadDashboard()">重新整理</button>
+      </div>
+    </div>
+    <div id="dashboard-export-error" class="hidden" style="color:#dc2626;font-size:13px;margin-bottom:10px;"></div>
+
+    <div class="stat-grid">
+      <a class="stat-card" id="stat-card-order-count" href="/admin" title="查看全部訂單">
+        <div class="stat-label">訂單總數</div>
+        <div class="stat-value" id="stat-order-count">--</div>
+      </a>
+      <div class="stat-card">
+        <div class="stat-label">估價總營收（未稅）</div>
+        <div class="stat-value green" id="stat-revenue">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">上架商品數</div>
+        <div class="stat-value" id="stat-product-count">--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">低庫存項目</div>
+        <div class="stat-value warn" id="stat-low-stock">--</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px;margin:24px 0 10px;" id="dashboard-period-heading">本日營運概況<button type="button" class="admin-help-icon" data-help-key="dashboardOverview" aria-label="說明">?</button></h3>
+    <div id="dashboard-today-error" class="hidden" style="color:#dc2626;font-size:13px;margin-bottom:10px;"></div>
+    <div class="stat-grid">
+      <a class="stat-card" id="stat-card-period" href="/admin" title="查看本期間訂單">
+        <div class="stat-label" id="stat-period-order-count-label">訂單數</div>
+        <div class="stat-value" id="stat-period-order-count">--</div>
+      </a>
+      <div class="stat-card">
+        <div class="stat-label" id="stat-period-revenue-label">營業額（未稅）</div>
+        <div class="stat-value green" id="stat-period-revenue">--</div>
+      </div>
+      <a class="stat-card" id="stat-card-pending" href="/admin" title="查看待處理訂單">
+        <div class="stat-label">待處理訂單</div>
+        <div class="stat-value warn" id="stat-pending-count">--</div>
+      </a>
+      <a class="stat-card" id="stat-card-production" href="/admin" title="查看製作中訂單">
+        <div class="stat-label">製作中訂單</div>
+        <div class="stat-value warn" id="stat-production-count">--</div>
+      </a>
+      <a class="stat-card" id="stat-card-overdue" href="/admin" title="查看預估逾期訂單">
+        <div class="stat-label">預估逾期訂單</div>
+        <div class="stat-value warn" id="stat-overdue-count">--</div>
+      </a>
+    </div>
+    <p style="font-size:12px;color:var(--gray-400);margin:-6px 0 20px;">待處理／製作中／預估逾期訂單是目前實際卡在該狀態的工作量，不受上方時間粒度篩選影響</p>
+
+    <h3 style="font-size:15px;margin:24px 0 10px;" id="dashboard-trend-heading">最近 30 天營收趨勢</h3>
+    <div class="chart-card">
+      <svg id="revenue-trend-svg" viewBox="0 0 800 220" preserveAspectRatio="xMidYMid meet" role="img" aria-label="最近30天營收趨勢圖"></svg>
+      <p id="revenue-trend-empty" class="hidden" style="text-align:center;color:var(--gray-400);font-size:13px;margin:8px 0 0;">目前沒有資料</p>
+    </div>
+    <div class="admin-table-wrap" style="margin:12px 0 24px;max-height:260px;overflow-y:auto;">
+      <table class="admin-table">
+        <thead><tr><th>期間</th><th>訂單數</th><th>營業額</th></tr></thead>
+        <tbody id="revenue-trend-table-body"><tr><td colspan="3" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:15px;margin:24px 0 10px;" id="dashboard-status-heading">訂單狀態分布</h3>
+    <div class="chart-card">
+      <svg id="status-breakdown-svg" viewBox="0 0 800 280" preserveAspectRatio="xMidYMid meet" role="img" aria-label="訂單狀態分布圖"></svg>
+      <p id="status-breakdown-empty" class="hidden" style="text-align:center;color:var(--gray-400);font-size:13px;margin:8px 0 0;">目前沒有資料</p>
+    </div>
+    <div class="admin-table-wrap" style="margin:12px 0 24px;">
+      <table class="admin-table">
+        <thead><tr><th>狀態</th><th>訂單數</th></tr></thead>
+        <tbody id="status-breakdown-table-body"><tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:15px;margin:24px 0 10px;" id="dashboard-topproducts-heading">熱門商品排行（前 5 名）<button type="button" class="admin-help-icon" data-help-key="dashboardTopProducts" aria-label="說明">?</button></h3>
+    <div class="admin-table-wrap" style="margin-bottom:24px;">
+      <table class="admin-table">
+        <thead><tr><th>排名</th><th>商品</th><th>訂單數</th></tr></thead>
+        <tbody id="top-products-body"><tr><td colspan="3" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:15px;margin:24px 0 10px;" id="dashboard-byproduct-heading">依商品訂單分布<button type="button" class="admin-help-icon" data-help-key="dashboardProductDistribution" aria-label="說明">?</button></h3>
+    <div class="admin-table-wrap" style="margin-bottom:8px;">
+      <table class="admin-table">
+        <thead id="by-product-thead"><tr><th>商品</th><th data-sort-key="count">訂單數</th></tr></thead>
+        <tbody id="by-product-body"><tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="by-product-pagination" style="margin-bottom:16px;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:24px 0 10px;">
+      <h3 style="font-size:15px;margin:0;">庫存概況（素材／半成品）<button type="button" class="admin-help-icon" data-help-key="dashboardInventory" aria-label="說明">?</button></h3>
+      <div style="display:flex;gap:8px;">
+        <button id="stocktake-open-btn" class="btn btn-secondary btn-sm" onclick="openStocktakePanel()">庫存盤點</button>
+        <button id="inventory-export-btn" class="btn btn-secondary btn-sm" onclick="exportInventoryCsv()">匯出庫存</button>
+      </div>
+    </div>
+    <div id="inventory-export-error" class="hidden" style="color:#dc2626;font-size:13px;margin-bottom:10px;"></div>
+    <div class="admin-table-wrap" style="margin-bottom:24px;">
+      <table class="admin-table">
+        <thead><tr><th>商品</th><th>目前庫存</th><th>低庫存警戒值</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody id="inventory-body"><tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:15px;margin:24px 0 10px;" id="dashboard-customers-heading">客戶訂單彙總（依 Email，可點表頭排序，預設依消費金額排序）</h3>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead id="customers-thead"><tr><th>客戶</th><th>Email</th><th data-sort-key="orderCount">訂單數</th><th data-sort-key="totalSpent">累計估價金額</th><th data-sort-key="lastOrderAt">最近下單時間</th></tr></thead>
+        <tbody id="customers-body"><tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="customers-pagination" style="margin-bottom:16px;"></div>
+
+    <!-- 庫存進出登記面板（預設隱藏） -->
+    <div id="movement-panel" class="card hidden" style="margin-top:20px;max-width:420px;">
+      <h3 id="movement-title" style="font-size:15px;margin-bottom:12px;"></h3>
+      <div class="form-group">
+        <label>異動數量（正數＝進貨／負數＝出貨扣除）</label>
+        <input type="number" id="movement-qty" placeholder="例：100 或 -20">
+      </div>
+      <div class="form-group">
+        <label>原因</label>
+        <input type="text" id="movement-reason" placeholder="例：進貨 / 出貨 / 盤點調整">
+      </div>
+      <div class="form-group">
+        <label>備註（選填）</label>
+        <input type="text" id="movement-note" placeholder="選填">
+      </div>
+      <div class="form-group">
+        <label>低庫存警戒值</label>
+        <input type="number" id="movement-threshold" placeholder="低於此數量會標示為低庫存">
+      </div>
+      <div class="admin-form-actions">
+        <button class="btn btn-secondary" onclick="closeMovementPanel()">取消</button>
+        <button class="btn btn-secondary" onclick="saveThreshold(this)">只更新警戒值</button>
+        <button class="btn btn-primary" onclick="submitMovement(this)">登記異動</button>
+      </div>
+    </div>
+
+    <!-- 庫存異動歷史（預設隱藏）：只做唯讀顯示，不提供編輯或刪除紀錄的操作 -->
+    <div id="inventory-log-overlay" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeInventoryLog()">
+      <div class="admin-modal-box">
+        <div class="admin-modal-header">
+          <h3 id="inventory-log-title">庫存異動紀錄</h3>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeInventoryLog()">關閉</button>
+        </div>
+        <div class="admin-modal-body">
+          <div id="inventory-log-loading" class="inventory-log-state">載入中…</div>
+          <div id="inventory-log-error" class="inventory-log-state hidden">
+            <p id="inventory-log-error-text">讀取失敗</p>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="retryInventoryLog()">重新嘗試</button>
+          </div>
+          <div id="inventory-log-empty" class="inventory-log-state hidden">目前沒有庫存異動紀錄</div>
+          <ul id="inventory-log-list" class="inventory-log-list hidden"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 庫存盤點（預設隱藏）：建立草稿、輸入實際數量、顯示差異、儲存草稿、確認盤點 -->
+    <div id="stocktake-overlay" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeStocktakePanel()">
+      <div class="admin-modal-box admin-modal-box-wide">
+        <div class="admin-modal-header">
+          <h3 id="stocktake-title">庫存盤點</h3>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="stocktake-history-open-btn" onclick="openStocktakeHistory()">查看歷史盤點</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="stocktake-close-btn" onclick="closeStocktakePanel()">關閉</button>
+          </div>
+        </div>
+        <div class="admin-modal-body">
+          <div id="stocktake-loading" class="inventory-log-state">載入中…</div>
+          <div id="stocktake-error" class="inventory-log-state hidden">
+            <p id="stocktake-error-text">讀取失敗</p>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="retryStocktakePanel()">重新嘗試</button>
+          </div>
+          <div id="stocktake-empty" class="inventory-log-state hidden">
+            <p>目前沒有進行中的盤點草稿</p>
+            <button type="button" class="btn btn-primary btn-sm" id="stocktake-create-btn" onclick="createStocktakeDraft()">建立新盤點</button>
+          </div>
+          <div id="stocktake-draft" class="hidden">
+            <p style="font-size:13px;color:var(--gray-400);margin-bottom:8px;">
+              盤點編號：<span id="stocktake-id-text"></span>（狀態：<span id="stocktake-status-text"></span>）
+            </p>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead><tr><th>商品代碼</th><th>商品名稱</th><th>系統庫存</th><th>實際盤點數量</th><th>差異</th></tr></thead>
+                <tbody id="stocktake-items-body"></tbody>
+              </table>
+            </div>
+            <div class="form-group" style="margin-top:12px;">
+              <label>備註（選填）</label>
+              <input type="text" id="stocktake-note" placeholder="選填">
+            </div>
+            <div id="stocktake-submit-error" class="hidden" style="color:#dc2626;font-size:13px;margin:8px 0;"></div>
+            <div class="admin-form-actions">
+              <button class="btn btn-secondary" id="stocktake-save-btn" onclick="saveStocktakeDraft()">儲存草稿</button>
+              <button class="btn btn-primary" id="stocktake-confirm-btn" onclick="confirmStocktake()">確認盤點</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 歷史盤點（預設隱藏）：唯讀清單與明細，不提供刪除或修改 -->
+    <div id="stocktake-history-overlay" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeStocktakeHistory()">
+      <div class="admin-modal-box admin-modal-box-wide">
+        <div class="admin-modal-header">
+          <h3>歷史盤點</h3>
+          <button type="button" class="btn btn-secondary btn-sm" id="stocktake-history-close-btn" onclick="closeStocktakeHistory()">關閉</button>
+        </div>
+        <div class="admin-modal-body">
+          <div id="stocktake-history-loading" class="inventory-log-state">載入中…</div>
+          <div id="stocktake-history-error" class="inventory-log-state hidden">
+            <p id="stocktake-history-error-text">讀取失敗</p>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadStocktakeHistory(stocktakeHistoryPage)">重新嘗試</button>
+          </div>
+          <div id="stocktake-history-empty" class="inventory-log-state hidden">目前沒有任何盤點紀錄</div>
+          <ul id="stocktake-history-list" class="inventory-log-list hidden"></ul>
+          <div id="stocktake-history-pagination"></div>
+
+          <div id="stocktake-history-detail" class="hidden">
+            <button type="button" class="btn btn-secondary btn-sm" id="stocktake-history-back-btn" onclick="backToStocktakeHistoryList()">返回清單</button>
+            <p style="font-size:13px;color:var(--gray-400);margin:8px 0;">
+              盤點編號：<span id="stocktake-detail-id"></span>　狀態：<span id="stocktake-detail-status"></span><br>
+              建立時間：<span id="stocktake-detail-created"></span>　確認時間：<span id="stocktake-detail-confirmed"></span>
+            </p>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead><tr><th>商品代碼</th><th>商品名稱</th><th>系統庫存</th><th>實際盤點數量</th><th>差異</th></tr></thead>
+                <tbody id="stocktake-detail-items-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="dashboard-page.js"></script>
+<script>
+  renderAdminNav('overview');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

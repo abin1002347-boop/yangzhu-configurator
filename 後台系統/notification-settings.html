@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通知設定 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>通知設定<button type="button" class="admin-help-icon" data-help-key="notificationSettings" aria-label="說明">?</button></h1>
+        <p>Email／LINE通知管道是否已設定，以及各類事件要透過哪些管道發送。機密設定（SMTP密碼、LINE Token）只能在伺服器環境變數修改，這裡只能查看「已設定／未設定」。</p>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="loadNotificationSettings()">重新整理</button>
+    </div>
+
+    <div id="ns-loading" class="inventory-log-state">載入中…</div>
+    <div id="ns-error" class="inventory-log-state hidden">
+      <p id="ns-error-text">讀取失敗</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadNotificationSettings()">重新嘗試</button>
+    </div>
+
+    <div id="ns-content" class="hidden">
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:15px;margin-bottom:12px;">管道狀態</h2>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;">
+          <div>Email：<span id="ns-email-status" class="status-pill">--</span></div>
+          <div>LINE：<span id="ns-line-status" class="status-pill">--</span></div>
+        </div>
+        <p style="font-size:12.5px;color:var(--gray-400);margin-top:10px;">
+          Email需要在伺服器環境變數設定 SMTP_HOST／SMTP_PORT／SMTP_SECURE／SMTP_USER／SMTP_PASSWORD／NOTIFICATION_EMAIL_FROM／NOTIFICATION_EMAIL_TO；
+          LINE需要設定 LINE_CHANNEL_ACCESS_TOKEN／LINE_NOTIFICATION_TARGET_ID（LINE Messaging API，舊版LINE Notify已停止服務）。
+        </p>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:15px;margin-bottom:12px;">依事件類型選擇通知管道</h2>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr><th>事件類型</th><th>後台通知</th><th>Email</th><th>LINE</th></tr>
+            </thead>
+            <tbody id="ns-event-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:15px;margin-bottom:12px;">測試通知</h2>
+        <p style="font-size:12.5px;color:var(--gray-400);margin-bottom:12px;">
+          會實際透過目前已設定的管道發送一則測試訊息（正式環境會真的寄出／推播，請謹慎使用）。
+        </p>
+        <label style="margin-right:16px;"><input type="checkbox" id="ns-test-email" checked> Email</label>
+        <label style="margin-right:16px;"><input type="checkbox" id="ns-test-line" checked> LINE</label>
+        <button class="btn btn-primary btn-sm" id="ns-test-btn" onclick="sendTestNotification()">送出測試通知</button>
+        <div id="ns-test-result" style="margin-top:12px;font-size:13px;"></div>
+      </div>
+
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="notification-settings-page.js"></script>
+<script>
+  renderAdminNav('notification-settings');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

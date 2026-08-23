@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通知中心 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>通知中心<button type="button" class="admin-help-icon" data-help-key="notificationCenter" aria-label="說明">?</button></h1>
+        <p>新詢價、低庫存、客戶接受／拒絕報價、資料庫備份或還原失敗等重要事件的後台通知。</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" id="notif-mark-all-btn" onclick="markAllNotificationsRead()">全部標記已讀</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadNotificationCenter(notifCurrentPage)">重新整理</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <select id="notif-status-filter" onchange="loadNotificationCenter(1)" style="padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;">
+        <option value="">全部</option>
+        <option value="unread">未讀</option>
+        <option value="read">已讀</option>
+      </select>
+    </div>
+
+    <div id="notif-loading" class="inventory-log-state">載入中…</div>
+    <div id="notif-error" class="inventory-log-state hidden">
+      <p id="notif-error-text">讀取失敗</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadNotificationCenter(notifCurrentPage)">重新嘗試</button>
+    </div>
+    <div id="notif-empty" class="inventory-log-state hidden">目前沒有符合條件的通知</div>
+
+    <div id="notif-list-wrap" class="hidden">
+      <ul id="notif-list" class="admin-notif-center-list"></ul>
+      <div class="pagination-bar" style="margin-top:12px;">
+        <span id="notif-page-info-text"></span>
+        <button class="btn btn-secondary btn-sm" id="btn-notif-prev-page" onclick="changeNotificationPage(-1)">上一頁</button>
+        <button class="btn btn-secondary btn-sm" id="btn-notif-next-page" onclick="changeNotificationPage(1)">下一頁</button>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="notifications-page.js"></script>
+<script>
+  renderAdminNav('notifications');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

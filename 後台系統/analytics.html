@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>網站分析 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>網站分析<button type="button" class="admin-help-icon" data-help-key="analytics" aria-label="說明">?</button></h1>
+        <p>流量來源、客製化轉換漏斗、商品偏好、內部效率與顧客價值，資料期間可自訂</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" id="analytics-export-btn" onclick="exportAnalyticsXlsx()">匯出 Excel</button>
+        <button class="btn btn-secondary btn-sm" id="analytics-refresh-btn" onclick="loadAnalyticsOverview()">重新整理</button>
+      </div>
+    </div>
+
+    <div class="toolbar" style="margin-bottom:16px;">
+      <select id="analytics-filter-range" onchange="onAnalyticsRangeChange()">
+        <option value="7d">最近7天</option>
+        <option value="30d" selected>最近30天</option>
+        <option value="90d">最近90天</option>
+        <option value="custom">自訂日期</option>
+      </select>
+      <span id="analytics-custom-range-wrap" class="hidden">
+        <input type="date" id="analytics-custom-from">
+        <span>至</span>
+        <input type="date" id="analytics-custom-to">
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalyticsOverview()">查詢</button>
+      </span>
+    </div>
+
+    <p id="analytics-status">載入中…</p>
+
+    <div id="analytics-content" class="hidden">
+
+      <p id="analytics-period-label" style="font-size:12px;color:var(--gray-400);margin:0 0 12px;"></p>
+
+      <div class="analytics-note-box">
+        資料限制說明：
+        <ul>
+          <li>詢價與AI匿名關聯從本功能上線後的新資料開始完整累積。</li>
+          <li>舊事件缺少匿名關聯時會列入「無法關聯」，不會猜測補值。</li>
+          <li>來源歸因代表匿名瀏覽器資料關聯，不等同真實身分驗證。</li>
+          <li>樣本太少時不要過度解讀百分比。</li>
+        </ul>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">事件總數</div><div class="stat-value" id="analytics-stat-eventCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">不重複訪客</div><div class="stat-value" id="analytics-stat-visitorCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">不重複造訪</div><div class="stat-value" id="analytics-stat-sessionCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">詢價成功</div><div class="stat-value green" id="analytics-stat-inquiryCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">AI 生成請求</div><div class="stat-value" id="analytics-stat-aiRequestCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">AI 生成成功</div><div class="stat-value green" id="analytics-stat-aiSuccessCount">--</div></div>
+      </div>
+
+      <h3 style="font-size:15px;margin:24px 0 10px;">事件明細</h3>
+      <div class="admin-table-wrap" style="margin-bottom:24px;">
+        <table class="admin-table">
+          <thead><tr><th>事件名稱</th><th>筆數</th></tr></thead>
+          <tbody id="analytics-eventbreakdown-body"><tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <h2 style="font-size:17px;margin:32px 0 14px;border-top:1px solid var(--gray-200);padding-top:24px;">流量來源分析</h2>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">新訪客</div><div class="stat-value" id="analytics-stat-newVisitorCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">回訪者</div><div class="stat-value" id="analytics-stat-returningVisitorCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">無法歸因的詢價數</div><div class="stat-value warn" id="analytics-stat-unattributedInquiryCount">--</div></div>
+      </div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">首次來源（前10名）</h3>
+      <div id="analytics-firsttouch-list" class="admin-table-wrap" style="margin-bottom:24px;padding:10px 16px;"></div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">詢價前最後來源（前10名）</h3>
+      <div id="analytics-lasttouch-list" class="admin-table-wrap" style="margin-bottom:24px;padding:10px 16px;"></div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">進站頁面</h3>
+      <div class="admin-table-wrap" style="margin-bottom:24px;">
+        <table class="admin-table">
+          <thead><tr><th>進站頁面</th><th>不重複造訪數</th></tr></thead>
+          <tbody id="analytics-landingpages-body"><tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">裝置分布</h3>
+      <div id="analytics-devices-list" class="admin-table-wrap" style="margin-bottom:24px;padding:10px 16px;"></div>
+
+      <h2 style="font-size:17px;margin:32px 0 14px;border-top:1px solid var(--gray-200);padding-top:24px;">客製化轉換漏斗</h2>
+
+      <div class="admin-table-wrap" style="margin-bottom:24px;">
+        <table class="admin-table">
+          <thead><tr><th>關卡</th><th>工作階段數</th><th>與上一關轉換率</th><th>流失人數</th><th>流失率</th></tr></thead>
+          <tbody id="analytics-funnel-body"><tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">AI 使用分支（非漏斗必經步驟）</h3>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">AI 使用工作階段數</div><div class="stat-value" id="analytics-stat-aiBranchRequestSessionCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">AI 成功工作階段數</div><div class="stat-value green" id="analytics-stat-aiBranchSuccessSessionCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">AI 採用率</div><div class="stat-value" id="analytics-stat-aiBranchAdoptionRatePct">--</div></div>
+        <div class="stat-card"><div class="stat-label">AI 成功率</div><div class="stat-value green" id="analytics-stat-aiBranchSuccessRatePct">--</div></div>
+        <div class="stat-card"><div class="stat-label">無法連入漏斗的詢價數</div><div class="stat-value warn" id="analytics-stat-unlinkedInquiryCount">--</div></div>
+      </div>
+
+      <h2 style="font-size:17px;margin:32px 0 14px;border-top:1px solid var(--gray-200);padding-top:24px;">商品／客製化／AI偏好分析</h2>
+
+      <div class="admin-table-wrap" style="margin-bottom:16px;overflow-x:auto;">
+        <table class="admin-table">
+          <thead><tr>
+            <th>商品</th><th>瀏覽</th><th>開始客製化</th><th>完成預覽</th><th>詢價訂單數</th>
+            <th>完成詢價工作階段數</th><th>未連結詢價訂單數</th>
+            <th>瀏覽→客製化</th><th>客製化→預覽</th><th>預覽→詢價</th><th>整體轉換率</th><th>標記</th>
+          </tr></thead>
+          <tbody id="analytics-productpref-body"><tr><td colspan="12" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">客製化步驟與上傳結果</h3>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">完成規格選擇工作階段數</div><div class="stat-value" id="analytics-stat-specCompleteCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">完成設計工作階段數</div><div class="stat-value" id="analytics-stat-designCompleteCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">圖片上傳成功</div><div class="stat-value green" id="analytics-stat-uploadSuccessCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">圖片上傳失敗</div><div class="stat-value warn" id="analytics-stat-uploadFailureCount">--</div></div>
+      </div>
+
+      <div class="admin-table-wrap" style="margin:14px 0 24px;">
+        <table class="admin-table">
+          <thead><tr><th>上傳失敗原因</th><th>筆數</th></tr></thead>
+          <tbody id="analytics-uploaderror-body"><tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:14px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">AI功能使用結果（依功能）</h3>
+      <div class="admin-table-wrap" style="margin-bottom:14px;">
+        <table class="admin-table">
+          <thead><tr><th>功能</th><th>請求數</th><th>成功</th><th>部分成功</th><th>失敗</th><th>成功率</th><th>無法配對結果數</th></tr></thead>
+          <tbody id="analytics-aibyfeature-body"><tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="analytics-note-box">
+        目前尚未蒐集的分類值：
+        <ul id="analytics-productpref-notcollected"></ul>
+      </div>
+
+      <h2 style="font-size:17px;margin:32px 0 14px;border-top:1px solid var(--gray-200);padding-top:24px;">業務與內部效率分析</h2>
+
+      <p style="font-size:12px;color:var(--gray-400);margin:0 0 12px;">統計母體：詢價建立時間（送出詢價當下）落在查詢期間內的訂單，共 <span id="analytics-stat-efficiencyPopulation">--</span> 筆</p>
+
+      <div class="admin-table-wrap" style="margin-bottom:16px;overflow-x:auto;">
+        <table class="admin-table">
+          <thead><tr><th>流程時間</th><th>有效樣本數</th><th>中位數</th><th>平均數</th><th>最短</th><th>最長</th><th>無法計算筆數</th></tr></thead>
+          <tbody id="analytics-timing-body"><tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">取消訂單數</div><div class="stat-value warn" id="analytics-stat-cancelledCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">取消率</div><div class="stat-value warn" id="analytics-stat-cancelRatePct">--</div></div>
+        <div class="stat-card"><div class="stat-label">預估逾期訂單數（目前）</div><div class="stat-value warn" id="analytics-stat-overdueCount">--</div></div>
+      </div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">各狀態目前積壓數量（不受查詢期間限制，為即時快照）</h3>
+      <div class="admin-table-wrap" style="margin-bottom:14px;">
+        <table class="admin-table">
+          <thead><tr><th>狀態</th><th>訂單數</th></tr></thead>
+          <tbody id="analytics-backlog-body"><tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="analytics-note-box">
+        目前無法製作的指標：
+        <ul id="analytics-efficiency-notcollected"></ul>
+      </div>
+
+      <h2 style="font-size:17px;margin:32px 0 14px;border-top:1px solid var(--gray-200);padding-top:24px;">顧客與訂單價值分析</h2>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">成交訂單數</div><div class="stat-value green" id="analytics-stat-dealOrderCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">成交顧客數</div><div class="stat-value green" id="analytics-stat-dealCustomerCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">新成交顧客數</div><div class="stat-value" id="analytics-stat-newCustomerCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">回購顧客數</div><div class="stat-value" id="analytics-stat-returningCustomerCount">--</div></div>
+        <div class="stat-card"><div class="stat-label">回購率</div><div class="stat-value" id="analytics-stat-repurchaseRatePct">--</div></div>
+        <div class="stat-card"><div class="stat-label">平均成交金額</div><div class="stat-value" id="analytics-stat-avgDealAmount">--</div></div>
+        <div class="stat-card"><div class="stat-label">成交金額中位數</div><div class="stat-value" id="analytics-stat-medianDealAmount">--</div></div>
+        <div class="stat-card"><div class="stat-label">累積成交金額</div><div class="stat-value green" id="analytics-stat-cumulativeDealAmount">--</div></div>
+        <div class="stat-card"><div class="stat-label">每位顧客平均成交次數</div><div class="stat-value" id="analytics-stat-avgDealsPerCustomer">--</div></div>
+        <div class="stat-card"><div class="stat-label">無法判定成交時間筆數</div><div class="stat-value warn" id="analytics-stat-closedWonAtUnknownCount">--</div></div>
+      </div>
+
+      <h3 style="font-size:15px;margin:20px 0 10px;">距離上次成交天數分布</h3>
+      <div class="admin-table-wrap" style="margin-bottom:24px;">
+        <table class="admin-table">
+          <thead><tr><th>區間</th><th>顧客數</th></tr></thead>
+          <tbody id="analytics-daysdistribution-body"><tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:20px;">載入中…</td></tr></tbody>
+        </table>
+      </div>
+
+      <p id="analytics-datarange-label" style="font-size:12px;color:var(--gray-400);margin-top:24px;"></p>
+
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="analytics-page.js"></script>
+<script>
+  renderAdminNav('analytics');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

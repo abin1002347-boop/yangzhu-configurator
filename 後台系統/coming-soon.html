@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>功能開發中 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+    <div id="admin-topbar" class="admin-topbar"></div>
+    <main class="admin-main">
+      <div class="admin-coming-soon">
+        <h2 id="coming-soon-title">此功能開發中</h2>
+        <p>敬請期待，功能上線後會在這裡開放使用。</p>
+        <a href="/admin/dashboard" class="btn btn-primary">回總覽</a>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script>
+  const _params = new URLSearchParams(location.search);
+  const _feature = _params.get('feature') || '此功能';
+
+  function onAdminReady() {
+    document.getElementById('coming-soon-title').textContent = `「${_feature}」開發中`;
+  }
+
+  renderAdminNav(_params.get('key'));
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

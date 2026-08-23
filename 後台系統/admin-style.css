@@ -1,0 +1,690 @@
+/* 楊竹科技後台系統 — 版面樣式（顏色/按鈕/卡片沿用 ../css/style.css 既有變數與元件） */
+
+body { margin: 0; background: var(--gray-100); }
+
+.admin-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+#admin-nav {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--white);
+  border-right: 1px solid var(--gray-200);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  transition: width 0.15s ease, padding 0.15s ease;
+}
+.admin-shell-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.admin-brand-text { min-width: 0; overflow: hidden; }
+.admin-shell-sub { font-size: 11px; color: var(--gray-400); margin-top: 2px; white-space: nowrap; }
+.admin-nav-collapse-btn {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-400);
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.admin-nav-collapse-btn:hover { border-color: var(--green); color: var(--green); }
+
+.admin-sidenav { display: flex; flex-direction: column; flex: 1; }
+.admin-nav-group { margin-bottom: 18px; }
+.admin-nav-group-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 12px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.admin-nav-icon { width: 18px; text-align: center; flex-shrink: 0; }
+.admin-nav-text { overflow: hidden; text-overflow: ellipsis; }
+.admin-dev-tag {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 700;
+  background: var(--gold-pale);
+  color: var(--gold);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.admin-nav-link:hover,
+.admin-nav-link.active { background: var(--green-pale); color: var(--green); }
+.admin-nav-logout {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--gray-400);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.admin-nav-logout:hover { border-color: #dc2626; color: #dc2626; }
+
+/* 收合模式：只留圖示 */
+#admin-nav.collapsed { width: 64px; padding: 20px 10px; }
+#admin-nav.collapsed .admin-brand-text,
+#admin-nav.collapsed .admin-nav-group-label,
+#admin-nav.collapsed .admin-nav-text,
+#admin-nav.collapsed .admin-dev-tag { display: none; }
+#admin-nav.collapsed .admin-shell-brand { justify-content: center; }
+#admin-nav.collapsed .admin-nav-collapse-btn { transform: rotate(180deg); }
+#admin-nav.collapsed .admin-nav-link { justify-content: center; padding: 10px; }
+#admin-nav.collapsed .admin-nav-logout { justify-content: center; }
+
+/* ─── 版面主體（頂部工具列 + 內容）───────── */
+.admin-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-topbar {
+  height: 56px;
+  flex-shrink: 0;
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+}
+.admin-search-wrap { position: relative; flex: 1; max-width: 360px; min-width: 0; }
+.admin-search-input {
+  width: 100%;
+  padding: 8px 14px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 20px;
+  font-size: 13px;
+  background: var(--white);
+  color: var(--gray-900);
+  font-family: inherit;
+}
+.admin-search-input:focus { outline: none; border-color: var(--green); }
+
+/* ─── 後台快速搜尋結果下拉（正式功能）───────── */
+/* 用left:0;right:0（跟隨.admin-search-wrap本身寬度），不用notif-popover那種固定像素寬度，
+   這樣不管螢幕多窄，下拉選單都不可能比搜尋框本身更寬，天然不會造成水平溢出。 */
+.admin-quick-search-results {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md); z-index: 60;
+  max-height: 420px; overflow-y: auto; padding: 6px;
+}
+.admin-qs-state { padding: 14px 10px; text-align: center; color: var(--gray-400); font-size: 12.5px; }
+.admin-qs-error { color: #dc2626; margin-bottom: 8px; }
+.admin-qs-section + .admin-qs-section { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--gray-200); }
+.admin-qs-section-title { font-size: 11px; font-weight: 700; color: var(--gray-400); padding: 4px 8px; }
+.admin-qs-item {
+  width: 100%; text-align: left; cursor: pointer;
+  padding: 7px 8px; border-radius: var(--radius-sm);
+}
+.admin-qs-item:hover, .admin-qs-item.active { background: var(--gray-100); }
+.admin-qs-item-main { font-size: 13px; font-weight: 600; color: var(--gray-900); }
+.admin-qs-item-sub {
+  font-size: 11.5px; color: var(--gray-400); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.admin-topbar-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.admin-icon-btn {
+  background: none; border: none; font-size: 17px; cursor: pointer;
+  padding: 6px; border-radius: var(--radius-sm); line-height: 1;
+}
+.admin-icon-btn:hover { background: var(--gray-100); }
+.admin-notif-wrap { position: relative; }
+.admin-notif-popover {
+  position: absolute; top: 38px; right: 0;
+  background: white; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  padding: 10px 14px; font-size: 12.5px; color: var(--gray-400);
+  box-shadow: var(--shadow-md); z-index: 50;
+  width: 320px; max-width: 80vw; max-height: 400px; overflow-y: auto;
+}
+.admin-notif-badge {
+  position: absolute; top: 0; right: 0; transform: translate(35%, -35%);
+  background: #dc2626; color: white; font-size: 10.5px; font-weight: 700;
+  min-width: 16px; height: 16px; padding: 0 3px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+}
+.admin-notif-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.admin-notif-header span { font-weight: 700; color: var(--gray-900); }
+.admin-notif-empty { text-align: center; color: var(--gray-400); padding: 16px 4px; }
+.admin-notif-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.admin-notif-item {
+  border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  padding: 8px 10px; cursor: pointer; white-space: normal;
+}
+.admin-notif-item:hover { background: var(--gray-100); }
+.admin-notif-item.unread { border-color: var(--green); background: var(--green-pale); }
+.admin-notif-item-name { font-weight: 700; color: var(--gray-900); font-size: 13px; }
+.admin-notif-item-detail { color: var(--gray-700); margin-top: 2px; }
+.admin-notif-item-time { color: var(--gray-400); font-size: 11px; margin-top: 2px; }
+.admin-notif-footer-link {
+  display: block; text-align: center; margin-top: 10px; padding-top: 8px;
+  border-top: 1px solid var(--gray-200); font-weight: 600; color: var(--green);
+}
+
+/* 通知中心頁（統一通知系統批次）：跟上面頂部工具列彈窗共用配色，但是完整寬度的清單版面 */
+.admin-notif-center-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.admin-notif-center-item {
+  border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  padding: 12px 16px; background: white;
+}
+.admin-notif-center-item.unread { border-color: var(--green); background: var(--green-pale); }
+.admin-notif-center-item.severity-warning { border-left: 4px solid #d97706; }
+.admin-notif-center-item.severity-critical { border-left: 4px solid #dc2626; }
+.admin-notif-center-item-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.admin-notif-center-type-tag {
+  font-size: 11px; font-weight: 700; color: var(--gray-700); background: var(--gray-100);
+  padding: 2px 8px; border-radius: 999px;
+}
+.admin-notif-center-severity-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.admin-notif-center-severity-tag.severity-warning { color: #d97706; background: #fef3c7; }
+.admin-notif-center-severity-tag.severity-critical { color: #dc2626; background: #fee2e2; }
+.admin-notif-center-item-time { color: var(--gray-400); font-size: 11.5px; margin-left: auto; }
+.admin-notif-center-item-title { font-weight: 700; color: var(--gray-900); font-size: 14px; }
+.admin-notif-center-item-summary { color: var(--gray-700); font-size: 13px; margin-top: 4px; }
+.admin-notif-center-item-link { display: inline-block; margin-top: 8px; margin-right: 12px; color: var(--green); font-weight: 600; font-size: 13px; }
+.admin-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--green); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+/* 右上角目前管理員名稱／角色（正式管理員帳號、角色權限、登入限制與操作稽核批次）── */
+.admin-current-user { display: flex; align-items: center; gap: 8px; }
+.admin-current-user-text { text-align: right; line-height: 1.3; }
+.admin-current-user-name { font-size: 12.5px; font-weight: 700; color: var(--gray-900); }
+.admin-current-user-role { font-size: 11px; color: var(--gray-400); }
+
+/* ─── 開發中佔位頁 ─────────────────────── */
+.admin-coming-soon { text-align: center; padding: 80px 20px; }
+.admin-coming-soon-icon { font-size: 42px; margin-bottom: 14px; }
+.admin-coming-soon h2 { font-size: 19px; color: var(--gray-900); margin-bottom: 8px; }
+.admin-coming-soon p { font-size: 13px; color: var(--gray-400); margin-bottom: 20px; }
+
+.admin-main { flex: 1; padding: 28px 32px; max-width: 1280px; }
+.admin-page-title { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.admin-page-title h1 { font-size: 22px; font-weight: 700; color: var(--gray-900); margin: 0; }
+.admin-page-title p { font-size: 13px; color: var(--gray-400); margin-top: 4px; }
+
+/* ─── 全站共用「？」說明提示（admin-tooltip.js） ─────────────── */
+.admin-help-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 6px;
+  border-radius: 50%; border: 1px solid var(--gray-300);
+  background: var(--gray-100); color: var(--gray-400);
+  font-size: 11px; font-weight: 700; line-height: 1;
+  cursor: help; vertical-align: middle; padding: 0;
+}
+.admin-help-icon:hover, .admin-help-icon:focus-visible {
+  background: var(--green); border-color: var(--green); color: var(--white);
+  outline: none;
+}
+/* position:fixed＋單一共用氣泡：預設在畫面外淡出狀態，被admin-tooltip.js加上.visible才顯示，
+   不用display:none/block切換，避免每次顯示前都要重新觸發瀏覽器排版計算。 */
+.admin-help-bubble {
+  position: fixed; z-index: 3000;
+  max-width: 280px;
+  background: var(--gray-900); color: var(--white);
+  font-size: 13px; line-height: 1.6;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  opacity: 0; transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.admin-help-bubble.visible { opacity: 1; transform: translateY(0); }
+.admin-help-bubble::before {
+  content: ''; position: absolute;
+  left: var(--admin-help-arrow-left, 12px);
+  width: 10px; height: 10px; background: var(--gray-900);
+  transform: translateX(-50%) rotate(45deg);
+}
+.admin-help-bubble[data-arrow="top"]::before { top: -5px; }
+.admin-help-bubble[data-arrow="bottom"]::before { bottom: -5px; }
+
+/* ─── 登入遮罩 ─────────────────────────── */
+#admin-gate-overlay {
+  position: fixed; inset: 0;
+  background: rgba(31,41,51,.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 20px;
+}
+.admin-gate-box {
+  background: white; border-radius: var(--radius);
+  padding: 32px; max-width: 360px; width: 100%;
+  text-align: center; box-shadow: var(--shadow-lg);
+}
+.admin-gate-box h2 { font-size: 18px; margin-bottom: 6px; }
+.admin-gate-box p { font-size: 13px; color: var(--gray-400); margin-bottom: 18px; }
+.admin-gate-box input {
+  width: 100%; padding: 10px 12px;
+  border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+  font-size: 14px; font-family: inherit;
+}
+.admin-gate-box input + input { margin-top: 10px; }
+#admin-gate-error { color: #dc2626; font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+
+/* 畫面上不顯示文字，但螢幕報讀軟體讀得到，也讓 input 能透過 label 正確關聯（不只靠
+   placeholder——placeholder 不是 label，欄位內容一輸入 placeholder 就消失，且部分輔助工具
+   不會把 placeholder 當成欄位名稱朗讀）。正式管理員帳號、角色權限、登入限制與操作稽核批次：
+   帳號＋密碼登入欄位共用這個樣式。 */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ─── 儀表板數字卡片 ───────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: white; border: 1px solid var(--gray-200);
+  border-radius: var(--radius); padding: 18px 20px;
+}
+.stat-card .stat-label { font-size: 12px; color: var(--gray-400); font-weight: 600; }
+.stat-card .stat-value { font-size: 26px; font-weight: 800; color: var(--gray-900); margin-top: 6px; }
+.stat-card .stat-value.green { color: var(--green); }
+.stat-card .stat-value.warn  { color: #d97706; }
+
+/* 可點擊統計卡（原生 <a> 標籤本身鍵盤即可操作／Tab 移到＋Enter 觸發，不需要額外的
+   JS 鍵盤事件處理）：視覺上維持跟原本 <div> 版本完全一致，只加上 hover／focus 提示。 */
+a.stat-card { display: block; text-decoration: none; color: inherit; cursor: pointer; transition: box-shadow .15s, border-color .15s; }
+a.stat-card:hover, a.stat-card:focus-visible { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-pale); outline: none; }
+
+/* 熱門商品排行：商品名稱本身就是可點擊連結（<a> 標籤，textContent 賦值，不使用 innerHTML） */
+.dashboard-rank-link { color: var(--gray-900); font-weight: 600; text-decoration: none; }
+.dashboard-rank-link:hover, .dashboard-rank-link:focus-visible { color: var(--green); text-decoration: underline; }
+
+/* ─── 圖表卡片（儀表板營收趨勢／訂單狀態分布）────────────── */
+/* svg 用 viewBox 縮放，width:100% 讓卡片多寬圖表就多寬，手機版不會超出卡片、也不會產生
+   整頁水平捲動；圖表旁一律搭配資料表格（見 dashboard.html），不是只靠圖表本身呈現數字。 */
+.chart-card {
+  background: white; border: 1px solid var(--gray-200);
+  border-radius: var(--radius); padding: 16px; overflow-x: auto;
+}
+.chart-card svg { width: 100%; height: auto; display: block; }
+.chart-bar-label { font-size: 11px; fill: var(--gray-400); }
+.chart-value-label { font-size: 11px; fill: var(--gray-900); }
+.chart-bar-revenue { fill: var(--green); }
+.chart-bar-status  { fill: var(--gold); }
+.chart-grid-line   { stroke: var(--gray-200); stroke-width: 1; }
+
+/* ─── 資料表格 ─────────────────────────── */
+.admin-table-wrap {
+  background: white; border: 1px solid var(--gray-200);
+  border-radius: var(--radius); overflow: hidden; overflow-x: auto;
+}
+table.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th, .admin-table td {
+  padding: 10px 14px; text-align: left;
+  border-bottom: 1px solid var(--gray-100); vertical-align: middle;
+  white-space: nowrap;
+}
+.admin-table th { background: var(--gray-100); font-size: 11.5px; color: var(--gray-700); }
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: var(--gray-100); }
+
+.status-pill {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 11.5px; font-weight: 700;
+}
+.status-pill.active       { background: var(--green-pale); color: var(--green); }
+.status-pill.inactive     { background: var(--gray-200);   color: var(--gray-400); }
+.status-pill.coming_soon  { background: var(--gold-pale);  color: var(--gold); }
+.status-pill.low          { background: #fee2e2; color: #dc2626; }
+.status-pill.archived     { background: var(--gray-200);   color: var(--gray-700); }
+
+/* ─── 商品管理：目前商品／已封存篩選 ───── */
+.admin-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.admin-tab {
+  padding: 7px 16px; border: 1px solid var(--gray-200); background: white;
+  border-radius: var(--radius); font-size: 13px; color: var(--gray-700);
+  cursor: pointer;
+}
+.admin-tab.active { background: var(--gray-700); color: white; border-color: var(--gray-700); }
+
+/* ─── 動態列表編輯（材質/工藝/容量/數量折扣）───── */
+.dyn-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.dyn-row  { display: flex; gap: 6px; align-items: center; }
+.dyn-row input {
+  flex: 1; min-width: 0; padding: 7px 10px;
+  border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+  font-size: 13px; font-family: inherit;
+}
+.dyn-row-remove {
+  flex-shrink: 0; background: #fee2e2; color: #dc2626; border: none;
+  border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px;
+}
+.dyn-row-remove:hover { background: #fecaca; }
+/* 材質／工藝／容量／數量折扣區間的固定欄位標題列：使用者反映「還沒填的空白列」跟placeholder
+   容易混在一起看不出來要填什麼，加一列跟輸入框對齊的常駐標題（不隨資料筆數增減、不會因為
+   使用者開始打字而消失，跟只在空白時才看得到的placeholder不一樣）。故意不共用.dyn-row這個
+   class（原因見products-page.js的renderDynSection()註解），這裡自己重複一份一樣的flex排版
+   讓兩者的欄寬對齊。 */
+.dyn-row-header { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.dyn-row-header span {
+  flex: 1; min-width: 0; padding: 0 10px;
+  font-size: 11.5px; font-weight: 700; color: var(--gray-400);
+}
+.dyn-row-header .dyn-row-header-spacer { flex: none; width: 28px; }
+
+/* ─── 表單版面 ─────────────────────────── */
+.admin-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .admin-form-grid { grid-template-columns: 1fr; } }
+.admin-form-section { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--gray-200); }
+.admin-form-section h4 { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 10px; }
+.admin-form-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+/* 2026-08-22：明確約束表單面板與可印刷範圍區塊本身不可超出父容器寬度，跟下面
+   .labelarea-input-grid的修正搭配，雙重確保商品編輯表單在手機版不會撐寬整頁。 */
+#product-form-panel, #labelarea-details { min-width: 0; max-width: 100%; box-sizing: border-box; }
+
+/* ─── AI 使用統計頁 ────────────────────── */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.toolbar select, #dashboard-granularity-select {
+  height: 38px; padding: 0 10px; border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--gray-900); background: white; min-width: 0; max-width: 100%;
+}
+.chart-bar-ai-total { fill: var(--green); }
+.chart-bar-ai-mixed { fill: #d97706; }
+
+/* ─── AI 功能設定頁 ────────────────────── */
+.ai-feature-row, .ai-prompt-row { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--gray-200); }
+.ai-feature-row:last-child, .ai-prompt-row:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.ai-feature-desc { font-size: 12px; color: var(--gray-500); margin: 4px 0 10px; }
+.ai-prompt-count { font-size: 11.5px; color: var(--gray-400); text-align: right; margin-top: 4px; }
+
+/* ─── 表單驗證錯誤樣式 ─────────────────── */
+.field-invalid { border-color: #dc2626 !important; background: #fef2f2; }
+.field-error { color: #dc2626; font-size: 11.5px; margin-top: 4px; line-height: 1.4; }
+.section-error { color: #dc2626; font-size: 12px; margin-bottom: 8px; }
+.section-error:empty { display: none; margin: 0; }
+
+/* ─── 可印刷範圍視覺編輯器 ─────────────── */
+.labelarea-editor-wrap { margin-bottom: 10px; }
+.labelarea-editor-empty {
+  font-size: 12px; color: var(--gray-400);
+  border: 1.5px dashed var(--gray-200); border-radius: var(--radius-sm);
+  padding: 28px 16px; text-align: center; background: var(--gray-100);
+}
+.labelarea-editor-stage {
+  position: relative;
+  max-width: 460px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.labelarea-editor-stage img {
+  display: block; width: 100%; height: auto;
+  border-radius: var(--radius-sm); border: 1px solid var(--gray-200);
+  pointer-events: none; /* 拖曳事件交給上層的範圍框處理，圖片本身不用互動 */
+}
+.labelarea-box {
+  position: absolute;
+  border: 2px dashed #dc2626;
+  background: rgba(220, 38, 38, 0.14);
+  box-sizing: border-box;
+  cursor: move;
+  touch-action: none;
+}
+.labelarea-handle {
+  position: absolute; width: 14px; height: 14px;
+  background: #dc2626; border: 2px solid white; border-radius: 50%;
+  box-shadow: 0 0 0 1px #dc2626;
+  touch-action: none;
+}
+.labelarea-handle[data-handle="nw"] { top: -8px; left: -8px; cursor: nwse-resize; }
+.labelarea-handle[data-handle="ne"] { top: -8px; right: -8px; cursor: nesw-resize; }
+.labelarea-handle[data-handle="sw"] { bottom: -8px; left: -8px; cursor: nesw-resize; }
+.labelarea-handle[data-handle="se"] { bottom: -8px; right: -8px; cursor: nwse-resize; }
+
+/* 2026-08-22 Codex獨立驗收「商品深連結編輯表單開啟狀態」最後阻擋修正：原本這一列四個
+   比例輸入框用行內 display:flex;gap:6px，number input保留自身瀏覽器預設最小寬度
+   （不同瀏覽器約在正負十幾px，Chromium量測約406.8px右邊界），在390px手機版無法縮小到
+   剛好塞進四格，撐寬了整頁（documentElement.scrollWidth變成407）。改用grid＋
+   minmax(0,1fr)：跟flex子項目一樣，grid軌道預設min-width也是auto（讓格子撐大到內容
+   min-content大小），改成minmax(0,1fr)明確把最小軌道寬度設為0，才能讓四個input真正
+   等比例縮小、不撐寬容器；四個input本身也明確加width/min-width/max-width/box-sizing，
+   雙重確保不會超出各自的grid格子。 */
+.labelarea-input-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+.labelarea-input-grid input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 480px) {
+  .labelarea-input-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.labelarea-actions-row { display: flex; gap: 8px; flex-wrap: wrap; max-width: 100%; }
+
+/* ─── 圖片上傳狀態文字 ─────────────────── */
+.upload-status { font-size: 11.5px; margin-top: 4px; min-height: 0; }
+.upload-status:empty { display: none; }
+.upload-status.uploading { color: var(--gray-400); }
+.upload-status.success { color: var(--green); }
+.upload-status.error { color: #dc2626; }
+
+/* ─── 圖片網址即時預覽 ─────────────────── */
+.img-preview-box {
+  margin-top: 8px; width: 140px; height: 90px;
+  border: 1.5px dashed var(--gray-200); border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; background: var(--gray-100);
+}
+.img-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.img-preview-empty, .img-preview-error { font-size: 11px; text-align: center; padding: 4px; color: var(--gray-400); }
+.img-preview-error { color: #dc2626; }
+
+/* ─── 按鈕停用（儲存中／狀態切換中）────── */
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ─── 商品狀態切換下拉 ─────────────────── */
+.status-select {
+  font-size: 12px; padding: 5px 6px; border-radius: 6px;
+  border: 1.5px solid var(--gray-200); font-family: inherit; background: white;
+}
+
+.admin-toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: var(--gray-900); color: white; padding: 12px 18px;
+  border-radius: var(--radius-sm); font-size: 13px; box-shadow: var(--shadow-lg);
+}
+.admin-toast.error { background: #dc2626; }
+
+/* ─── 通用對話框（庫存異動紀錄等一次性顯示內容共用）───── */
+.admin-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(31,41,51,.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999; padding: 20px;
+}
+.admin-modal-box {
+  background: white; border-radius: var(--radius);
+  width: 100%; max-width: 480px; max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+/* 庫存盤點：表格欄位較多，需要比一般對話框（480px）更寬的版面 */
+.admin-modal-box-wide { max-width: 720px; }
+.stocktake-qty-input {
+  width: 90px; padding: 6px 8px; border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm); font-size: 13px;
+}
+.stocktake-diff { font-weight: 700; }
+.stocktake-diff.increase { color: var(--green); }
+.stocktake-diff.decrease { color: #dc2626; }
+.admin-modal-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 16px 20px; border-bottom: 1px solid var(--gray-200); flex-shrink: 0;
+}
+.admin-modal-header h3 { font-size: 15px; margin: 0; word-break: break-word; }
+.admin-modal-body { padding: 16px 20px; overflow-y: auto; }
+
+/* ─── 庫存異動紀錄 ─────────────────────── */
+.inventory-log-state { color: var(--gray-400); font-size: 13px; text-align: center; padding: 24px 8px; }
+.inventory-log-state.hidden { display: none; }
+.inventory-log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.inventory-log-list.hidden { display: none; }
+.inventory-log-item {
+  border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 13px;
+}
+.inventory-log-qty-line { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.inventory-log-qty { font-weight: 700; }
+.inventory-log-qty.increase { color: var(--green); }
+.inventory-log-qty.decrease { color: #dc2626; }
+.inventory-log-time { font-size: 11.5px; color: var(--gray-400); white-space: nowrap; }
+.inventory-log-reason { margin-top: 4px; color: var(--gray-700); }
+.inventory-log-note { margin-top: 2px; color: var(--gray-400); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+
+/* ─── 純CSS水平長條（網站分析：流量來源／漏斗共用，不引入圖表套件）───── */
+/* .hbar-fill 的寬度由JS依比例計算後用style.width設定（inline style，不是innerHTML插資料），
+   長度本身只代表相對比例，不是精確度量；文字（名稱／數字）一律另外用textContent顯示。 */
+.hbar-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.hbar-label { flex: 0 0 auto; width: 38%; max-width: 260px; font-size: 12.5px; color: var(--gray-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hbar-track { flex: 1 1 auto; min-width: 0; height: 14px; background: var(--gray-100); border-radius: 7px; overflow: hidden; }
+.hbar-fill { height: 100%; background: var(--green); border-radius: 7px; min-width: 2px; }
+.hbar-value { flex: 0 0 auto; width: 56px; text-align: right; font-size: 12.5px; color: var(--gray-700); font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) {
+  .hbar-label { width: 30%; font-size: 11.5px; }
+  .hbar-value { width: 44px; font-size: 11.5px; }
+}
+
+/* ─── 資料限制說明框（網站分析）──────────────────────── */
+.analytics-note-box {
+  background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: var(--radius);
+  padding: 12px 16px; font-size: 12px; color: var(--gray-700); margin-bottom: 20px;
+}
+.analytics-note-box ul { margin: 6px 0 0; padding-left: 18px; }
+.analytics-note-box li { margin-bottom: 3px; }
+
+@media (max-width: 520px) {
+  .admin-modal-box { max-height: 90vh; }
+  .admin-modal-header, .admin-modal-body { padding: 14px 16px; }
+}
+
+/* ─── 共用分頁列（介面操作一致性批次，2026-08-21）─────────────── */
+.pagination-bar {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin-top: 14px; padding: 8px 0;
+}
+.pagination-info { font-size: 12.5px; color: var(--gray-400); white-space: nowrap; }
+
+/* ─── 共用可排序表頭（2026-08-21修正鍵盤與無障礙缺口：th內改用真正的button）───── */
+th.sortable { white-space: nowrap; padding: 0; }
+.admin-sort-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  width: 100%; padding: 8px 10px; margin: 0; border: none; background: none;
+  font: inherit; color: inherit; text-align: inherit; cursor: pointer;
+}
+.admin-sort-btn:hover { color: var(--green); }
+.admin-sort-btn:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+.admin-sort-indicator { display: inline-block; width: 10px; font-size: 9px; }
+.admin-sort-indicator[data-dir="asc"]::before { content: '▲'; }
+.admin-sort-indicator[data-dir="desc"]::before { content: '▼'; }
+
+/* ─── 共用危險操作確認對話框（取代零散confirm()，介面操作一致性批次）───── */
+.admin-confirm-box { max-width: 440px; }
+.admin-confirm-message { font-size: 13.5px; color: var(--gray-700); line-height: 1.6; white-space: pre-wrap; }
+.admin-confirm-label { display: block; font-size: 12.5px; color: var(--gray-700); margin: 14px 0 6px; }
+.admin-confirm-input {
+  width: 100%; box-sizing: border-box; padding: 8px 10px;
+  border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13.5px; font-family: inherit;
+}
+.admin-confirm-input:focus { outline: none; border-color: var(--green); }
+.admin-confirm-error { color: #dc2626; font-size: 12.5px; margin-top: 8px; min-height: 1em; }
+.admin-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+@media (max-width: 480px) {
+  .admin-confirm-actions { flex-direction: column-reverse; }
+  .admin-confirm-actions .btn { width: 100%; }
+}
+
+@media (max-width: 900px) {
+  .admin-shell { flex-direction: column; }
+  #admin-nav {
+    /* 2026-08-22 Codex獨立驗收阻擋2修正：width:100%同時保留左右padding與border-right時，
+       沒有明確套用box-sizing:border-box會讓這個容器實際佔用寬度超出視窗（Codex實測390px
+       視窗下scrollWidth變成399px），造成整個body產生水平捲動。明確加上border-box＋
+       max-width:100%，讓padding／border算在100%寬度以內，不會撐寬版面；導覽項目本身仍
+       用下面既有的overflow-x:auto在導覽列內部水平捲動，不受影響。
+       另外補上min-width:0：.admin-shell在這個斷點是flex-direction:column，#admin-nav是
+       它的flex子項目，瀏覽器預設的min-width:auto會讓子項目的最小寬度以「內容本身的
+       min-content寬度」為準（這裡是.admin-sidenav整排導覽項目不換行的自然寬度，遠大於
+       390px），即使已經設定width:100%／overflow-x:auto也可能被撐寬，需要明確min-width:0
+       關閉這個預設行為，才能讓overflow-x:auto確實生效、不外溢到body（CC於本批修正阻擋2
+       時另外實測發現，屬於同一類「手機版導覽列寬度未正確約束」問題，一併在同一條規則修正）。 */
+    box-sizing: border-box; max-width: 100%; min-width: 0;
+    width: 100%; height: auto; position: static;
+    flex-direction: row; align-items: center; padding: 10px 12px;
+    overflow-x: auto; overflow-y: visible;
+  }
+  .admin-nav-collapse-btn { display: none; }
+  .admin-shell-brand { margin-bottom: 0; margin-right: 12px; flex-shrink: 0; }
+  .admin-sidenav { flex-direction: row; flex: 0 0 auto; }
+  .admin-nav-group { display: flex; align-items: center; margin-bottom: 0; margin-right: 6px; }
+  .admin-nav-group-label { display: none; }
+  .admin-nav-link { flex-direction: column; gap: 2px; padding: 6px 10px; font-size: 10.5px; }
+  .admin-nav-text { font-size: 10.5px; }
+  .admin-dev-tag { margin-left: 0; }
+  .admin-nav-logout { margin-top: 0; margin-left: auto; flex-shrink: 0; }
+  .admin-topbar { padding: 0 16px; }
+  .admin-search-wrap { max-width: none; min-width: 0; }
+  .admin-main { padding: 20px 16px; }
+}
+
+/* 2026-08-14 Codex獨立複驗指出：加入右上角使用者名稱／角色（正式管理員帳號、角色權限、
+   登入限制與操作稽核批次）後，.admin-topbar-right（flex-shrink:0）在很窄的螢幕（375px）下
+   會把搜尋框擠壓到超出可視寬度，造成整頁水平捲動；使用者名稱／角色文字隱藏，只保留頭像
+   圓圈，滑鼠停留仍可從title屬性看到完整名稱與角色。
+   2026-08-22 快速搜尋改成正式功能後：不再整個隱藏搜尋框（.admin-search-wrap本身
+   flex:1;min-width:0，會自動被.admin-topbar-right這個flex-shrink:0的區塊擠壓縮小，
+   天然不會造成水平溢出，跟這裡隱藏使用者名稱文字是同一個原理），手機版一樣可以正常使用
+   快速搜尋；搜尋結果下拉選單本身用left:0;right:0跟隨搜尋框寬度，不會比搜尋框更寬。 */
+@media (max-width: 480px) {
+  .admin-current-user-text { display: none; }
+}

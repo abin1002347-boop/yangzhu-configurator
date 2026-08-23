@@ -1,6 +1,10 @@
 node_modules/
 .env
 訂單資料/
+factory-packages/
+後台資料庫/
+data/
+assets/uploads/
 *.log
 .DS_Store
 .netlify/

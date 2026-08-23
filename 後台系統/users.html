@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>帳號管理 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>帳號管理<button type="button" class="admin-help-icon" data-help-key="adminUsers" aria-label="說明">?</button></h1>
+        <p>管理正式管理員帳號、角色與登入狀態；帳號不可刪除，只能停用。僅 owner 可以使用這個頁面。</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="loadAdminUsers()">重新整理</button>
+        <button class="btn btn-primary btn-sm" onclick="openNewUserModal()">＋ 新增管理員</button>
+      </div>
+    </div>
+
+    <div id="users-loading" class="inventory-log-state">載入中…</div>
+    <div id="users-error" class="inventory-log-state hidden">
+      <p id="users-error-text">讀取失敗</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadAdminUsers()">重新嘗試</button>
+    </div>
+
+    <div id="users-table-wrap" class="hidden">
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>帳號</th><th>顯示名稱</th><th>角色</th><th>狀態</th>
+              <th>登入失敗次數</th><th>鎖定至</th><th>最後登入</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<!-- ─── 新增管理員 ───────────────────────── -->
+<div id="new-user-modal" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeNewUserModal()">
+  <div class="admin-modal-box">
+    <div class="admin-modal-header">
+      <h3>新增管理員</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeNewUserModal()">關閉</button>
+    </div>
+    <div class="admin-modal-body">
+      <div class="form-group">
+        <label for="new-user-username">帳號（3～32碼英數字、底線、句點或連字號，不分大小寫不可重複）</label>
+        <input type="text" id="new-user-username" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="new-user-display-name">顯示名稱</label>
+        <input type="text" id="new-user-display-name" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="new-user-password">初始密碼（至少8碼）</label>
+        <input type="password" id="new-user-password" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label for="new-user-role">角色</label>
+        <select id="new-user-role">
+          <option value="owner">owner（所有權限，包含帳號與安全設定）</option>
+          <option value="manager" selected>manager（訂單／商品／庫存／客戶／分析／網站營運）</option>
+          <option value="staff">staff（訂單／客戶／日常處理）</option>
+          <option value="viewer">viewer（唯讀）</option>
+        </select>
+      </div>
+      <div id="new-user-error" style="color:#dc2626;font-size:12.5px;min-height:16px;"></div>
+      <div class="admin-form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeNewUserModal()">取消</button>
+        <button type="button" class="btn btn-primary" onclick="submitNewUser(this)">建立</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 設定新密碼 ───────────────────────── -->
+<div id="reset-password-modal" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeResetPasswordModal()">
+  <div class="admin-modal-box">
+    <div class="admin-modal-header">
+      <h3 id="reset-password-title">設定新密碼</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeResetPasswordModal()">關閉</button>
+    </div>
+    <div class="admin-modal-body">
+      <div class="form-group">
+        <label for="reset-password-input">新密碼（至少8碼）</label>
+        <input type="password" id="reset-password-input" autocomplete="new-password">
+      </div>
+      <p style="font-size:12.5px;color:var(--gray-400);">設定新密碼後，這個帳號目前所有登入中的Session會立即失效，需要用新密碼重新登入。</p>
+      <div id="reset-password-error" style="color:#dc2626;font-size:12.5px;min-height:16px;"></div>
+      <div class="admin-form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeResetPasswordModal()">取消</button>
+        <button type="button" class="btn btn-primary" onclick="submitResetPassword(this)">確認設定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="users-page.js"></script>
+<script>
+  renderAdminNav('users');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

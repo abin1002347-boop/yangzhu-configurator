@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>線上客製化配置器 — 楊竹科技</title>
-  <meta name="description" content="楊竹科技線上客製化配置器：悠遊卡、一卡通、USB隨身碟，即時報價、即時預覽，快速詢價。">
+  <title>線上客製化配置器｜楊竹科技</title>
+  <meta name="description" content="選擇商品與規格、加入文字或圖片，即時預覽客製成品並取得詢價資訊。">
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 
-  <!-- Open Graph / 社群分享預覽 -->
+  <!-- Open Graph / 社群分享預覽：og:image／twitter:image 維持原本設定，這次只更新標題與說明文字 -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="線上客製化配置器 — 楊竹科技">
-  <meta property="og:description" content="悠遊卡、一卡通、USB隨身碟、保溫杯線上客製化，即時報價、即時預覽，快速詢價。">
+  <meta property="og:site_name" content="楊竹科技">
+  <meta property="og:title" content="線上客製化配置器｜楊竹科技">
+  <meta property="og:description" content="選擇商品與規格、加入文字或圖片，即時預覽客製成品並取得詢價資訊。">
   <meta property="og:image" content="/assets/photos/usb_bar.jpg">
   <meta property="og:locale" content="zh_TW">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="線上客製化配置器 — 楊竹科技">
-  <meta name="twitter:description" content="悠遊卡、一卡通、USB隨身碟、保溫杯線上客製化，即時報價、即時預覽，快速詢價。">
+  <meta name="twitter:title" content="線上客製化配置器｜楊竹科技">
+  <meta name="twitter:description" content="選擇商品與規格、加入文字或圖片，即時預覽客製成品並取得詢價資訊。">
   <meta name="twitter:image" content="/assets/photos/usb_bar.jpg">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;700&family=Zen+Old+Mincho:wght@400;700&family=LXGW+WenKai+TC&family=Zcool+KuaiLe&family=Zcool+QingKe+HuangYou&family=Ma+Shan+Zheng&family=Long+Cang&family=Oswald:wght@400;600&family=Playfair+Display:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&family=Noto+Serif+TC:wght@400;700&family=Zen+Old+Mincho:wght@400;700&family=LXGW+WenKai+TC&family=Zcool+KuaiLe&family=Zcool+QingKe+HuangYou&family=Ma+Shan+Zheng&family=Long+Cang&family=Oswald:wght@400;600&family=Playfair+Display:wght@400;700&family=Bebas+Neue&family=Dancing+Script:wght@400;700&family=Great+Vibes&display=swap" rel="stylesheet">
   <!-- 隱藏的字體 select（供 JS 讀取） -->
   <select id="design-font" style="display:none">
     <option value="Noto Sans TC">思源黑體</option>
@@ -46,6 +47,23 @@
 
   <!-- 本機化第三方套件（避免 CDN 被封鎖/失效導致設計畫布與 3D 預覽無法載入） -->
   <script src="js/vendor/fabric.min.js"></script>
+  <script>
+    // fabric.min.js 這個版本的 Text._setTextStyles 內部把 textBaseline 打成
+    // 「alphabetical」（應為合法值 alphabetic），瀏覽器會針對每一次文字渲染各噴一次
+    // console warning，但不影響實際繪製（無效值被忽略、沿用預設 alphabetic）。
+    // 不改動 vendor 檔案本身，改在 canvas context 這一層攔截、修正這個錯字。
+    (function () {
+      var proto = window.CanvasRenderingContext2D && window.CanvasRenderingContext2D.prototype;
+      var desc = proto && Object.getOwnPropertyDescriptor(proto, 'textBaseline');
+      if (desc && desc.set && desc.configurable) {
+        Object.defineProperty(proto, 'textBaseline', {
+          get: desc.get,
+          set: function (v) { desc.set.call(this, v === 'alphabetical' ? 'alphabetic' : v); },
+          configurable: true
+        });
+      }
+    })();
+  </script>
   <script src="js/vendor/three.min.js"></script>
 
   <link rel="stylesheet" href="css/style.css">
@@ -65,19 +83,266 @@
     </svg>
   </a>
   <a id="back-to-home" href="/">← <span class="label-full">回主頁</span></a>
-  <span class="header-badge">🏭 台灣製造 · 40年經驗</span>
+  <span class="header-badge">台灣製造 · 工廠直營 · 快速詢價</span>
 </header>
+
+<!-- ── 網站公告（預設隱藏，由 js/site-content.js 依後台設定決定是否顯示）───── -->
+<div id="site-announcement-banner" class="site-announcement">
+  <p id="site-announcement-text"></p>
+</div>
 
 <!-- ─── Main ────────────────────────────── -->
 <main class="main-container">
 
   <div class="page-title">
+    <div class="page-kicker">YangZhu Online Customizer</div>
     <h1>線上客製化配置器</h1>
-    <p>選產品 → 設規格 → 設計 → 預覽 → 即時報價，5 步驟完成詢價</p>
+    <p>上傳照片、選擇畫風、套入商品模板，業務確認後安排製作</p>
+  </div>
+
+  <!-- 自動保存：偵測到舊設計時的簡短提示（淡入後自動淡出），以及讓使用者
+       主動清除已保存設計的入口（預設隱藏，有保存內容才顯示）。
+       role="status" + aria-live="polite"：讓輔助科技／自動化測試都能可靠地偵測到
+       這個區塊內容變化，不用只靠 CSS class（hidden/show）判斷。 -->
+  <div id="design-restored-toast" class="design-restored-toast hidden" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true"></div>
+  <!-- 自動保存失敗（本機儲存空間不足／被瀏覽器封鎖）的非阻斷提示，跟上面的「已恢復」
+       toast 是各自獨立的元素：兩者觸發時機完全不同（一個只在頁面剛載入時可能出現，
+       一個可能在編輯過程中隨時出現），共用同一顆會互相搶內容。 -->
+  <div id="draft-save-error-toast" class="draft-save-error-toast hidden" role="alert"></div>
+  <div class="clear-saved-design-row">
+    <!-- 桌面版：維持原本小型灰色外框按鈕，不搶視覺。手機版改藏進右上角三點選單
+         （見 .draft-kebab-menu），避免在窄螢幕上跟主要操作搶注意力、被誤認成主要按鈕。
+         兩者用同一個 hasSaved 條件顯示/隱藏（_updateClearSavedDesignBtn()），
+         點擊都導向同一個 clearSavedDesign() 二次確認流程，不重複維護判斷邏輯。 -->
+    <button type="button" id="clear-saved-design-btn" class="clear-saved-design-btn hidden" onclick="clearSavedDesign()">刪除此商品草稿</button>
+
+    <div class="draft-kebab-menu hidden" id="draft-kebab-menu">
+      <button type="button" class="draft-kebab-trigger" id="draft-kebab-trigger" aria-haspopup="true" aria-expanded="false" aria-label="更多操作" onclick="toggleDraftKebabMenu()">⋮</button>
+      <div class="draft-kebab-dropdown hidden" id="draft-kebab-dropdown" role="menu">
+        <button type="button" class="draft-kebab-item" role="menuitem" onclick="clearSavedDesign(); closeDraftKebabMenu();">刪除此商品草稿</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 刪除此商品草稿的確認視窗：頁面內自建對話框（取代原生 window.confirm()）。
+       原生 confirm() 會擋住整個分頁的 JS 執行緒，自動化測試控制器沒辦法在不
+       特別處理原生對話框事件的情況下繼續操作；改成頁面內 DOM 元素後，測試工具
+       可以像操作一般按鈕一樣點擊「取消」／「確認刪除」，也能用一般的無障礙
+       屬性（role="dialog" / aria-modal）驗證是否正確顯示。
+       實際刪除範圍只有「目前商品、目前分頁」——按鈕文字/標題/說明文字三處
+       一致對應這個範圍，不再用「全部」這種容易被誤解成刪光所有商品草稿的字眼。 -->
+  <div id="clear-draft-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="_cancelClearDraftModal()"></div>
+    <div class="clear-draft-modal-panel" role="dialog" aria-modal="true" aria-labelledby="clear-draft-modal-title" aria-describedby="clear-draft-modal-desc">
+      <h3 id="clear-draft-modal-title">刪除此商品草稿</h3>
+      <p id="clear-draft-modal-desc">確定刪除此商品草稿嗎？目前的規格與設計內容將無法復原。</p>
+      <div class="clear-draft-modal-actions">
+        <button type="button" id="clear-draft-modal-cancel-btn" class="clear-draft-modal-cancel" onclick="_cancelClearDraftModal()">取消</button>
+        <button type="button" id="clear-draft-modal-confirm-btn" class="clear-draft-modal-confirm" onclick="_confirmClearDraftModal()">確認刪除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 隱私權政策彈窗：詢價表單與頁尾的「查看隱私權政策」連結都指向真實網址
+       /privacy（右鍵可複製真實連結、中鍵可開新分頁），但左鍵點擊改成在同一頁
+       開彈窗顯示內容，不會真的離開這個頁面——這個配置器頁面有一套「只要離開
+       頁面就清空目前商品草稿」的既有保護機制（見 js/configurator.js 的
+       pagehide 監聽器），若讓這個連結真的導覽出去，使用者看完隱私權政策按
+       瀏覽器上一頁回來時，規格/簽名/圖片/設計位置會被清空。彈窗內容不重複
+       維護一份文字，開啟時即時抓取 /privacy 頁面的內文區塊（.policy-wrap）
+       顯示，兩邊文字永遠一致。 -->
+  <div id="privacy-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="closePrivacyModal()"></div>
+    <div class="privacy-modal-panel" role="dialog" aria-modal="true" aria-labelledby="privacy-modal-title">
+      <div class="privacy-modal-header">
+        <h3 id="privacy-modal-title">隱私權政策</h3>
+        <button type="button" class="privacy-modal-close" onclick="closePrivacyModal()" aria-label="關閉">✕</button>
+      </div>
+      <div class="privacy-modal-body" id="privacy-modal-body">
+        <p>載入中…</p>
+      </div>
+      <div class="clear-draft-modal-actions">
+        <a class="clear-draft-modal-cancel" href="/privacy" target="_blank" rel="noopener" style="text-decoration:none;">開新分頁查看完整頁面</a>
+        <button type="button" class="clear-draft-modal-confirm" style="background:var(--green,#2D7D46);" onclick="closePrivacyModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 清空目前卡面的確認視窗：與上面「刪除此商品草稿」是各自獨立的兩個
+       危險操作，範圍不同——這個只清空目前設計畫布上的內容（文字/圖片/圖層），
+       不離開設計稿頁；沿用同一套 .clear-draft-modal 樣式與鍵盤操作邏輯
+       （Esc取消／Tab在兩個按鈕間循環），只是換一組獨立的 id 與文案。 -->
+  <div id="clear-canvas-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="_cancelClearCanvasModal()"></div>
+    <div class="clear-draft-modal-panel" role="dialog" aria-modal="true" aria-labelledby="clear-canvas-modal-title" aria-describedby="clear-canvas-modal-desc">
+      <h3 id="clear-canvas-modal-title">清空目前卡面</h3>
+      <p id="clear-canvas-modal-desc">確定要清空目前卡面的設計內容嗎？畫布上的文字、圖片與圖層都會被移除並改回空白模板，且會覆蓋掉自動保存的草稿，此動作無法復原。</p>
+      <div class="clear-draft-modal-actions">
+        <button type="button" id="clear-canvas-modal-cancel-btn" class="clear-draft-modal-cancel" onclick="_cancelClearCanvasModal()">取消</button>
+        <button type="button" id="clear-canvas-modal-confirm-btn" class="clear-draft-modal-confirm" onclick="_confirmClearCanvasModal()">確認清空</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 刪除單一圖層的確認視窗：跟上面兩個是各自獨立的第三個危險操作，範圍最小
+       （只刪除圖層面板點選的那一個物件），沿用同一套 .clear-draft-modal 樣式與
+       鍵盤操作邏輯，只是換一組獨立的 id 與文案。 -->
+  <div id="layer-delete-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="_cancelLayerDeleteModal()"></div>
+    <div class="clear-draft-modal-panel" role="dialog" aria-modal="true" aria-labelledby="layer-delete-modal-title" aria-describedby="layer-delete-modal-desc">
+      <h3 id="layer-delete-modal-title">刪除圖層</h3>
+      <p id="layer-delete-modal-desc">確定要刪除「<span id="layer-delete-modal-name"></span>」這個圖層嗎？此動作無法復原。</p>
+      <div class="clear-draft-modal-actions">
+        <button type="button" id="layer-delete-modal-cancel-btn" class="clear-draft-modal-cancel" onclick="_cancelLayerDeleteModal()">取消</button>
+        <button type="button" id="layer-delete-modal-confirm-btn" class="clear-draft-modal-confirm" onclick="_confirmLayerDeleteModal()">確認刪除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 產品與規格摘要視窗：原本這塊資訊常駐佔用左欄最上方版面，改成按鈕點開才顯示，
+       省下常駐空間給文字/上傳/圖層等操作區；沿用同一套 .clear-draft-modal 樣式與
+       Esc關閉邏輯，純顯示用途所以兩顆按鈕都用中性的 cancel 樣式，不用danger的紅色
+       confirm樣式（避免看起來像危險操作）。內容渲染沿用既有 renderDesignSpecSummary()，
+       #design-spec-summary 這個id沒變，只是換了容器位置。 -->
+  <div id="spec-summary-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="closeSpecSummaryModal()"></div>
+    <div class="clear-draft-modal-panel" role="dialog" aria-modal="true" aria-labelledby="spec-summary-modal-title">
+      <h3 id="spec-summary-modal-title">產品與規格</h3>
+      <div id="design-spec-summary" class="design-spec-summary"></div>
+      <div class="clear-draft-modal-actions">
+        <button type="button" class="clear-draft-modal-cancel" onclick="goStep(1)">重選規格</button>
+        <button type="button" id="spec-summary-modal-close-btn" class="clear-draft-modal-cancel" onclick="closeSpecSummaryModal()">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 文字與版面視窗：跟上面「產品與規格」同一個收合模式，把字體/主標題/副標題/
+       文字顏色搬進彈出視窗，省下左欄常駐空間。這裡不是純顯示用途（有輸入框、有
+       「套用至卡面」動作），所以用主要按鈕（.btn-primary）取代 clear-draft-modal
+       原本的紅色 confirm 樣式，避免像危險操作。#text-panel-heading／
+       #label-text1-main／#label-text2-main／#apply-text-btn-label 這幾個id
+       黑卡會動態改文案（見 configurator.js renderDesignStep()），id不變只是搬了
+       容器位置。 -->
+  <div id="text-design-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="closeTextDesignModal()"></div>
+    <div class="clear-draft-modal-panel" role="dialog" aria-modal="true" aria-labelledby="text-design-modal-title">
+      <h3 id="text-design-modal-title"><span id="text-panel-heading">文字與版面</span></h3>
+
+      <div class="form-group">
+        <label for="design-font">字體</label>
+        <button type="button" class="font-select-btn" id="font-select-btn" onclick="toggleFontPicker()">
+          <span id="font-select-label">思源黑體</span>
+          <span class="font-select-arrow">▼</span>
+        </button>
+        <div class="font-grid" id="font-grid"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="design-text1"><span id="label-text1-main">主標題</span> <span style="font-size:10px;color:var(--gray-400)">（顯示於卡面上方）</span></label>
+        <input type="text" id="design-text1" placeholder="例：公司名稱 / 活動主題">
+      </div>
+      <div class="form-group">
+        <label for="design-text2"><span id="label-text2-main">副標題</span> <span style="font-size:10px;color:var(--gray-400)">（顯示於卡面下方）</span></label>
+        <input type="text" id="design-text2" placeholder="例：2025年會紀念">
+      </div>
+      <div class="color-row" style="margin-bottom:0;">
+        <label for="design-textcolor">文字顏色</label>
+        <input type="color" id="design-textcolor" value="#333333">
+      </div>
+
+      <div class="clear-draft-modal-actions">
+        <button type="button" class="clear-draft-modal-cancel" onclick="closeTextDesignModal()">關閉</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="applyDesignText(); closeTextDesignModal();"><span id="apply-text-btn-label">套用至卡面</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 保溫杯「藝術簽名」彈窗：跟黑卡藝術簽名同一套字體（SIGNATURE_FONTS，見
+       preview2d.js），差別是顏色開放客人自選（#thermos-signature-color），不像黑卡
+       寫死白色。獨立於主標題/副標題之外的第三種文字，可同時存在於卡面上。 -->
+  <div id="thermos-signature-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="closeThermosSignatureModal()"></div>
+    <div class="clear-draft-modal-panel" role="dialog" aria-modal="true" aria-labelledby="thermos-signature-modal-title">
+      <h3 id="thermos-signature-modal-title">藝術簽名</h3>
+      <p id="thermos-signature-modal-desc" style="font-size:12px;color:var(--gray-400);margin:-6px 0 12px;">加入專屬簽名文字，預設置中，可獨立調整大小、位置、旋轉與顏色，會呈現在杯身印刷範圍內。</p>
+
+      <div class="form-group">
+        <label for="thermos-signature-input">簽名文字</label>
+        <input type="text" id="thermos-signature-input" maxlength="20" placeholder="輸入簽名文字（例如英文姓名或中文姓名）">
+      </div>
+
+      <div class="form-group">
+        <label>簽名字體</label>
+        <div class="cartoon-style-picker" id="thermos-signature-font-picker" style="grid-template-columns:repeat(2,1fr);"></div>
+      </div>
+
+      <div class="color-row" style="margin-bottom:0;">
+        <label for="thermos-signature-color">簽名顏色</label>
+        <input type="color" id="thermos-signature-color" value="#333333" oninput="updateThermosSignatureStyle()">
+      </div>
+
+      <div class="fullbleed-controls hidden" id="thermos-signature-controls" style="margin-top:10px;">
+        <div class="fullbleed-control-row">
+          <label for="thermos-signature-size">大小</label>
+          <input type="range" id="thermos-signature-size" min="10" max="60" step="1" value="60" oninput="updateThermosSignatureStyle()">
+        </div>
+        <div class="fullbleed-control-row">
+          <label for="thermos-signature-rotation">旋轉</label>
+          <input type="range" id="thermos-signature-rotation" min="-45" max="45" step="1" value="0" oninput="updateThermosSignatureStyle()">
+        </div>
+      </div>
+
+      <div class="clear-draft-modal-actions">
+        <button type="button" class="clear-draft-modal-cancel" onclick="closeThermosSignatureModal()">關閉</button>
+        <button type="button" class="btn btn-secondary btn-sm hidden" id="thermos-signature-remove-btn" onclick="removeThermosSignature()">移除簽名</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="applyThermosSignature(); closeThermosSignatureModal();">套用簽名</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 黑卡「藝術簽名」彈窗：內容從原本右欄的第三個分頁原封不動搬過來，元素id完全
+       沒改（black-card-signature-input／black-card-signature-font-picker／
+       signature-size／signature-rotation／black-card-signature-controls），
+       preview2d.js 的 applyBlackCardSignature() 等函式不用跟著改。 -->
+  <div id="black-card-signature-modal" class="clear-draft-modal hidden">
+    <div class="clear-draft-modal-backdrop" onclick="closeBlackCardSignatureModal()"></div>
+    <div class="clear-draft-modal-panel" role="dialog" aria-modal="true" aria-labelledby="black-card-signature-modal-title">
+      <h3 id="black-card-signature-modal-title">藝術簽名</h3>
+      <p id="black-card-signature-modal-desc" style="font-size:12px;color:var(--gray-400);margin:-6px 0 12px;">加入專屬簽名文字，預設置於卡片右下角安全範圍，可獨立調整大小、位置與旋轉，可與主圖案、壓印文字同時存在。</p>
+
+      <div class="form-group">
+        <label for="black-card-signature-input">簽名文字</label>
+        <input type="text" id="black-card-signature-input" maxlength="20" placeholder="輸入簽名文字（例如英文姓名或中文姓名）">
+      </div>
+
+      <div class="form-group">
+        <label>簽名字體</label>
+        <div class="cartoon-style-picker" id="black-card-signature-font-picker" style="grid-template-columns:repeat(2,1fr);"></div>
+      </div>
+
+      <div class="fullbleed-controls hidden" id="black-card-signature-controls" style="margin-top:10px;">
+        <div class="fullbleed-control-row">
+          <label for="signature-size">大小</label>
+          <input type="range" id="signature-size" min="10" max="60" step="1" value="47" oninput="updateBlackCardSignatureStyle()">
+        </div>
+        <div class="fullbleed-control-row">
+          <label for="signature-rotation">旋轉</label>
+          <input type="range" id="signature-rotation" min="-45" max="45" step="1" value="0" oninput="updateBlackCardSignatureStyle()">
+        </div>
+      </div>
+
+      <div class="clear-draft-modal-actions">
+        <button type="button" class="clear-draft-modal-cancel" onclick="closeBlackCardSignatureModal()">關閉</button>
+        <button type="button" class="btn btn-secondary btn-sm hidden" id="black-card-signature-remove-btn" onclick="removeBlackCardSignature()">移除簽名</button>
+        <button type="button" class="btn btn-primary btn-sm" onclick="applyBlackCardSignature()">套用簽名</button>
+      </div>
+    </div>
   </div>
 
   <!-- 步驟進度條 -->
-  <div class="step-indicator">
+  <div class="step-indicator" id="step-indicator">
+    <div class="step-indicator-compact-label" id="step-indicator-compact-label"></div>
+    <div class="step-indicator-dots">
     <div class="step" data-step="1">
       <div class="step-dot" onclick="goStep(1)">1</div>
       <div class="step-label">選產品</div>
@@ -102,16 +367,39 @@
       <div class="step-dot" onclick="goStep(5)">5</div>
       <div class="step-label">報價單</div>
     </div>
+    </div><!-- /step-indicator-dots -->
   </div>
 
   <!-- ══════════════════════════════════════ -->
   <!-- Step 1 — 選產品                        -->
   <!-- ══════════════════════════════════════ -->
   <div class="step-panel" data-step="1">
-    <div class="card">
-      <h2 style="font-size:18px;margin-bottom:6px;">選擇產品類型</h2>
-      <p style="font-size:13px;color:var(--gray-400);margin-bottom:20px;">點選後自動進入下一步</p>
-      <div id="product-grid"></div>
+    <div class="card product-page-card">
+      <div class="section-hero">
+        <div>
+          <div class="page-kicker">Product Catalog</div>
+          <h2>選擇商品，開始製作專屬禮贈品</h2>
+          <p>從楊竹科技可製作的商品模板中選擇品項，下一步即可設定材質、工藝與數量。</p>
+        </div>
+        <div class="mini-trust">
+          <span>官方授權製造</span>
+          <span>工廠直營</span>
+          <span>快速詢價</span>
+        </div>
+      </div>
+
+      <div class="product-select-layout">
+        <div id="product-grid"></div>
+        <aside class="flow-side-panel">
+          <h3>配置流程</h3>
+          <div class="flow-list">
+            <div class="flow-item active"><span>1</span><strong>選擇商品</strong><small>確認要製作的禮贈品類型</small></div>
+            <div class="flow-item"><span>2</span><strong>選擇規格</strong><small>材質、工藝、數量與估價</small></div>
+            <div class="flow-item"><span>3</span><strong>設計預覽</strong><small>上傳照片並套入商品模板</small></div>
+            <div class="flow-item"><span>4</span><strong>送出詢價</strong><small>業務確認後安排製作</small></div>
+          </div>
+        </aside>
+      </div>
     </div>
   </div>
 
@@ -119,39 +407,58 @@
   <!-- Step 2 — 選規格                        -->
   <!-- ══════════════════════════════════════ -->
   <div class="step-panel hidden" data-step="2">
-    <div class="card">
-      <h2 style="font-size:18px;margin-bottom:20px;">規格選擇</h2>
-
-      <div class="spec-section">
-        <h4>材質</h4>
-        <div class="spec-options" id="spec-materials"></div>
-      </div>
-
-      <div class="spec-section">
-        <h4>表面工藝</h4>
-        <div class="spec-options" id="spec-finishes"></div>
-      </div>
-
-      <div class="spec-section hidden" id="spec-capacity-section">
-        <h4>容量</h4>
-        <div class="spec-options" id="spec-capacities"></div>
-      </div>
-
-      <div class="spec-section">
-        <h4>數量</h4>
-        <div class="qty-wrap">
-          <input type="range" id="spec-qty" min="1" max="5000" step="1" value="100">
-          <div class="qty-input-row">
-            <input type="number" id="spec-qty-input" class="qty-number-input" min="1" value="100">
-            <span class="qty-unit"> 個</span>
-          </div>
+    <div class="card spec-page-card">
+      <div class="section-hero compact">
+        <div>
+          <div class="page-kicker">Specification</div>
+          <h2>規格選擇</h2>
+          <p>選擇材質、表面工藝與數量，系統會同步估算製作費用。</p>
         </div>
-        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">數量越多、單價越優惠；超過 5,000 個的大量採購可直接在欄位輸入數字</p>
       </div>
 
-      <div class="live-quote-card">
-        <h4>💰 即時估價</h4>
-        <div id="live-quote"></div>
+      <div class="spec-config-layout">
+        <aside class="selected-product-panel" id="spec-product-summary"></aside>
+
+        <section class="spec-form-panel">
+          <div class="spec-section">
+            <h4><span class="step-chip">1</span> <span id="spec-materials-label">材質</span></h4>
+            <div class="spec-options" id="spec-materials"></div>
+          </div>
+
+          <div class="spec-section">
+            <h4><span class="step-chip">2</span> <span id="spec-finishes-label">表面工藝</span></h4>
+            <div class="spec-options" id="spec-finishes"></div>
+          </div>
+
+          <div class="spec-section hidden" id="spec-capacity-section">
+            <h4><span class="step-chip">3</span> 容量</h4>
+            <div class="spec-options" id="spec-capacities"></div>
+          </div>
+
+          <div class="spec-section hidden" id="spec-cupcolor-section">
+            <h4><span class="step-chip">3</span> 杯身顏色</h4>
+            <div class="spec-options" id="spec-cupcolors"></div>
+          </div>
+
+          <div class="spec-section">
+            <h4><span class="step-chip">4</span> 數量</h4>
+            <div class="qty-wrap">
+              <div class="qty-input-row">
+                <input type="number" id="spec-qty-input" class="qty-number-input" min="1" value="1" aria-label="數量（個）">
+                <span class="qty-unit">個</span>
+              </div>
+            </div>
+            <p class="field-note">數量越多、單價越優惠；超過 5,000 個的大量採購可直接在欄位輸入數字。</p>
+          </div>
+        </section>
+
+        <aside class="quote-side-panel">
+          <div class="live-quote-card">
+            <h4>即時估價</h4>
+            <div id="live-quote"></div>
+          </div>
+          <p class="quote-disclaimer">正式報價以業務確認為準，不含 5% 營業稅。</p>
+        </aside>
       </div>
 
       <div class="step-nav">
@@ -165,91 +472,223 @@
   <!-- Step 3 — 設計稿                        -->
   <!-- ══════════════════════════════════════ -->
   <div class="step-panel hidden" data-step="3">
-    <div class="card">
-      <h2 style="font-size:18px;margin-bottom:6px;">設計稿編輯</h2>
-      <p style="font-size:13px;color:var(--gray-400);margin-bottom:20px;">
-        簡易示意稿，讓業務了解您的設計方向。正式稿可於確認後提供 AI / EPS 檔。
-      </p>
+    <div class="card customizer-card">
+      <div class="configurator-toolbar">
+        <div>
+          <div class="page-kicker">Online Design Desk</div>
+          <h2>線上客製化配置器</h2>
+          <p id="design-step-desc">上傳照片，製作專屬 Q版禮贈品，並即時套入商品模板。</p>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn btn-secondary btn-sm" onclick="prevStep()">修改規格</button>
+        </div>
+      </div>
 
-      <div class="design-layout">
+      <div class="design-layout customizer-workbench">
+
+        <!-- 手機版專用：四區塊分頁（設計預覽／文字與版面／圖層管理／AI・圖片工具）。
+             桌面版此列隱藏，三欄格線完全不受影響；純 CSS display 切換，不會
+             重新渲染或清空任何區塊內容，輸入值/圖層/縮放值都不受影響。 -->
+        <div class="wb-mobile-tabs" id="wb-mobile-tabs" role="tablist" aria-label="設計工具分區">
+          <button type="button" class="wb-mobile-tab-btn active" data-mobile-tab="preview" role="tab" aria-selected="true" onclick="setMobileDesignGroup('preview')">設計預覽</button>
+          <button type="button" class="wb-mobile-tab-btn" data-mobile-tab="text" role="tab" aria-selected="false" onclick="setMobileDesignGroup('text')">文字與版面</button>
+          <button type="button" class="wb-mobile-tab-btn" data-mobile-tab="layers" role="tab" aria-selected="false" onclick="setMobileDesignGroup('layers')">圖層管理</button>
+          <button type="button" class="wb-mobile-tab-btn" data-mobile-tab="ai" role="tab" aria-selected="false" onclick="setMobileDesignGroup('ai')">AI・圖片工具</button>
+        </div>
 
         <!-- 工具面板 -->
-        <div class="design-tools">
+        <div class="design-tools wb-left">
 
-          <div class="tool-section">
-            <h4>文字（手動輸入 或 從 AI 方案套用）</h4>
-
-            <div class="form-group">
-              <label>字體</label>
-              <button type="button" class="font-select-btn" id="font-select-btn" onclick="toggleFontPicker()">
-                <span id="font-select-label">思源黑體</span>
-                <span class="font-select-arrow">▼</span>
-              </button>
-              <div class="font-grid" id="font-grid"></div>
-            </div>
-
-            <div class="form-group">
-              <label>主標題 <span style="font-size:10px;color:var(--gray-400)">（顯示於卡面上方）</span></label>
-              <input type="text" id="design-text1" placeholder="例：公司名稱 / 活動主題">
-            </div>
-            <div class="form-group">
-              <label>副標題 <span style="font-size:10px;color:var(--gray-400)">（顯示於卡面下方）</span></label>
-              <input type="text" id="design-text2" placeholder="例：2025年會紀念">
-            </div>
-            <div class="color-row" style="margin-bottom:6px;">
-              <label>文字顏色</label>
-              <input type="color" id="design-textcolor" value="#333333">
-            </div>
-
-            <!-- 背景顏色（移至此處） -->
-            <div style="margin-bottom:10px;">
-              <div class="color-row" style="margin-bottom:6px;">
-                <label>背景底色</label>
-                <input type="color" id="design-bgcolor" value="#ffffff" oninput="STATE.bgColor=this.value;setBackground2D(this.value)">
-              </div>
-              <div class="color-presets">
-                <button class="cp-btn" style="background:#ffffff;border:1px solid #ccc" onclick="applyBgPreset('#ffffff')" title="白色"></button>
-                <button class="cp-btn" style="background:#000000" onclick="applyBgPreset('#000000')" title="黑色"></button>
-                <button class="cp-btn" style="background:#f5f5f0" onclick="applyBgPreset('#f5f5f0')" title="米白"></button>
-                <button class="cp-btn" style="background:#1a2744" onclick="applyBgPreset('#1a2744')" title="深藍"></button>
-                <button class="cp-btn" style="background:#2D7D46" onclick="applyBgPreset('#2D7D46')" title="綠色"></button>
-                <button class="cp-btn" style="background:#c8102e" onclick="applyBgPreset('#c8102e')" title="紅色"></button>
-                <button class="cp-btn" style="background:#f5c518" onclick="applyBgPreset('#f5c518')" title="金黃"></button>
-                <button class="cp-btn" style="background:#f9a8d4" onclick="applyBgPreset('#f9a8d4')" title="粉紅"></button>
-                <button class="cp-btn" style="background:#7c3aed" onclick="applyBgPreset('#7c3aed')" title="紫色"></button>
-                <button class="cp-btn" style="background:#0ea5e9" onclick="applyBgPreset('#0ea5e9')" title="天藍"></button>
-              </div>
-            </div>
-
-            <button class="btn btn-primary btn-sm" style="width:100%" onclick="applyDesignText()">套用至卡面 ↗</button>
+          <div class="tool-section design-summary-panel">
+            <button type="button" class="design-summary-trigger-btn" id="design-summary-trigger-btn" onclick="openSpecSummaryModal()">
+              <span class="design-summary-trigger-row">
+                <span class="section-title-row" style="margin-bottom:0;">
+                  <h4 style="margin-bottom:0;"><span class="step-chip">1</span> 產品與規格</h4>
+                </span>
+                <span class="design-summary-trigger-arrow">▸</span>
+              </span>
+              <span id="design-summary-trigger-brief" class="design-summary-trigger-brief"></span>
+            </button>
           </div>
 
-          <div class="tool-section">
-            <h4>上傳 Logo / 圖片</h4>
+          <div class="tool-section design-summary-panel">
+            <button type="button" class="design-summary-trigger-btn" id="text-design-trigger-btn" onclick="openTextDesignModal()">
+              <span class="design-summary-trigger-row">
+                <span class="section-title-row" style="margin-bottom:0;">
+                  <h4 style="margin-bottom:0;"><span class="step-chip">2</span> <span id="text-panel-heading-trigger">文字與版面</span></h4>
+                </span>
+                <span class="design-summary-trigger-arrow">▸</span>
+              </span>
+              <span id="text-design-trigger-brief" class="design-summary-trigger-brief"></span>
+            </button>
+          </div>
+
+          <!-- 保溫杯專屬「藝術簽名」：獨立於主標題/副標題的第三種文字，可同時存在於
+               卡面上，跟黑卡藝術簽名同一套字體，差別是顏色開放客人自選（保溫杯有4種
+               杯身顏色，不能像黑卡一樣寫死白色）。只在保溫杯顯示，見 configurator.js
+               renderDesignStep() 的 isThermos 判斷。 -->
+          <div class="tool-section design-summary-panel hidden" id="thermos-signature-trigger-block">
+            <button type="button" class="design-summary-trigger-btn" id="thermos-signature-trigger-btn" onclick="openThermosSignatureModal()">
+              <span class="design-summary-trigger-row">
+                <span class="section-title-row" style="margin-bottom:0;">
+                  <h4 style="margin-bottom:0;"><span class="step-chip">2</span> 藝術簽名</h4>
+                </span>
+                <span class="design-summary-trigger-arrow">▸</span>
+              </span>
+              <span id="thermos-signature-trigger-brief" class="design-summary-trigger-brief">尚未加入簽名</span>
+            </button>
+          </div>
+
+          <!-- 黑卡專屬「藝術簽名」：原本跟「主圖案/滿版紋理」放在右欄同一組分頁裡，
+               使用者覺得簽名該獨立出來、不要跟另外兩個AI功能擠在一起，改成跟保溫杯
+               同一套「左欄收合卡片＋彈窗」樣式。只在黑卡顯示，見 configurator.js
+               renderDesignStep() 的 isBlackCard 判斷。彈窗內容沿用原本的元素id
+               （black-card-signature-input等），套用/移除簽名的函式完全沒變。 -->
+          <div class="tool-section design-summary-panel hidden" id="black-card-signature-trigger-block">
+            <button type="button" class="design-summary-trigger-btn" id="black-card-signature-trigger-btn" onclick="openBlackCardSignatureModal()">
+              <span class="design-summary-trigger-row">
+                <span class="section-title-row" style="margin-bottom:0;">
+                  <h4 style="margin-bottom:0;"><span class="step-chip">2</span> 藝術簽名</h4>
+                </span>
+                <span class="design-summary-trigger-arrow">▸</span>
+              </span>
+              <span id="black-card-signature-trigger-brief" class="design-summary-trigger-brief">尚未加入簽名</span>
+            </button>
+          </div>
+
+          <div class="tool-section text-design-tool" data-mobile-group="text">
+            <h4 style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:10px;">背景造型與波浪顏色</h4>
+
+            <div class="background-template-block">
+              <div class="tool-subhead">
+                <span>背景蒙版造型</span>
+                <small>顏色請用下方波浪顏色調整</small>
+              </div>
+              <button type="button" class="bg-template-select-btn" id="bg-template-select-btn" onclick="toggleBackgroundTemplatePicker()">
+                <span class="bg-template-select-swatch" id="bg-template-select-swatch"></span>
+                <span class="bg-template-select-label" id="bg-template-select-label">背景蒙版造型</span>
+                <span class="bg-template-select-arrow">▼</span>
+              </button>
+              <div class="background-template-grid bg-template-grid-hidden" id="background-template-grid"></div>
+            </div>
+
+            <div class="wave-color-panel" id="wave-color-panel">
+              <div class="tool-subhead">
+                <span>波浪顏色</span>
+                <small>也可直接點預覽圖上的波浪</small>
+              </div>
+              <div class="wave-color-controls">
+                <label>主波浪 <input type="color" id="wave-color-main" value="#2D7D46" oninput="updateWaveColor('main', this.value)"></label>
+                <label>淺色波浪 <input type="color" id="wave-color-light" value="#dfead8" oninput="updateWaveColor('light', this.value)"></label>
+              </div>
+            </div>
+
+            <label for="design-bgcolor" hidden>背景顏色</label>
+            <input type="color" id="design-bgcolor" value="#ffffff" hidden>
+          </div>
+
+          <div class="tool-block" data-mobile-group="ai">
+            <h4 style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:10px;">上傳 Logo / 圖片</h4>
             <label class="upload-zone">
               <input type="file" id="design-upload" accept="image/*">
-              <div style="font-size:28px;">📂</div>
+              <div class="upload-symbol" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+              </div>
               <p>點擊上傳 PNG / JPG / SVG</p>
               <p>建議尺寸：1000px 以上</p>
             </label>
+            <button type="button" class="btn btn-secondary btn-sm hidden" id="thermos-fullbleed-btn"
+              style="width:100%;margin-top:8px;" onclick="fillCanvasWithSelectedImage()"
+              title="讓選取的圖片鋪滿整個印刷稿，超出範圍會自動裁切">
+              滿版鋪滿選取圖片
+            </button>
+            <p class="tool-disabled-hint hidden" id="thermos-fullbleed-hint">請先上傳或選取圖片圖層。</p>
           </div>
 
-          <div class="tool-actions">
-            <button class="btn btn-danger btn-sm" onclick="deleteSelected2D()">刪除選取</button>
-            <button class="btn btn-secondary btn-sm" onclick="clear2D()">清空重來</button>
+          <div class="tool-block" id="sticker-picker-block" data-mobile-group="ai">
+            <h4 style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:10px;">新增圖形</h4>
+            <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;">點選圖案直接加入卡面，加入後可拖拉調整位置與大小；填滿色、外框線顏色可在加入後、選取該圖層時調整。</p>
+            <button type="button" class="sticker-select-btn" id="sticker-select-btn" onclick="toggleStickerPicker()">
+              <span id="sticker-select-label">選擇裝飾圖案</span>
+              <span class="sticker-select-arrow">▼</span>
+            </button>
+            <div class="sticker-picker sticker-grid-hidden" id="sticker-picker"></div>
           </div>
 
-          <div style="background:var(--gray-100);border-radius:8px;padding:12px;font-size:12px;color:var(--gray-400);">
-            💡 拖拉畫布內元素可調整位置，點選後可縮放旋轉。
+          <!-- 圖層管理區塊：悠遊卡/一卡通會被 JS（見 configurator.js
+               _placeLayerManagementBlock()）用 appendChild 搬到右欄跟Q版/上傳面板放
+               一起（搬移同一個節點，不是複製，左右只會存在一份、id不會重複）；保溫杯/
+               黑卡沒有對應的右欄可放，維持留在這裡不動。下面這個空 anchor 節點本身
+               永遠不會被搬移，用來記住「原本的左欄位置」，離開悠遊卡/一卡通、回到
+               保溫杯/黑卡時才知道要把區塊插回哪裡。 -->
+          <div id="layer-management-left-anchor"></div>
+          <div id="layer-management-block">
+          <div class="tool-block" id="layer-panel-section" data-mobile-group="layers">
+            <h4 style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:10px;">圖層</h4>
+            <div class="layer-panel" id="layer-panel"></div>
+          </div>
+
+          <!-- 裝飾圖形顏色調整：只有選取「裝飾圖形」圖層時才會顯示（見
+               preview2d.js 的 _updateStickerColorPanel()），跟波浪顏色面板共用同一套
+               外觀（.wave-color-panel/.wave-color-controls），維持視覺一致。 -->
+          <div class="wave-color-panel hidden" id="sticker-color-panel" data-mobile-group="layers">
+            <div class="tool-subhead">
+              <span>圖案顏色</span>
+              <small>選取畫布上的裝飾圖案後可調整</small>
+            </div>
+            <div class="wave-color-controls">
+              <label>填滿色 <input type="color" id="sticker-fill-color" oninput="updateStickerColor('fill', this.value)"></label>
+              <label>外框線 <input type="color" id="sticker-stroke-color" oninput="updateStickerColor('stroke', this.value)"></label>
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-700);margin-top:8px;">
+              <input type="checkbox" id="sticker-stroke-toggle" onchange="toggleStickerStroke(this.checked)">
+              顯示外框線
+            </label>
+          </div>
+
+          <div class="tool-actions" data-mobile-group="layers">
+            <button class="btn btn-danger btn-sm" id="delete-selected-btn" onclick="deleteSelected2D()">刪除選取</button>
+            <p class="tool-disabled-hint hidden" id="delete-selected-hint">請先在上方圖層清單點選一個圖層。</p>
+          </div>
+          <div class="tool-actions-danger-zone" data-mobile-group="layers">
+            <button class="btn btn-secondary btn-sm" onclick="confirmClear2D()"><span id="clear-canvas-btn-label">清空目前卡面</span></button>
+          </div>
+
+          <div data-mobile-group="layers" style="background:var(--gray-100);border-radius:8px;padding:12px;font-size:12px;color:var(--gray-400);">
+            拖拉畫布內元素可調整位置，點選後可縮放旋轉。
+          </div>
           </div>
         </div>
 
         <!-- Canvas 預覽 -->
-        <div>
+        <div class="preview-panel wb-center" data-mobile-group="preview">
+          <div class="preview-panel-head">
+            <div>
+              <h3>設計預覽（送樣稿）</h3>
+              <p>商品模板與客製內容即時預覽，實際印刷由業務確認。</p>
+              <p class="demo-placeholder-badge hidden" id="demo-placeholder-badge">目前仍是示範版面文字，請修改成您要的內容再往下一步。</p>
+            </div>
+          </div>
+          <div class="canvas-align-tools" id="canvas-align-tools">
+            <button type="button" class="align-btn" id="align-center-btn" onclick="alignActiveObject('center')" title="置中">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>置中
+            </button>
+            <button type="button" class="align-btn" id="align-h-btn" onclick="alignActiveObject('h')" title="水平置中">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18"/><rect x="6" y="8" width="12" height="3"/><rect x="8" y="13" width="8" height="3"/></svg>水平置中
+            </button>
+            <button type="button" class="align-btn" id="align-v-btn" onclick="alignActiveObject('v')" title="垂直置中">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h18"/><rect x="8" y="6" width="3" height="12"/><rect x="13" y="8" width="3" height="8"/></svg>垂直置中
+            </button>
+            <button type="button" class="align-btn" id="rotate-90-btn" onclick="rotateActiveObject90()" title="向右旋轉90度">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12a8 8 0 1 1 2.5 5.8"/><path d="M4 12V7M4 12h5"/></svg>圖片翻轉
+            </button>
+          </div>
+          <p class="tool-disabled-hint hidden" id="canvas-align-tools-hint">請先在上方圖層清單點選一個圖層。</p>
           <div class="canvas-wrap">
             <canvas id="canvas-2d"></canvas>
+            <div class="thermos-zone-overlay" id="thermos-zone-overlay"></div>
           </div>
-          <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:8px;">
+          <p class="preview-cutline-note" style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:8px;">
             虛線為刀模輪廓參考線
           </p>
           <!-- 手機縮放控制列（選取物件後顯示） -->
@@ -258,6 +697,8 @@
               <span style="font-size:12px;color:var(--gray-400);white-space:nowrap;">縮放</span>
               <input type="range" id="scale-slider" min="5" max="300" step="1" value="100"
                      oninput="scaleSelectedTo(this.value/100)"
+                     onchange="scaleSelectedTo(this.value/100)"
+                     aria-label="縮放"
                      style="flex:1;accent-color:#2D7D46;height:22px;cursor:pointer;">
               <span id="scale-pct" style="font-size:13px;color:#2D7D46;font-weight:700;min-width:42px;text-align:right;">100%</span>
             </div>
@@ -267,119 +708,204 @@
           </div>
         </div>
 
+        <!-- 上傳照片／Q版肖像工具：同一面板用分頁籤區分「一般照片」跟「Q版AI照片」，
+             避免客戶搞混兩種上傳入口（一般照片=直接使用原圖鋪滿卡面；Q版照片=AI改繪成卡通風格）。
+             分頁邏輯見 preview2d.js switchUploadTab()，跟黑卡的 wb-tabs 用同一套元件。 -->
+        <!-- wb-right-column：把「照片上傳/黑卡AI圖案」跟「圖層管理」包成同一個直向堆疊的
+             grid項目，兩者緊貼在一起，不會因為左欄工具面板很長而被撐開一大截空白（原本
+             q-avatar-panel跟layer-management-right-slot是各自獨立的grid子項目，沒指定同一
+             列，瀏覽器會把它們排成同欄的第1列/第2列，但第1列高度由左欄撐出來，導致第2列
+             的圖層面板被擠到很下面才出現）。三個wb-right子節點都不需要各自的grid定位了，
+             一起交給這個外層容器處理，位置樣式見 style.css #wb-right-column。 -->
+        <div class="wb-right-column" id="wb-right-column">
+        <div class="q-avatar-panel" id="q-avatar-panel" data-mobile-group="ai">
+          <div class="wb-tabs" id="photo-upload-tabs" role="tablist">
+            <button type="button" class="wb-tab-btn active" id="wb-tab-btn-photo" data-tab="photo" onclick="switchUploadTab('photo')">
+              <span class="wb-tab-dot"></span>一般照片
+            </button>
+            <button type="button" class="wb-tab-btn" id="wb-tab-btn-qversion" data-tab="qversion" onclick="switchUploadTab('qversion')">
+              <span class="wb-tab-dot"></span>Q版照片
+            </button>
+          </div>
+
+          <div class="wb-tab-panel active" data-tabpanel="photo">
+            <h4 style="font-size:13px;font-weight:700;color:var(--gray-700);margin-bottom:10px;">上傳您的照片或圖片</h4>
+            <p class="ai-desc" style="margin-bottom:12px;">直接使用原圖，上傳後自動鋪滿卡面，可再自行調整位置與大小。</p>
+            <label class="upload-zone" id="design-upload-tab-zone">
+              <input type="file" id="design-upload-tab" accept="image/*">
+              <div class="upload-symbol" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+              </div>
+              <p>點擊上傳 PNG / JPG / SVG</p>
+              <p>建議尺寸：1000px 以上</p>
+            </label>
+          </div>
+
+          <div class="wb-tab-panel" data-tabpanel="qversion">
+          <details class="ai-section q-section" id="ai-cartoon-section" open>
+            <summary class="ai-header">
+              <span class="ai-badge">Q版肖像製作</span>
+            </summary>
+            <details class="teaching-note">
+              <summary>說明</summary>
+              <p class="ai-desc">
+                上傳照片，製作專屬 Q版禮贈品。選擇畫風，即時套入商品模板；AI 輔助設計，業務確認後安排製作。
+              </p>
+            </details>
+
+            <p class="ai-step-label"><span class="ai-step-num">1</span>上傳您的照片</p>
+            <label class="upload-zone" id="cartoon-upload-zone" style="max-height:none;margin-bottom:14px;cursor:pointer;">
+              <input type="file" id="cartoon-upload-input" accept="image/*" onchange="previewCartoonUpload(this)" style="display:none;">
+              <div id="cartoon-upload-preview" class="upload-symbol">＋</div>
+              <p id="cartoon-upload-hint">點擊上傳照片（建議單人正面清晰照）</p>
+            </label>
+
+            <p class="ai-step-label"><span class="ai-step-num">2</span>選擇 Q版風格</p>
+            <div class="cartoon-style-picker" id="cartoon-style-picker"></div>
+
+            <button class="btn btn-ai" id="cartoon-btn" onclick="generateCartoonImage()" style="width:100%;">
+              <span id="cartoon-btn-text">開始製作我的 Q版肖像</span>
+              <span id="cartoon-btn-loading" class="hidden">生成中（約15~40秒）…</span>
+            </button>
+
+            <div id="cartoon-error" class="ai-error hidden"></div>
+            <div id="cartoon-preview" class="hidden"></div>
+            <details class="teaching-note">
+              <summary>製作須知</summary>
+              <p class="production-note">約 15-40 秒完成，業務確認後再安排正式製作。</p>
+            </details>
+          </details>
+          </div>
+
+        </div>
+
+        <!-- 圖層管理區塊的右欄插槽，跟左欄的 #layer-management-left-anchor 是同一組
+             搬移機制的另一端；不管目前分頁是「一般照片」還是「Q版照片」都固定顯示在
+             這裡。刻意放在 #q-avatar-panel 外面（不是它的子節點）——q-avatar-panel
+             本身帶 data-mobile-group="ai"，手機版切到「圖層管理」分頁時會被整組隱藏，
+             裡面搬進來的圖層清單（子節點各自標記 data-mobile-group="layers"）會被
+             父層的 display:none 一起蓋掉，切了分頁也看不到，是實測手機寬度時發現的問題。
+             放在外面、當成獨立的同層兄弟節點，才不會被 q-avatar-panel 自己的分頁狀態連坐。 -->
+        <div id="layer-management-right-slot"></div>
+
+        <!-- 尊爵不凡黑卡：AI 文字產生圖案面板（取代上方 Q版肖像面板，也取代原本的照片上傳） -->
+        <div class="q-avatar-panel hidden" id="black-card-pattern-panel" data-mobile-group="ai">
+          <div class="wb-tabs" id="black-card-tabs" role="tablist">
+            <button type="button" class="wb-tab-btn active" id="wb-tab-btn-pattern" data-tab="pattern" onclick="switchDesignTab('pattern')">
+              <span class="wb-tab-dot"></span>主圖案
+            </button>
+            <button type="button" class="wb-tab-btn" id="wb-tab-btn-fullbleed" data-tab="fullbleed" onclick="switchDesignTab('fullbleed')">
+              <span class="wb-tab-dot"></span>滿版紋理
+            </button>
+          </div>
+
+          <div class="wb-tab-panel active" data-tabpanel="pattern">
+          <details class="ai-section q-section" open>
+            <summary class="ai-header">
+              <span class="ai-badge">AI設計你的專屬黑卡圖案</span>
+            </summary>
+            <details class="teaching-note">
+              <summary>說明</summary>
+              <p class="ai-desc">
+                描述想要的角色或圖案，AI會將它設計成適合黑卡浮雕的Q版造型。
+              </p>
+            </details>
+
+            <textarea id="black-card-prompt-input" rows="2" maxlength="80"
+              placeholder="例如：戴著領巾、開心坐著的Q版柴犬"
+              aria-label="描述想要的角色或圖案"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;resize:none;margin-bottom:10px;"
+              oninput="STATE.blackCardPrompt = this.value"></textarea>
+
+            <p class="ai-prompt-hint">建議描述：主體＋動作／表情＋構圖，例如：戴領巾、正面微笑、置中構圖的Q版柴犬。</p>
+            <p class="ai-prompt-hint ai-prompt-hint-warning">請使用單一主體、清楚輪廓及高對比構圖，細線與複雜背景可能不適合浮雕。</p>
+
+            <div class="black-card-example-chips" id="black-card-example-chips">
+              <button type="button" class="black-card-example-chip" onclick="fillBlackCardExample('可愛柴犬')">可愛柴犬</button>
+              <button type="button" class="black-card-example-chip" onclick="fillBlackCardExample('柴犬抱愛心')">柴犬抱愛心</button>
+              <button type="button" class="black-card-example-chip" onclick="fillBlackCardExample('戴皇冠的貓咪')">戴皇冠的貓咪</button>
+              <button type="button" class="black-card-example-chip" onclick="fillBlackCardExample('揮手的Q版兔子')">揮手的Q版兔子</button>
+              <button type="button" class="black-card-example-chip" onclick="fillBlackCardExample('微笑小熊')">微笑小熊</button>
+              <button type="button" class="black-card-example-chip" onclick="fillBlackCardExample('可愛公司吉祥物')">可愛公司吉祥物</button>
+            </div>
+
+            <p class="ai-step-label" style="margin-bottom:8px;">圖案風格</p>
+            <div class="cartoon-style-picker" id="black-card-style-picker" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px;"></div>
+
+            <button class="btn btn-ai" id="black-card-generate-btn" onclick="generateBlackCardPatternCandidates()" style="width:100%;">
+              <span id="black-card-generate-btn-text">AI產生圖案</span>
+              <span id="black-card-generate-btn-loading" class="hidden">正在設計黑卡圖案，通常約 15～45 秒完成……</span>
+            </button>
+
+            <div id="black-card-pattern-error" class="ai-error hidden"></div>
+
+            <div class="black-card-candidates hidden" id="black-card-candidates"></div>
+            <p class="black-card-hint">白色／透明區域不會印製，黑色區域將呈現為黑卡浮雕效果。</p>
+            <p class="black-card-hint black-card-hint-success hidden" id="black-card-apply-hint">已套用圖案，你可以在左側預覽區調整位置、大小及旋轉角度。</p>
+
+            <button type="button" class="btn btn-secondary hidden" id="black-card-regenerate-btn"
+              onclick="generateBlackCardPatternCandidates()" style="width:100%;margin-top:4px;">
+              重新產生一組
+            </button>
+
+            <details class="teaching-note">
+              <summary>製作須知</summary>
+              <p class="production-note">AI圖案會轉換成黑色浮雕效果，實際成品仍以打樣結果為準。</p>
+            </details>
+          </details>
+          </div><!-- /wb-tab-panel pattern -->
+
+          <div class="wb-tab-panel" data-tabpanel="fullbleed">
+          <!-- 滿版元素圖案 -->
+          <details class="ai-section q-section" id="black-card-fullbleed-section" open>
+            <summary class="ai-header">
+              <span class="ai-badge">滿版元素圖案</span>
+            </summary>
+            <details class="teaching-note">
+              <summary>說明</summary>
+              <p class="ai-desc">選擇覆蓋整張卡面安全設計區的低調紋理，呈現精品黑卡的滿版壓印質感。</p>
+            </details>
+
+            <div class="cartoon-style-picker" id="black-card-fullbleed-picker" style="grid-template-columns:repeat(3,1fr);"></div>
+
+            <div id="black-card-fullbleed-upload-wrap" class="hidden" style="margin-bottom:10px;">
+              <label class="upload-zone" style="max-height:none;cursor:pointer;">
+                <input type="file" id="black-card-fullbleed-upload-input" accept="image/*" style="display:none;"
+                       onchange="handleFullBleedCustomUpload(this)">
+                <div class="upload-symbol">＋</div>
+                <p>上傳自訂圖案（將以小尺寸重複鋪滿卡面）</p>
+              </label>
+            </div>
+
+            <div class="fullbleed-controls hidden" id="black-card-fullbleed-controls">
+              <div class="fullbleed-control-row">
+                <label for="fullbleed-density">密度</label>
+                <input type="range" id="fullbleed-density" min="1" max="10" step="1" value="5" oninput="updateFullBleedPattern()">
+              </div>
+              <div class="fullbleed-control-row">
+                <label for="fullbleed-thickness">粗細</label>
+                <input type="range" id="fullbleed-thickness" min="1" max="10" step="1" value="4" oninput="updateFullBleedPattern()">
+              </div>
+              <div class="fullbleed-control-row">
+                <label for="fullbleed-relief">浮雕強度</label>
+                <input type="range" id="fullbleed-relief" min="1" max="10" step="1" value="5" oninput="updateFullBleedPattern()">
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" style="width:100%;margin-top:4px;" onclick="removeFullBleedPattern()">
+                移除滿版圖案
+              </button>
+            </div>
+          </details>
+          </div><!-- /wb-tab-panel fullbleed -->
+        </div>
+        </div><!-- /wb-right-column -->
+
       </div><!-- /design-layout -->
 
-      <p class="ai-tools-eyebrow">✨ 想要 AI 幫忙？點開下方工具（非必要，手動輸入文字/上傳圖片即可完成設計）</p>
-
-      <!-- ✨ AI 文字生成區塊 -->
-      <details class="ai-section" id="ai-section">
-        <summary class="ai-header">
-          <span class="ai-badge">✨ AI 輔助生成</span>
-          <span class="ai-model">gpt-4o-mini</span>
-        </summary>
-        <p class="ai-desc">用一句話描述你的需求，AI 自動生成 3 種設計文案方案</p>
-
-        <div class="ai-input-row">
-          <textarea id="ai-prompt" rows="2"
-            placeholder="例：科技公司 2025 年會紀念品，現代簡約風格&#10;例：婚禮回禮小物，溫馨浪漫，附新人名字"></textarea>
-          <button class="btn btn-ai" id="ai-generate-btn" onclick="generateAIDesign()">
-            <span id="ai-btn-text">✨ 生成</span>
-            <span id="ai-btn-loading" class="hidden">⏳ 生成中…</span>
-          </button>
-        </div>
-
-        <div id="ai-error" class="ai-error hidden"></div>
-
-        <!-- 生成結果 -->
-        <div id="ai-results" class="ai-results hidden"></div>
-      </details>
-
-      <!-- ✨ AI 生圖區塊 -->
-      <details class="ai-section" id="ai-image-section" style="margin-top:12px;">
-        <summary class="ai-header">
-          <span class="ai-badge">🎨 AI 生圖</span>
-          <span class="ai-model">DALL-E 3</span>
-        </summary>
-        <p class="ai-desc">用文字描述想要的圖案，AI 直接生成滿版卡面背景（約 15~30 秒）</p>
-
-        <div class="ai-input-row">
-          <textarea id="ai-image-prompt" rows="2"
-            placeholder="例：水墨風格的竹子與山水&#10;例：可愛柴犬穿西裝，日本插畫風&#10;例：企業科技感幾何圖形，藍色調"></textarea>
-          <button class="btn btn-ai" id="ai-image-btn" onclick="generateAIImage()">
-            <span id="ai-image-btn-text">🎨 生圖</span>
-            <span id="ai-image-btn-loading" class="hidden">⏳ 生成中…</span>
-          </button>
-        </div>
-
-        <div id="ai-image-error" class="ai-error hidden"></div>
-        <div id="ai-image-preview" class="hidden"></div>
-      </details>
-
-      <!-- 🐾 Q版卡通化區塊 -->
-      <details class="ai-section" id="ai-cartoon-section" style="margin-top:12px;">
-        <summary class="ai-header">
-          <span class="ai-badge">🐾 Q版卡通化</span>
-          <span class="ai-model">GPT-4o + DALL-E 3</span>
-        </summary>
-        <p class="ai-desc">上傳人物/寵物/物品照片，AI 自動轉成可愛 Q版卡通圖貼到設計稿（約 30~50 秒）</p>
-
-        <label class="upload-zone" style="max-height:none;margin-bottom:10px;cursor:pointer;">
-          <input type="file" id="cartoon-upload-input" accept="image/*" onchange="previewCartoonUpload(this)" style="display:none;">
-          <div id="cartoon-upload-preview" style="font-size:32px;">📷</div>
-          <p id="cartoon-upload-hint">點擊上傳照片（人物 / 寵物 / 物品）</p>
-        </label>
-
-        <button class="btn btn-ai" id="cartoon-btn" onclick="generateCartoonImage()" style="width:100%;">
-          <span id="cartoon-btn-text">🐾 開始 Q版化</span>
-          <span id="cartoon-btn-loading" class="hidden">⏳ 生成中（約30~50秒）…</span>
-        </button>
-
-        <div id="cartoon-error" class="ai-error hidden"></div>
-        <div id="cartoon-preview" class="hidden"></div>
-      </details>
-
-      <!-- ✂️ 壓克力切割輪廓 -->
-      <details class="ai-section" id="acrylic-cut-section" style="margin-top:12px;">
-        <summary class="ai-header">
-          <span class="ai-badge">✂️ 壓克力切割</span>
-          <span class="ai-model">純瀏覽器運算</span>
-        </summary>
-        <p class="ai-desc">上傳圖片，自動偵測輪廓並輸出雷射切割用 SVG 檔（支援 PNG 透明背景 / JPG 白底）</p>
-
-        <label class="upload-zone" style="max-height:none;margin-bottom:10px;cursor:pointer;">
-          <input type="file" id="acrylic-upload-input" accept="image/*" style="display:none;">
-          <div style="font-size:32px;">✂️</div>
-          <p>點擊上傳圖片</p>
-        </label>
-
-        <div id="acrylic-preview-wrap" class="hidden" style="text-align:center;margin-bottom:10px;">
-          <img id="acrylic-preview-img" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain;" alt="上傳圖片">
-        </div>
-
-        <button class="btn btn-ai" id="acrylic-detect-btn" onclick="detectAcrylicContour()" disabled style="width:100%;">
-          <span id="acrylic-detect-btn-text">✂️ 自動偵測輪廓</span>
-          <span id="acrylic-detect-btn-loading" class="hidden">⏳ 偵測中…</span>
-        </button>
-
-        <div id="acrylic-error" class="ai-error hidden"></div>
-
-        <div id="acrylic-result" class="hidden" style="margin-top:12px;">
-          <p style="font-size:12px;color:var(--gray-400);margin-bottom:8px;" id="acrylic-info"></p>
-          <canvas id="acrylic-canvas-preview" style="max-width:100%;border:1px solid #e5e7eb;border-radius:8px;display:block;margin:0 auto;"></canvas>
-          <a id="acrylic-download-btn" class="btn btn-primary"
-             style="display:block;text-align:center;margin-top:12px;text-decoration:none;padding:12px;">
-            ⬇ 下載 SVG（雷射切割用）
-          </a>
-          <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:6px;">
-            紅線為切割輪廓，黑框為工作尺寸，可直接送雷射機
-          </p>
-        </div>
-      </details>
-
-      <div class="step-nav">
-        <button class="btn btn-secondary" onclick="prevStep()">← 上一步</button>
-        <button class="btn btn-primary" onclick="nextStep()">下一步：3D 預覽 →</button>
+      <div class="wb-primary-cta-bar">
+        <span class="wb-primary-cta-reason hidden" id="cta-disabled-reason"></span>
+        <button class="btn btn-primary btn-lg" id="step3-next-btn" onclick="nextStep()">預覽成品</button>
       </div>
+
     </div>
   </div>
 
@@ -387,33 +913,62 @@
   <!-- Step 4 — 3D 預覽                       -->
   <!-- ══════════════════════════════════════ -->
   <div class="step-panel hidden" data-step="4">
-    <div class="card">
-      <h2 style="font-size:18px;margin-bottom:20px;">3D 立體預覽</h2>
-
-      <div class="preview-layout">
-
-        <!-- 3D 視窗 -->
+    <div class="card final-preview-card">
+      <div class="section-hero compact">
         <div>
+          <div class="page-kicker">Preview</div>
+          <h2>設計預覽</h2>
+          <p>確認商品模板與客製內容，業務確認後安排製作。</p>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn btn-secondary btn-sm" onclick="prevStep()">修改設計</button>
+        </div>
+      </div>
+
+      <div class="preview-confirm-layout">
+        <aside class="preview-side-panel" id="preview-product-summary"></aside>
+
+        <section class="preview-stage-panel">
+          <div class="preview-angle-tools hidden" id="preview-angle-tools">
+            <button type="button" class="align-btn active" data-angle="front" onclick="setBlackCardPreviewAngle('front')">正視</button>
+            <button type="button" class="align-btn" data-angle="oblique" onclick="setBlackCardPreviewAngle('oblique')">斜視</button>
+            <button type="button" class="align-btn" data-angle="closeup" onclick="setBlackCardPreviewAngle('closeup')">浮雕特寫</button>
+          </div>
+          <div class="preview-closeup-subtools hidden" id="preview-closeup-subtools">
+            <button type="button" class="align-btn-sm active" data-closeup="pattern" onclick="setBlackCardCloseupTarget('pattern')">主圖案特寫</button>
+            <button type="button" class="align-btn-sm" data-closeup="text" onclick="setBlackCardCloseupTarget('text')">文字特寫</button>
+            <button type="button" class="align-btn-sm" data-closeup="signature" onclick="setBlackCardCloseupTarget('signature')">簽名特寫</button>
+          </div>
+          <div class="preview-angle-tools hidden" id="preview-angle-tools-3d">
+            <button type="button" class="align-btn active" data-angle="front" onclick="setStandardPreviewAngle('front')">正視</button>
+            <button type="button" class="align-btn" data-angle="side" onclick="setStandardPreviewAngle('side')">側視</button>
+            <button type="button" class="align-btn" data-angle="closeup" onclick="setStandardPreviewAngle('closeup')">近拍</button>
+          </div>
           <div id="preview3d-container"></div>
-          <p style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:8px;">
+          <p id="preview-stage-caption" style="font-size:11px;color:var(--gray-400);text-align:center;margin-top:8px;">
             自動旋轉展示產品正反面效果
           </p>
+          <p style="font-size:10.5px;color:var(--gray-400);text-align:center;margin-top:2px;">
+            模擬效果，正式成品以打樣為準
+          </p>
+          <p id="preview-easycard-back-note" class="hidden" style="font-size:10.5px;color:var(--gray-400);text-align:center;margin-top:4px;">
+            背面：素面／依業務確認印製內容，暫不支援線上設計
+          </p>
           <div style="text-align:center;margin-top:6px;">
-            <button class="btn btn-secondary btn-sm" onclick="applyTexture3D()" title="若設計圖未顯示，點此手動套用">↺ 重新套用設計圖</button>
+            <button id="preview-reapply-btn" class="btn btn-secondary btn-sm" onclick="reapplyPreview()" title="若設計圖未顯示，點此手動套用">重新套用設計圖</button>
           </div>
-        </div>
+        </section>
 
-        <!-- 規格摘要 -->
-        <div>
+        <aside class="preview-side-panel">
           <h4 style="font-size:13px;margin-bottom:12px;font-weight:700;">訂單規格摘要</h4>
           <div id="preview-spec-summary"></div>
 
           <div style="margin-top:16px;padding:12px;background:var(--green-pale);border-radius:8px;font-size:12px;color:var(--green);">
-            ✅ 確認預覽後，點「下一步」填寫聯絡資料並取得完整報價單
+            確認預覽後，點下方「確認，前往報價單」填寫聯絡資料並取得完整報價單
           </div>
-        </div>
+        </aside>
 
-      </div><!-- /preview-layout -->
+      </div>
 
       <div class="step-nav">
         <button class="btn btn-secondary" onclick="prevStep()">← 修改設計</button>
@@ -429,20 +984,25 @@
     <div class="card">
       <h2 style="font-size:18px;margin-bottom:20px;">報價單 &amp; 送出詢價</h2>
 
+      <p id="form-test-mode-banner" class="hidden" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:13px;font-weight:700;padding:10px 14px;border-radius:8px;margin-bottom:16px;text-align:center;">
+        測試模式，不會送出正式詢價
+      </p>
+
       <div class="quote-layout">
 
         <!-- 報價摘要 -->
         <div>
           <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;">訂單摘要</h4>
-          <div id="preview-spec-summary" style="margin-bottom:16px;"></div>
+          <div id="quote-spec-summary" style="margin-bottom:16px;"></div>
 
           <div class="live-quote-card">
-            <h4>💰 最終估價</h4>
+            <h4>最終估價</h4>
             <div id="final-quote"></div>
           </div>
 
           <div style="margin-top:12px;padding:10px;background:var(--gray-100);border-radius:8px;font-size:11px;color:var(--gray-400);line-height:1.6;">
-            ・報價含製版費 NT$800<br>
+            ・一般製版費 NT$100<br>
+            ・黑卡與特殊工藝由業務確認報價<br>
             ・不含 5% 營業稅<br>
             ・數量越多優惠越多<br>
             ・正式報價以業務確認為準
@@ -454,27 +1014,34 @@
           <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;">聯絡資料</h4>
 
           <div class="form-group">
-            <label>姓名 / 公司名稱 <span class="required">*</span></label>
-            <input type="text" id="contact-name" placeholder="王小明 / 某某股份有限公司">
+            <label for="contact-name">姓名 / 公司名稱 <span class="required">*</span></label>
+            <input type="text" id="contact-name" placeholder="王小明 / 某某股份有限公司" aria-describedby="contact-name-error">
+            <p class="field-error-text hidden" id="contact-name-error" role="alert"></p>
           </div>
 
           <div class="form-group">
-            <label>Email <span class="required">*</span></label>
-            <input type="email" id="contact-email" placeholder="your@email.com">
+            <label for="contact-email">Email <span class="required">*</span></label>
+            <input type="email" id="contact-email" placeholder="your@email.com" aria-describedby="contact-email-error">
+            <p class="field-error-text hidden" id="contact-email-error" role="alert"></p>
           </div>
 
           <div class="form-group">
-            <label>聯絡電話</label>
-            <input type="tel" id="contact-phone" placeholder="02-xxxx-xxxx / 0912-xxx-xxx">
+            <label for="contact-phone">聯絡電話</label>
+            <input type="tel" id="contact-phone" placeholder="02-xxxx-xxxx / 0912-xxx-xxx" aria-describedby="contact-phone-error">
+            <p class="field-error-text hidden" id="contact-phone-error" role="alert"></p>
           </div>
 
           <div class="form-group">
-            <label>備註（設計需求、特殊要求等）</label>
+            <label for="contact-note">備註（設計需求、特殊要求等）</label>
             <textarea id="contact-note" placeholder="例：需要特殊包裝、指定 Pantone 色號、附防偽標籤..."></textarea>
           </div>
 
+          <p style="font-size:13px;color:var(--gray-400);line-height:1.6;margin:0 0 10px;">
+            送出即表示您同意楊竹科技使用上述資料聯絡本次詢價；資料僅用於報價與需求確認，不會用於其他用途。<a href="/privacy" onclick="openPrivacyModal();return false;" style="color:var(--green);text-decoration:underline;">查看隱私權政策</a>
+          </p>
+
           <button class="btn btn-primary btn-lg" id="submit-quote-btn" style="width:100%" onclick="submitQuote()">
-            <span id="submit-quote-text">📩 送出詢價單</span>
+            <span id="submit-quote-text">送出詢價單</span>
             <span id="submit-quote-loading" class="hidden">⏳ 送出中…</span>
           </button>
 
@@ -489,32 +1056,56 @@
 
       <!-- 成功訊息 -->
       <div id="quote-success" class="hidden">
-        <h3>✅ 詢價單已送出！</h3>
+        <h3>詢價單已送出！</h3>
+        <p id="quote-order-no" class="hidden" style="font-weight:700;color:var(--green);"></p>
         <p>您的詢價資料已送達楊竹業務系統，將於 1 個工作天內主動回覆您。</p>
         <p style="margin-top:8px;">
-          <a id="quote-mailto-link" href="#" style="color:var(--green);font-weight:600;">📧 想立即用 Email 補充說明？點此開啟郵件</a>
+          <a id="quote-mailto-link" href="#" style="color:var(--green);font-weight:600;">想立即用 Email 補充說明？點此開啟郵件</a>
         </p>
-        <p style="margin-top:8px;">若急需聯絡，客服電話：<strong>02-2680-9966</strong></p>
+        <p style="margin-top:8px;">若急需聯絡，客服電話：<strong id="quote-success-tel">02-2680-9966</strong></p>
       </div>
 
       <div class="step-nav">
         <button class="btn btn-secondary" onclick="prevStep()">← 返回預覽</button>
-        <button class="btn btn-outline" onclick="goStep(1)">🔄 重新配置</button>
+        <button class="btn btn-outline" onclick="resetConfigurator()">重新配置</button>
       </div>
     </div>
   </div>
 
 </main>
 
+<!-- ─── 信任感賣點 ──────────────────────── -->
+<div class="trust-strip-section">
+  <div class="trust-strip">
+    <div class="trust-item">
+      <strong>官方授權製造</strong>
+      <span class="trust-sub">悠遊卡／一卡通官方授權，品質有保障</span>
+    </div>
+    <div class="trust-item">
+      <strong>工廠直營</strong>
+      <span class="trust-sub">自有工廠生產，環節流程可掌握</span>
+    </div>
+    <div class="trust-item">
+      <strong>少量大量皆可</strong>
+      <span class="trust-sub">彈性製作，滿足各種數量需求</span>
+    </div>
+    <div class="trust-item">
+      <strong>快速詢價</strong>
+      <span class="trust-sub">線上設計即時預覽，快速取得報價</span>
+    </div>
+  </div>
+</div>
+
 <!-- ─── Footer ──────────────────────────── -->
 <footer class="site-footer">
   <p>
     楊竹科技股份有限公司 ·
     新北市樹林區柑園街2段122巷7號 ·
-    <a href="tel:0226809966">02-2680-9966</a> ·
-    <a href="mailto:sales@yangzhu.com.tw">sales@yangzhu.com.tw</a>
+    <a id="site-footer-tel" href="tel:0226809966">02-2680-9966</a> ·
+    <a id="site-footer-email" href="mailto:sales@yangzhu.com.tw">sales@yangzhu.com.tw</a>
   </p>
-  <p style="margin-top:4px;">悠遊卡官方授權製造廠 · 一卡通官方授權製造廠 · ISO 9000 認證</p>
+  <p id="site-footer-note" style="margin-top:4px;">悠遊卡官方授權製造廠 · 一卡通官方授權製造廠 · ISO 9000 認證</p>
+  <p style="margin-top:4px;"><a href="/privacy" onclick="openPrivacyModal();return false;">隱私權政策</a></p>
 </footer>
 
 <!-- ─── Floating Chat Widget ─────────────── -->
@@ -535,10 +1126,27 @@
   #chat-panel-title { color: white; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
   #chat-close {
     background: none; border: none; color: rgba(255,255,255,.8);
-    font-size: 20px; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+    font-size: 20px; cursor: pointer; border-radius: 6px;
+    /* 圖示視覺尺寸不變，用透明的可點擊區域把觸控熱區撐到44x44，符合觸控友善最小尺寸 */
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 44px; min-height: 44px; padding: 0;
   }
   #chat-close:hover { background: rgba(0,0,0,.2); color: white; }
+  /* 客服視窗本體：iframe／連線中提示／備援維護畫面三選一顯示，共用同一份高度 */
+  #chat-panel-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #chat-iframe { flex: 1; border: none; width: 100%; }
+  .chat-state-msg {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; gap: 16px; color: #374151; font-size: 14px; line-height: 1.7;
+  }
+  .chat-fallback-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .chat-fallback-btn {
+    min-width: 44px; min-height: 44px; padding: 0 18px; border-radius: 8px;
+    border: 1px solid #d1d5db; background: #fff; cursor: pointer;
+    font-size: 13px; font-family: inherit; color: #1f2933;
+  }
+  .chat-fallback-btn:hover { background: #f3f4f6; }
+  #chat-fallback a { color: #2D7D46; font-weight: 600; }
   #chat-toggle {
     display: flex; align-items: center; gap: 10px;
     background: #2D7D46; color: white; border: none;
@@ -547,65 +1155,292 @@
     transition: all .2s; font-family: inherit;
   }
   #chat-toggle:hover { background: #1f5c33; transform: translateY(-2px); }
+  #chat-toggle { position: relative; }
+  .chat-toggle-icon { width: 18px; height: 18px; display: none; flex-shrink: 0; }
   .chat-live-dot { width: 10px; height: 10px; background: #4ade80; border-radius: 50%; animation: chatpulse 2s infinite; }
   @keyframes chatpulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.75)} }
   @media (max-width: 600px) { #chat-panel { width: calc(100vw - 48px); height: 480px; } }
+  /* 手機版（<=768px）設計畫布／成品預覽／訂單摘要這三個內容密集的步驟，
+     螢幕空間最緊繃，客服統一收合成 48px 的圓形圖示（只留圖示＋在線小綠
+     點），把「小竹客服」文字隱藏；點擊行為不變，一樣可以展開對話視窗。
+     固定在右側安全區（right + env(safe-area-inset-right)），實際上下位置
+     由下面的 chat-avoid-top／chat-avoid-mid 依當下內容動態調整。 */
+  @media (max-width: 768px) {
+    body:has(.step-panel[data-step="2"]:not(.hidden)) #chat-toggle,
+    body:has(.step-panel[data-step="3"]:not(.hidden)) #chat-toggle,
+    body:has(.step-panel[data-step="4"]:not(.hidden)) #chat-toggle,
+    body:has(.step-panel[data-step="5"]:not(.hidden)) #chat-toggle {
+      width: 48px; height: 48px; padding: 0;
+      border-radius: 50%; justify-content: center; gap: 0;
+    }
+    body:has(.step-panel[data-step="2"]:not(.hidden)) #chat-toggle .chat-toggle-icon,
+    body:has(.step-panel[data-step="3"]:not(.hidden)) #chat-toggle .chat-toggle-icon,
+    body:has(.step-panel[data-step="4"]:not(.hidden)) #chat-toggle .chat-toggle-icon,
+    body:has(.step-panel[data-step="5"]:not(.hidden)) #chat-toggle .chat-toggle-icon { display: block; }
+    body:has(.step-panel[data-step="2"]:not(.hidden)) #chat-toggle .chat-toggle-label,
+    body:has(.step-panel[data-step="3"]:not(.hidden)) #chat-toggle .chat-toggle-label,
+    body:has(.step-panel[data-step="4"]:not(.hidden)) #chat-toggle .chat-toggle-label,
+    body:has(.step-panel[data-step="5"]:not(.hidden)) #chat-toggle .chat-toggle-label { display: none; }
+    body:has(.step-panel[data-step="2"]:not(.hidden)) #chat-toggle .chat-live-dot,
+    body:has(.step-panel[data-step="3"]:not(.hidden)) #chat-toggle .chat-live-dot,
+    body:has(.step-panel[data-step="4"]:not(.hidden)) #chat-toggle .chat-live-dot,
+    body:has(.step-panel[data-step="5"]:not(.hidden)) #chat-toggle .chat-live-dot {
+      position: absolute; top: 3px; right: 3px; width: 8px; height: 8px;
+    }
+    #chat-widget { right: calc(12px + env(safe-area-inset-right)); }
+    /* 依內容動態上移時使用的中段位置（垂直置中），介於底部與頂部之間，
+       避免每次都跳到最頂端跟恢復提示 Toast 搶位置。 */
+    #chat-widget.chat-avoid-mid { top: 50%; bottom: auto; transform: translateY(-50%); }
+  }
+  /* .chat-avoid-top 特意放在 media query 外面（任何寬度都生效）：桌面寬度
+     （>1024px）的 Step3 CTA 列仍是 position:sticky，「吸附中」到「離開容器」
+     過渡瞬間的位移一樣可能穿過客服按鈕（原因見 style.css .wb-primary-cta-bar
+     附近註解），下面 avoidChatOverlapOnStep45() 在桌面寬度也會用真實座標偵測
+     這個重疊、量到才加上這個 class，所以對應的定位規則不能被鎖在
+     max-width:1024px 裡面，不然桌面寬度加了 class 也不會有任何視覺效果。 */
+  #chat-widget.chat-avoid-top {
+    top: 12px;
+    bottom: auto;
+    right: 12px;
+  }
+  /* 設計稿步驟（Step3）的「預覽成品」CTA 列在手機（760px 以下）是
+     position:fixed，在平板（761~1024px）維持原本 position:sticky 但吸附在
+     視窗底部時效果等同 fixed——兩種情況客服浮動按鈕都可能被蓋到，統一在
+     這個範圍內把客服往上移，避開 CTA。
+     用 :has() 限定「只在 Step3 的 .step-panel 沒有 hidden（也就是 CTA 列
+     真的畫面上可見）時」才生效，離開設計稿頁（Step1/2/4/5，這些頁面 DOM
+     裡根本沒有 .wb-primary-cta-bar）客服就維持原本 bottom:24px 位置，不會
+     無謂地被墊高。
+     bottom 算式三個變數缺一不可：
+       --cta-bottom-offset：CTA 列自己離視窗底部多少（手機 12px／平板 0px，
+                             跟 .wb-primary-cta-bar 實際套用的 bottom 同一個來源）
+       --mobile-cta-height：CTA 列實際渲染高度（下方 ResizeObserver 即時量測）
+       --chat-cta-gap：      客服與 CTA 之間至少要留的間距
+     全部用共用變數組合，不在這裡另外猜一個獨立的像素數字。 */
+  @media (max-width: 1024px) {
+    body:has(.step-panel[data-step="3"]:not(.hidden)) #chat-widget {
+      right: 12px;
+      bottom: calc(var(--cta-bottom-offset, 12px) + var(--mobile-cta-height, 52px) + var(--chat-cta-gap, 12px));
+    }
+    /* Step3 同時有「CTA 列高度換算」與「JS 偵測 AI候選圖片／縮放滑桿重疊」
+       兩層機制：這裡的選擇器特異性必須明確高於上面的 body:has(...) #chat-widget
+       規則（同時附加 :has() 條件＋.chat-avoid-top class），JS 加上 class 後
+       才能真的覆蓋掉 CTA 高度算出來的 bottom 值，改切到螢幕上緣，兩層機制
+       不會互搶（只設 bottom 的算式規則 vs 只設 top 的escalation規則彼此矛盾時，
+       特異性較高的這條才是最終生效的一條）。 */
+    body:has(.step-panel[data-step="3"]:not(.hidden)) #chat-widget.chat-avoid-top {
+      top: 12px;
+      bottom: auto;
+      right: 12px;
+    }
+  }
 </style>
 <div id="chat-widget">
   <div id="chat-panel">
     <div id="chat-panel-header">
-      <div id="chat-panel-title"><span>💬</span> 小竹 AI 客服</div>
-      <button id="chat-close" onclick="closeChat()">✕</button>
+      <div id="chat-panel-title">小竹 AI 客服</div>
+      <button id="chat-close" onclick="closeChat()" aria-label="關閉客服視窗">✕</button>
     </div>
-    <iframe id="chat-iframe"
-            src="https://yangzhu-chatbot-production.up.railway.app"
-            title="小竹 AI 客服"
-            loading="lazy">
-    </iframe>
+    <div id="chat-panel-body">
+      <div id="chat-connecting" class="chat-state-msg hidden">
+        <p>正在連接小竹客服…</p>
+      </div>
+      <iframe id="chat-iframe" title="小竹 AI 客服" loading="lazy" class="hidden"></iframe>
+      <div id="chat-fallback" class="chat-state-msg hidden">
+        <p>小竹客服目前維護中，請改用電話 <a href="tel:0226809966">02-2680-9966</a> 或 Email：<a href="mailto:sales@yangzhu.com.tw">sales@yangzhu.com.tw</a> 聯絡我們。</p>
+        <div class="chat-fallback-actions">
+          <button type="button" class="chat-fallback-btn" onclick="reloadChat()">重新載入</button>
+          <button type="button" class="chat-fallback-btn" onclick="closeChat()">關閉</button>
+        </div>
+      </div>
+    </div>
   </div>
-  <button id="chat-toggle" onclick="toggleChat()">
+  <button id="chat-toggle" onclick="toggleChat()" aria-label="開啟小竹AI客服">
+    <svg class="chat-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
     <div class="chat-live-dot"></div>
-    小竹客服
+    <span class="chat-toggle-label">小竹客服</span>
   </button>
 </div>
+<script src="js/chat-widget.js"></script>
 <script>
-  function toggleChat() { document.getElementById('chat-panel').classList.toggle('open'); }
-  function closeChat()  { document.getElementById('chat-panel').classList.remove('open'); }
+  // toggleChat/openChat/closeChat/reloadChat 統一定義在 js/chat-widget.js
+  // （landing.html 共用同一份），這裡只保留 index.html 專屬的版面避讓邏輯。
+
+  // 設計稿步驟「預覽成品」CTA 列（.wb-primary-cta-bar）的高度會隨「未加入
+  // 設計內容」提示文字是否顯示、是否換行而變動（手機 fixed／平板 sticky
+  // 兩種版面都適用），這裡即時把實際高度寫進 --mobile-cta-height，讓客服
+  // 按鈕與工作區底部留白永遠依真實高度計算，不會因為寫死數字而重疊
+  (function syncCtaHeightVar() {
+    var bar = document.querySelector('.wb-primary-cta-bar');
+    if (!bar || !window.ResizeObserver) return;
+    var root = document.documentElement;
+    var update = function () {
+      var h = bar.offsetHeight;
+      if (h > 0) root.style.setProperty('--mobile-cta-height', h + 'px');
+    };
+    new ResizeObserver(update).observe(bar);
+    update();
+  })();
+
+  // Step4（成品預覽）／Step5（訂單摘要）手機／平板：量測各步驟真正要保護的
+  // 區塊，只要客服會與其中任何一個重疊就避讓。Step3（設計畫布）已經有自己
+  // 一套以 CTA 列高度換算 bottom 位移的機制（上面的 --mobile-cta-height／
+  // --cta-bottom-offset），這裡不重複處理，只接手 Step4／Step5。
+  // 卡片／簽名改讀 getBoundingClientRect()（會反映 rotateX/rotateY/scale 等
+  // transform 後的最終畫面座標，不是量測未轉換前的容器版面尺寸——黑卡在
+  // 浮雕特寫視角會整卡放大、斜視會有 3D 傾斜，實際畫面範圍可能超出
+  // .preview-stage-panel 原本的版面框，只量容器量不到這種情況）。
+  // 避讓分三段嘗試，盡量維持在使用者習慣的右下角，真的擋到才逐步上移：
+  // 右下角（預設）→ 垂直置中（chat-avoid-mid，只在<=768px有對應樣式）→
+  // 螢幕上緣（chat-avoid-top）。
+  (function avoidChatOverlapOnStep45() {
+    var mq = window.matchMedia('(max-width: 1024px)');
+    var widget = null;
+    var ticking = false;
+    var GAP = 10; // 保護區塊與客服之間至少保留的緩衝距離，避免緊貼
+
+    function rectsOverlap(a, b) {
+      return a.top < b.bottom + GAP && a.bottom + GAP > b.top &&
+             a.left < b.right + GAP && a.right + GAP > b.left;
+    }
+
+    function getProtectedTargets() {
+      var panel2 = document.querySelector('.step-panel[data-step="2"]:not(.hidden)');
+      if (panel2) {
+        // 商品規格頁：手機版單欄堆疊時「即時估價」卡片排在最下方，最容易被
+        // 固定在右下角的客服按鈕蓋住，是這一頁唯一需要保護的定高區塊。
+        var quoteSidePanel = panel2.querySelector('.live-quote-card');
+        return [quoteSidePanel].filter(Boolean);
+      }
+      var panel3 = document.querySelector('.step-panel[data-step="3"]:not(.hidden)');
+      if (panel3) {
+        // 設計稿頁：底部固定 CTA 列已經有獨立的高度換算機制（見上方
+        // --mobile-cta-height），這裡再額外保護「AI候選圖片」與「縮放滑桿」
+        // ——兩者都可能捲動到畫面下緣、落在 CTA 列高度換算沒有涵蓋到的位置。
+        var aiCandidates = panel3.querySelector('#black-card-candidates:not(.hidden)');
+        var cartoonPreview = panel3.querySelector('#cartoon-preview:not(.hidden)');
+        var scaleBar = panel3.querySelector('#mobile-scale-bar');
+        if (scaleBar && scaleBar.style.display === 'none') scaleBar = null;
+        return [aiCandidates, cartoonPreview, scaleBar].filter(Boolean);
+      }
+      var panel4 = document.querySelector('.step-panel[data-step="4"]:not(.hidden)');
+      if (panel4) {
+        var cardTarget = panel4.querySelector('.black-card-signature') || panel4.querySelector('.black-card');
+        var angleButtons = panel4.querySelector('#preview-angle-tools:not(.hidden)') || panel4.querySelector('#preview-angle-tools-3d:not(.hidden)');
+        var summary = panel4.querySelector('.preview-side-panel');
+        return [cardTarget, angleButtons, summary].filter(Boolean);
+      }
+      var panel5 = document.querySelector('.step-panel[data-step="5"]:not(.hidden)');
+      if (panel5) {
+        // 不用整個 .quote-layout 當目標——手機版是單欄堆疊，內含完整聯絡表單，
+        // 展開後常常比一個螢幕高很多，整塊當目標會導致「隨便捲到哪裡都算重疊」，
+        // 客服永遠被推到頂端。改成只保護真正需要一眼看清楚的訂單摘要重點：
+        // 「訂單摘要」文字區塊與「最終估價」卡片，兩者都是精簡的定高區塊。
+        var specSummary = panel5.querySelector('#quote-spec-summary');
+        var quoteCard = panel5.querySelector('.live-quote-card');
+        return [specSummary, quoteCard].filter(Boolean);
+      }
+      return null; // 不是 Step2／Step3／Step4／Step5，不歸這套機制管
+    }
+
+    // 桌面寬度（>1024px）：Step3 的 CTA 列（.wb-primary-cta-bar）在這個寬度
+    // 仍是 position:sticky，「吸附中」到「離開容器」過渡瞬間的位移還是可能
+    // 穿過客服按鈕固定位置（原因跟 style.css 裡 ≤1024px 那段改成 fixed 的
+    // 理由一樣），只是這個範圍版面夠寬，實測目前只有 CTA 列這一個目標會真的
+    // 疊到，先只保護這一個已知案例，不跟著 getProtectedTargets() 把其他步驟
+    // 也一起套用到桌面寬度（沒發生過重疊的步驟不用無謂多算）。
+    function getDesktopStep3CtaTarget() {
+      var panel3 = document.querySelector('.step-panel[data-step="3"]:not(.hidden)');
+      var bar = panel3 ? panel3.querySelector('.wb-primary-cta-bar') : null;
+      return bar ? [bar] : null;
+    }
+
+    function overlapsAny(targets, wr) {
+      return targets.some(function (t) { return rectsOverlap(t.getBoundingClientRect(), wr); });
+    }
+
+    function check() {
+      ticking = false;
+      widget = widget || document.getElementById('chat-widget');
+      if (!widget) return;
+      var targets = mq.matches ? getProtectedTargets() : getDesktopStep3CtaTarget();
+      if (!targets || !targets.length) {
+        widget.classList.remove('chat-avoid-top', 'chat-avoid-mid');
+        return;
+      }
+      widget.classList.remove('chat-avoid-top', 'chat-avoid-mid');
+      if (!overlapsAny(targets, widget.getBoundingClientRect())) return;
+
+      widget.classList.add('chat-avoid-mid');
+      if (!overlapsAny(targets, widget.getBoundingClientRect())) return;
+
+      widget.classList.remove('chat-avoid-mid');
+      widget.classList.add('chat-avoid-top');
+    }
+    function requestCheck() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(check);
+    }
+
+    window.addEventListener('scroll', requestCheck, { passive: true });
+    window.addEventListener('resize', requestCheck);
+    if (mq.addEventListener) mq.addEventListener('change', requestCheck);
+    else if (mq.addListener) mq.addListener(requestCheck);
+
+    // Step 切換時 .step-panel 的 hidden class 會被 JS 直接改掉，用
+    // MutationObserver 盯著 class 屬性變化即時重新檢查，不用等使用者捲動。
+    var stepPanels = document.querySelectorAll('.step-panel');
+    if (stepPanels.length && window.MutationObserver) {
+      var mo = new MutationObserver(requestCheck);
+      stepPanels.forEach(function (p) { mo.observe(p, { attributes: true, attributeFilter: ['class'] }); });
+    }
+
+    // 黑卡預覽本身有滑鼠追蹤／閒置緩慢漂移的持續動畫（見 preview2d.js 的
+    // tick()），每一影格都可能微調卡片 transform，光靠事件觸發的重新檢查
+    // 追不上；用低頻率輪詢（500ms）兜底，成本很低但能持續跟上動畫造成的
+    // 位置變化。
+    setInterval(requestCheck, 500);
+
+    document.addEventListener('DOMContentLoaded', requestCheck);
+    requestCheck();
+  })();
 </script>
 
 <!-- ─── Scripts ──────────────────────────── -->
+<script src="js/analytics-tracker.js" defer></script>
+<script src="js/site-content.js"></script>
 <script src="js/products.js"></script>
+<script src="js/product-service.js"></script>
+<script src="js/black-card-finish.js"></script>
+<script src="js/draft-store.js"></script>
 <script src="js/preview2d.js"></script>
 <script src="js/preview3d.js"></script>
 <script src="js/configurator.js"></script>
 <script src="js/ai-design.js"></script>
-<script src="js/acrylic-cut.js"></script>
 
 <script>
-  // Step 2 切入時 render 規格選項
-  const _goStep = goStep;
-  function goStep(n) {
-    if (n < 1 || n > 5) return;
-    if (n > 1 && !STATE.productId) { alert('請先選擇產品'); return; }
-    if (n > 2 && !STATE.materialId) { alert('請先完成規格選擇'); return; }
-    // 離開設計步驟前先快照（canvas 仍在畫面上時最可靠）
-    if (STATE.step === 3 && n !== 3) {
-      STATE.canvasJSON    = (typeof getCanvas2DJSON === 'function') ? getCanvas2DJSON()  : null;
-      STATE.designDataURL = (typeof get2DDataURL   === 'function') ? get2DDataURL()     : null;
-      console.log('[goStep] designDataURL length:', STATE.designDataURL ? STATE.designDataURL.length : 0);
-    }
-    STATE.step = n;
-    renderStep();
-    if (n === 2) renderSpecStep();
-  }
+  // 注意：goStep() 與 isDesignSnapshotValid() 只在 js/configurator.js 定義一份。
+  // 這裡過去曾經另外放一份同名的 goStep()，因為宣告順序在 js/configurator.js 的
+  // <script> 標籤之後，會整個覆寫掉那一份定義（同一全域作用域，後宣告的同名
+  // function 蓋掉先前的），導致 configurator.js 那份變成永遠執行不到的死碼；而
+  // 這裡覆寫後的版本本身又沒有呼叫 scheduleSaveDesign()，造成「Step4／Step5 重新
+  // 整理網頁後被退回上一步」的問題（設計內容其實都還在，只是「目前在第幾步」這個
+  // 數字沒被排入自動保存）。連同黑卡空白設計檢查、Step4 快照有效性檢查、離開
+  // 預覽步驟停止 3D 動畫、customization_start 追蹤等邏輯，已全部合併回
+  // js/configurator.js 的 goStep()（含 alert() 改為不卡頁面的 Toast 提示），這裡
+  // 不再重複定義，全站只有一份 goStep()。
 
-  // Window resize → 3D 重新計算
+  // Window resize → 3D 重新計算 / 黑卡商品照式預覽重繪
   window.addEventListener('resize', () => {
-    if (STATE.step === 4) resize3DPreview('preview3d-container');
+    if (STATE.step !== 4) return;
+    if (STATE.productId === 'black_card') {
+      renderBlackCardPhotoPreview('preview3d-container');
+    } else {
+      resize3DPreview('preview3d-container');
+    }
   });
 
-  // 初始化壓克力切割上傳
-  initAcrylicCut();
 </script>
 
 </body>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>網站內容設定 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>網站內容設定<button type="button" class="admin-help-icon" data-help-key="siteSettings" aria-label="說明">?</button></h1>
+        <p>公告開關、公告文字、聯絡資訊與頁尾文字，儲存後，首頁與客製化頁面會在下次載入時套用最新內容</p>
+      </div>
+    </div>
+
+    <p id="site-settings-status">載入中…</p>
+
+    <div id="site-settings-form" class="card hidden" style="max-width:560px;">
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="site-announcement-enabled">
+          啟用網站公告
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="site-announcement-text">公告文字（最多500字）</label>
+        <textarea id="site-announcement-text" maxlength="500" rows="4" placeholder="例：暑假期間出貨時程順延3個工作天，敬請見諒"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="site-contact-email">聯絡 Email</label>
+        <input type="text" id="site-contact-email" placeholder="例：service@example.com">
+      </div>
+      <div class="form-group">
+        <label for="site-contact-phone">聯絡電話（最多30字）</label>
+        <input type="text" id="site-contact-phone" maxlength="30" placeholder="例：02-1234-5678">
+      </div>
+      <div class="form-group">
+        <label for="site-footer-text">頁尾文字（最多200字）</label>
+        <textarea id="site-footer-text" maxlength="200" rows="2" placeholder="例：版權所有 © 楊竹科技股份有限公司"></textarea>
+      </div>
+      <div class="admin-form-actions">
+        <button class="btn btn-primary" id="site-settings-save-btn" onclick="saveSiteSettings()" disabled>儲存</button>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="site-settings-page.js"></script>
+<script>
+  renderAdminNav('site');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

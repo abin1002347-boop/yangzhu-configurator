@@ -1,0 +1,264 @@
+/* 楊竹科技 — 客戶報價確認頁面樣式表（自成一體，不載入任何第三方字型或外部資源） */
+
+:root {
+  --qc-green:      #2D7D46;
+  --qc-green-dark: #1d5a33;
+  --qc-green-pale: #F2F8F0;
+  --qc-red:        #B3261E;
+  --qc-red-pale:   #FBEAE9;
+  --qc-gray-100:   #F7FAF6;
+  --qc-gray-200:   #E2E8DE;
+  --qc-gray-300:   #CBD6C8;
+  --qc-gray-500:   #6B7A68;
+  --qc-gray-700:   #374151;
+  --qc-gray-900:   #1F2933;
+  --qc-white:      #ffffff;
+  --qc-shadow:     0 8px 22px rgba(22,48,30,0.08);
+  --qc-radius:     10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', Arial, sans-serif;
+  background: var(--qc-gray-100);
+  color: var(--qc-gray-900);
+  line-height: 1.6;
+}
+
+.qc-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.qc-state {
+  width: 100%;
+}
+
+.qc-loading-text {
+  text-align: center;
+  color: var(--qc-gray-500);
+  padding: 64px 16px;
+  font-size: 1rem;
+}
+
+.qc-card {
+  background: var(--qc-white);
+  border: 1px solid var(--qc-gray-200);
+  border-radius: var(--qc-radius);
+  box-shadow: var(--qc-shadow);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.qc-card h1 {
+  font-size: 1.35rem;
+  color: var(--qc-green-dark);
+  margin-bottom: 16px;
+}
+
+.qc-card h2 {
+  font-size: 1rem;
+  color: var(--qc-gray-700);
+  margin: 20px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--qc-gray-200);
+}
+
+.qc-card h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.qc-card-invalid h1 {
+  color: var(--qc-red);
+}
+
+.qc-card-invalid p {
+  color: var(--qc-gray-700);
+}
+
+.qc-meta,
+.qc-field-list {
+  display: grid;
+  gap: 6px;
+}
+
+.qc-meta-row,
+.qc-field-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.95rem;
+  align-items: baseline;
+  word-break: break-word;
+}
+
+.qc-field-row dt,
+.qc-meta-row dt {
+  color: var(--qc-gray-500);
+  font-weight: 500;
+}
+
+.qc-field-row dd,
+.qc-meta-row dd {
+  color: var(--qc-gray-900);
+}
+
+.qc-field-final {
+  border-top: 1px solid var(--qc-gray-200);
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+.qc-field-final dt,
+.qc-field-final dd {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--qc-green-dark);
+}
+
+.qc-inquiry-note {
+  background: var(--qc-green-pale);
+  color: var(--qc-green-dark);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.qc-notes {
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+  color: var(--qc-gray-900);
+}
+
+.qc-pending-notice {
+  background: var(--qc-gray-100);
+  border: 1px solid var(--qc-gray-300);
+  color: var(--qc-gray-700);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  margin-bottom: 16px;
+}
+
+.qc-note-field {
+  margin-bottom: 16px;
+}
+
+.qc-note-field label {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--qc-gray-700);
+  margin-bottom: 6px;
+}
+
+.qc-note-field textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  border: 1px solid var(--qc-gray-300);
+  border-radius: 6px;
+  resize: vertical;
+  min-height: 88px;
+}
+
+.qc-note-field textarea:focus-visible {
+  outline: 2px solid var(--qc-green);
+  outline-offset: 1px;
+}
+
+.qc-note-field textarea:disabled {
+  background: var(--qc-gray-100);
+  color: var(--qc-gray-500);
+}
+
+.qc-note-counter {
+  text-align: right;
+  font-size: 0.8rem;
+  color: var(--qc-gray-500);
+  margin-top: 4px;
+}
+
+.qc-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.qc-btn {
+  flex: 1;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.qc-btn:focus-visible {
+  outline: 2px solid var(--qc-green-dark);
+  outline-offset: 2px;
+}
+
+.qc-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.qc-btn-accept {
+  background: var(--qc-green);
+  color: var(--qc-white);
+}
+
+.qc-btn-accept:hover:not(:disabled) {
+  background: var(--qc-green-dark);
+}
+
+.qc-btn-reject {
+  background: var(--qc-white);
+  color: var(--qc-red);
+  border-color: var(--qc-red);
+}
+
+.qc-btn-reject:hover:not(:disabled) {
+  background: var(--qc-red-pale);
+}
+
+.qc-error {
+  color: var(--qc-red);
+  font-size: 0.9rem;
+  margin-top: 12px;
+  min-height: 1.2em;
+}
+
+.qc-completed-note {
+  margin-top: 16px;
+  font-size: 0.88rem;
+  color: var(--qc-gray-500);
+}
+
+@media (max-width: 480px) {
+  .qc-page {
+    padding: 16px 12px 48px;
+  }
+
+  .qc-card {
+    padding: 18px;
+  }
+
+  .qc-meta-row,
+  .qc-field-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .qc-actions {
+    flex-direction: column;
+  }
+}

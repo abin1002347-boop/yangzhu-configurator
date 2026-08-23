@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>資料庫備份 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>資料庫備份<button type="button" class="admin-help-icon" data-help-key="dbBackup" aria-label="說明">?</button></h1>
+        <p>手動建立並管理商品、客戶、帳號、分析資料與全部訂單的完整備份，並可將通過隔離驗證的完整備份執行正式還原。僅 owner 可以使用這個頁面。</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="loadDbBackups()">重新整理</button>
+        <button class="btn btn-primary btn-sm" id="btn-create-backup" onclick="createDbBackup()">立即建立備份</button>
+      </div>
+    </div>
+
+    <div id="maintenance-banner" class="hidden" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px;font-weight:600;"></div>
+
+    <div id="backup-create-error" class="hidden" style="color:#dc2626;font-size:12.5px;margin-bottom:10px;"></div>
+
+    <div id="backups-loading" class="inventory-log-state">載入中…</div>
+    <div id="backups-error" class="inventory-log-state hidden">
+      <p id="backups-error-text">讀取失敗</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadDbBackups()">重新嘗試</button>
+    </div>
+
+    <div id="backups-table-wrap" class="hidden">
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>備份時間</th><th>檔案大小</th><th>訂單快照筆數</th><th>狀態</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="backups-tbody"></tbody>
+        </table>
+      </div>
+      <p id="backups-empty" class="hidden" style="color:var(--gray-400);font-size:13px;padding:12px 0;">目前還沒有任何備份，點右上角「立即建立備份」建立第一份。</p>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<!-- ─── 隔離還原驗證結果 ───────────────────────── -->
+<div id="verify-result-modal" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeVerifyResultModal()">
+  <div class="admin-modal-box">
+    <div class="admin-modal-header">
+      <h3>隔離還原驗證結果</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeVerifyResultModal()">關閉</button>
+    </div>
+    <div class="admin-modal-body">
+      <p style="font-size:12.5px;color:var(--gray-400);">已把這份備份還原到系統背後獨立的暫存位置檢查，全程沒有覆蓋或修改正式資料庫與正式訂單資料夾。</p>
+      <div id="verify-result-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── 正式還原確認 ───────────────────────── -->
+<div id="restore-confirm-modal" class="admin-modal-overlay hidden" onclick="if (event.target === this) closeRestoreConfirmModal()">
+  <div class="admin-modal-box">
+    <div class="admin-modal-header">
+      <h3>正式還原確認</h3>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeRestoreConfirmModal()">關閉</button>
+    </div>
+    <div class="admin-modal-body">
+      <div id="restore-confirm-summary" style="font-size:13px;margin-bottom:12px;"></div>
+      <div style="background:#fee2e2;color:#dc2626;border-radius:6px;padding:10px 12px;font-size:12.5px;margin-bottom:14px;">
+        警告：執行後會立即覆蓋正式資料庫與正式訂單資料夾，且系統會進入維護模式、所有正式功能暫停使用，必須由工程人員重新啟動正式伺服器才會恢復服務並套用還原結果。還原前系統會自動建立一份目前正式資料的備份，做為這次還原失敗時的救援點。
+      </div>
+      <div class="form-group">
+        <label for="restore-confirm-password">請輸入目前登入密碼</label>
+        <input type="password" id="restore-confirm-password" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label for="restore-confirm-text">請完整輸入這份備份的識別碼以確認</label>
+        <input type="text" id="restore-confirm-text" autocomplete="off" placeholder="輸入備份識別碼">
+      </div>
+      <div id="restore-confirm-error" style="color:#dc2626;font-size:12.5px;min-height:16px;"></div>
+      <div class="admin-form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeRestoreConfirmModal()">取消</button>
+        <button type="button" class="btn btn-danger" id="restore-confirm-submit-btn" onclick="submitRestore()">確認執行正式還原</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="db-backup-page.js"></script>
+<script>
+  renderAdminNav('db-backup');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

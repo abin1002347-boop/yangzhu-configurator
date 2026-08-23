@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>產品管理 — 楊竹科技後台</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-shell">
+  <aside id="admin-nav"></aside>
+  <div class="admin-body">
+  <div id="admin-topbar" class="admin-topbar"></div>
+  <main class="admin-main">
+
+    <div class="admin-page-title">
+      <div>
+        <h1>產品管理<button type="button" class="admin-help-icon" data-help-key="products" aria-label="說明">?</button></h1>
+        <p>新增、編輯、上下架商品；材質／工藝／容量／數量折扣皆可調整</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="btn-export-products-xlsx" onclick="exportProductsXlsx()">匯出 Excel</button>
+        <button class="btn btn-secondary" id="btn-open-audit-log" onclick="openAuditLog()">操作歷程</button>
+        <button class="btn btn-primary" id="btn-new-product" onclick="openProductForm()">＋ 新增產品</button>
+      </div>
+    </div>
+
+    <div id="product-list-view">
+      <div class="admin-tabs" id="product-filter-tabs">
+        <button type="button" class="admin-tab active" data-filter="current">目前商品</button>
+        <button type="button" class="admin-tab" data-filter="archived">已封存</button>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead id="product-table-head">
+            <tr><th>代碼</th><th>名稱</th><th>狀態</th><th data-sort-key="materialCount">材質</th><th data-sort-key="finishCount">工藝</th><th data-sort-key="sortOrder">排序</th><th>操作</th></tr>
+          </thead>
+          <tbody id="product-table-body">
+            <tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:30px;">載入中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="product-table-pagination"></div>
+    </div>
+
+    <!-- ─── 商品操作歷程（預設隱藏）───────────── -->
+    <div id="audit-log-view" class="hidden">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeAuditLog()">← 返回商品列表</button>
+        <label style="font-size:13px;display:flex;align-items:center;gap:6px;">
+          商品
+          <select id="audit-filter-product"><option value="">全部商品</option></select>
+        </label>
+        <label style="font-size:13px;display:flex;align-items:center;gap:6px;">
+          操作類型
+          <select id="audit-filter-action">
+            <option value="">全部類型</option>
+            <option value="create">新增</option>
+            <option value="update">編輯</option>
+            <option value="status_change">狀態切換</option>
+            <option value="archive">封存</option>
+            <option value="restore">還原</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr><th>時間</th><th>商品</th><th>操作類型</th><th>變更欄位</th></tr>
+          </thead>
+          <tbody id="audit-log-body">
+            <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:30px;">載入中…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:12px;font-size:13px;">
+        <span id="audit-log-page-info"></span>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-audit-prev-page" onclick="changeAuditLogPage(-1)">上一頁</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-audit-next-page" onclick="changeAuditLogPage(1)">下一頁</button>
+      </div>
+    </div>
+
+    <!-- ─── 產品編輯表單（預設隱藏）───────────── -->
+    <div id="product-form-panel" class="card hidden" style="margin-top:20px;">
+      <h2 id="product-form-title" style="font-size:17px;margin-bottom:16px;">新增產品</h2>
+
+      <div class="admin-form-grid">
+        <div class="form-group">
+          <label>產品代碼<span class="required">*</span> <span style="font-size:10px;color:var(--gray-400);">（小寫英文/數字/底線，新增後不可改，例如 usb_bar）</span></label>
+          <input type="text" id="form-id" placeholder="usb_bar">
+        </div>
+        <div class="form-group">
+          <label>產品名稱<span class="required">*</span></label>
+          <input type="text" id="form-name" placeholder="USB 隨身碟（條形）">
+        </div>
+        <div class="form-group">
+          <label>英文名稱</label>
+          <input type="text" id="form-name-en" placeholder="Bar USB Drive">
+        </div>
+        <div class="form-group">
+          <label>商品圖片路徑</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="form-image" placeholder="assets/photos/usb_bar.jpg" style="flex:1;">
+            <button type="button" class="btn btn-secondary btn-sm" data-upload-btn="form-image">選擇並上傳圖片</button>
+            <input type="file" id="upload-form-image" data-upload-target="form-image" accept="image/jpeg,image/png,image/webp" style="display:none;">
+          </div>
+          <div class="upload-status" id="upload-status-form-image"></div>
+          <div class="img-preview-box" id="preview-image"></div>
+        </div>
+        <div class="form-group">
+          <label>徽章文字</label>
+          <input type="text" id="form-badge" placeholder="台灣製造">
+        </div>
+        <div class="form-group">
+          <label>徽章顏色</label>
+          <input type="color" id="form-badge-color" value="#2D7D46">
+        </div>
+        <div class="form-group">
+          <label>主題色</label>
+          <input type="color" id="form-color" value="#2D7D46">
+        </div>
+        <div class="form-group">
+          <label>狀態<span class="required">*</span></label>
+          <select id="form-status">
+            <option value="active">上架中</option>
+            <option value="inactive">已下架</option>
+            <option value="coming_soon">即將推出</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>排序（數字越小越前面，新增時由系統自動排在最後）</label>
+          <input type="number" id="form-sort-order" value="0">
+        </div>
+        <div class="form-group">
+          <label>尺寸（寬 × 高，單位）<span class="required">*</span></label>
+          <div style="display:flex;gap:6px;">
+            <input type="number" id="form-size-w" placeholder="寬" step="0.01">
+            <input type="number" id="form-size-h" placeholder="高" step="0.01">
+            <input type="text" id="form-size-unit" placeholder="mm" style="max-width:70px;">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>顯示用尺寸文字（選填，優先顯示）</label>
+          <input type="text" id="form-display-size" placeholder="本體約 62 × 20 mm">
+        </div>
+        <div class="form-group">
+          <label>最少訂購數量<span class="required">*</span></label>
+          <input type="number" id="form-min-qty" value="1">
+        </div>
+        <div class="form-group">
+          <label>交期天數<span class="required">*</span></label>
+          <input type="number" id="form-lead-days" value="15">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:14px;">
+        <label>產品說明</label>
+        <textarea id="form-description" rows="2" placeholder="商品簡短說明"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>底圖路徑（選填，商品有外觀模板才需要，例如 assets/svgs/products/usb_bar.svg；上傳按鈕僅支援 JPG/PNG/WEBP，SVG 模板請手動貼路徑）</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="form-bg-image" placeholder="assets/svgs/products/xxx.svg" style="flex:1;">
+          <button type="button" class="btn btn-secondary btn-sm" data-upload-btn="form-bg-image">選擇並上傳圖片</button>
+          <input type="file" id="upload-form-bg-image" data-upload-target="form-bg-image" accept="image/jpeg,image/png,image/webp" style="display:none;">
+        </div>
+        <div class="upload-status" id="upload-status-form-bg-image"></div>
+        <div class="img-preview-box" id="preview-bg-image"></div>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-top:8px;">
+        <input type="checkbox" id="form-text-only"> 純文字商品（不支援上傳圖片，例如保溫杯）
+      </label>
+
+      <!-- 材質 -->
+      <div class="admin-form-section">
+        <h4>材質選項<span class="required">*</span></h4>
+        <div class="section-error" id="err-materials"></div>
+        <div class="dyn-rows" id="dyn-materials"></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addDynRow('materials')">＋ 新增材質</button>
+      </div>
+
+      <!-- 工藝 -->
+      <div class="admin-form-section">
+        <h4>表面工藝選項<span class="required">*</span></h4>
+        <div class="section-error" id="err-finishes"></div>
+        <div class="dyn-rows" id="dyn-finishes"></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addDynRow('finishes')">＋ 新增工藝</button>
+      </div>
+
+      <!-- 容量 -->
+      <div class="admin-form-section">
+        <h4>容量選項</h4>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:10px;">
+          <input type="checkbox" id="form-has-capacities" onchange="toggleCapacities(this.checked)"> 此商品有容量選項（例如 USB 隨身碟）
+        </label>
+        <div class="section-error" id="err-capacities"></div>
+        <div class="dyn-rows" id="dyn-capacities"></div>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-add-capacity" onclick="addDynRow('capacities')">＋ 新增容量</button>
+      </div>
+
+      <!-- 數量折扣 -->
+      <div class="admin-form-section">
+        <h4>數量折扣區間<span class="required">*</span></h4>
+        <p style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">單價調整可填負數（降價），例如 300~999 個調整 -18 元</p>
+        <div class="section-error" id="err-qtyBreaks"></div>
+        <div class="dyn-rows" id="dyn-qtyBreaks"></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addDynRow('qtyBreaks')">＋ 新增區間</button>
+      </div>
+
+      <!-- 進階：印刷區座標 -->
+      <details class="admin-form-section" id="labelarea-details" open style="border-top:1px solid var(--gray-200);">
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--gray-700);">可印刷範圍（選填，僅底圖／實品照商品需要）</summary>
+        <p style="font-size:11px;color:var(--gray-400);margin:8px 0;">框選範圍就是設計圖案允許印刷的區域，比例以下方預覽圖（優先用底圖，沒有底圖用商品圖片）為準。可直接在圖片上拖曳移動、拉四個角調整大小，或手動輸入下方數字，兩者會互相同步。四格都留空代表沒有印刷區限制（整張畫布可印）。</p>
+        <div class="section-error" id="err-labelArea"></div>
+
+        <div class="labelarea-editor-wrap">
+          <div class="labelarea-editor-empty" id="labelarea-editor-empty">尚未設定商品圖片或底圖，請先在上方填寫圖片路徑或底圖路徑，才能編輯可印刷範圍</div>
+          <div class="labelarea-editor-stage" id="labelarea-editor-stage" style="display:none;">
+            <img id="labelarea-editor-img" alt="">
+            <div class="labelarea-box" id="labelarea-box" style="display:none;">
+              <div class="labelarea-handle" data-handle="nw"></div>
+              <div class="labelarea-handle" data-handle="ne"></div>
+              <div class="labelarea-handle" data-handle="sw"></div>
+              <div class="labelarea-handle" data-handle="se"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="labelarea-input-grid">
+          <input type="number" id="form-la-x" placeholder="X 比例" step="0.0001" min="0" max="1">
+          <input type="number" id="form-la-y" placeholder="Y 比例" step="0.0001" min="0" max="1">
+          <input type="number" id="form-la-w" placeholder="寬 比例" step="0.0001" min="0" max="1">
+          <input type="number" id="form-la-h" placeholder="高 比例" step="0.0001" min="0" max="1">
+        </div>
+        <div class="labelarea-actions-row">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-labelarea-clear">清除印刷範圍</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-labelarea-reset">重設</button>
+        </div>
+      </details>
+
+      <div class="admin-form-actions">
+        <button class="btn btn-secondary" id="btn-cancel-product" onclick="closeProductForm()">取消</button>
+        <button class="btn btn-primary" id="btn-save-product" onclick="saveProduct()">儲存</button>
+      </div>
+    </div>
+
+  </main>
+  </div>
+</div>
+
+<script src="../js/product-service.js"></script>
+<script src="admin-common.js"></script>
+<script src="admin-nav.js"></script>
+<script src="admin-tooltip.js"></script>
+<script src="products-page.js"></script>
+<script>
+  renderAdminNav('products');
+  renderAdminTopbar();
+  initAdminPage();
+</script>
+
+</body>
+</html>

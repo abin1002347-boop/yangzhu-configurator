@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>報價確認 - 楊竹科技</title>
+<link rel="stylesheet" href="css/quote-confirmation.css">
+</head>
+<body>
+<main class="qc-page">
+
+  <div id="state-loading" class="qc-state">
+    <p class="qc-loading-text">載入報價資料中，請稍候…</p>
+  </div>
+
+  <div id="state-invalid" class="qc-state" hidden>
+    <div class="qc-card qc-card-invalid">
+      <h1>此連結無效或已失效</h1>
+      <p>此報價確認連結目前無法使用，可能已過期、已被取代，或訂單已封存。請洽業務人員確認最新狀態。</p>
+    </div>
+  </div>
+
+  <div id="state-content" class="qc-state" hidden>
+
+    <section class="qc-card" aria-labelledby="qc-summary-heading">
+      <h1 id="qc-summary-heading">報價確認</h1>
+      <dl class="qc-meta">
+        <div class="qc-meta-row">
+          <dt>報價版本</dt>
+          <dd id="version-label">-</dd>
+        </div>
+        <div class="qc-meta-row">
+          <dt>有效期限</dt>
+          <dd id="valid-until">-</dd>
+        </div>
+        <div class="qc-meta-row">
+          <dt>目前狀態</dt>
+          <dd id="status-label">-</dd>
+        </div>
+      </dl>
+
+      <h2>商品資訊</h2>
+      <dl class="qc-field-list">
+        <div class="qc-field-row">
+          <dt>商品名稱</dt>
+          <dd id="product-name">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>材質</dt>
+          <dd id="product-material">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>工藝</dt>
+          <dd id="product-finish">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>容量</dt>
+          <dd id="product-capacity">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>數量</dt>
+          <dd id="product-qty">-</dd>
+        </div>
+      </dl>
+
+      <h2>客戶資訊</h2>
+      <dl class="qc-field-list">
+        <div class="qc-field-row">
+          <dt>客戶名稱</dt>
+          <dd id="customer-name">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>Email</dt>
+          <dd id="customer-email">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>電話</dt>
+          <dd id="customer-phone">-</dd>
+        </div>
+      </dl>
+
+      <h2>金額明細</h2>
+      <p id="price-inquiry-note" class="qc-inquiry-note" hidden>此商品需另行報價，正式金額請洽業務人員確認。</p>
+      <dl class="qc-field-list qc-price-list">
+        <div class="qc-field-row">
+          <dt>基準金額</dt>
+          <dd id="price-base">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>折扣金額</dt>
+          <dd id="price-discount">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>額外費用</dt>
+          <dd id="price-extra">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>運費</dt>
+          <dd id="price-shipping">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>稅額</dt>
+          <dd id="price-tax">-</dd>
+        </div>
+        <div class="qc-field-row qc-field-final">
+          <dt>最終總額</dt>
+          <dd id="price-final">-</dd>
+        </div>
+      </dl>
+
+      <h2>報價備註</h2>
+      <p id="quote-notes" class="qc-notes">-</p>
+    </section>
+
+    <section id="response-form" class="qc-card" aria-labelledby="qc-response-heading">
+      <h2 id="qc-response-heading">請確認您的回覆</h2>
+
+      <p id="pending-notice" class="qc-pending-notice" role="status" aria-live="polite" hidden>
+        偵測到您先前尚未完成的送出內容，已為您帶回備註欄位。請重新點擊「接受報價」或「拒絕報價」以完成送出。
+      </p>
+
+      <div class="qc-note-field">
+        <label for="note-input">備註（選填，最多 1000 字）</label>
+        <textarea id="note-input" maxlength="1000" rows="4" aria-describedby="note-counter"></textarea>
+        <p id="note-counter" class="qc-note-counter">0 / 1000</p>
+      </div>
+
+      <div class="qc-actions">
+        <button type="button" id="btn-accept" class="qc-btn qc-btn-accept">接受報價</button>
+        <button type="button" id="btn-reject" class="qc-btn qc-btn-reject">拒絕報價</button>
+      </div>
+
+      <p id="submit-error" class="qc-error" role="alert" aria-live="assertive"></p>
+    </section>
+
+    <section id="response-completed" class="qc-card" aria-labelledby="qc-completed-heading" hidden>
+      <h2 id="qc-completed-heading">回覆已送出</h2>
+      <dl class="qc-field-list">
+        <div class="qc-field-row">
+          <dt>您的回覆</dt>
+          <dd id="completed-decision">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>回覆時間</dt>
+          <dd id="completed-time">-</dd>
+        </div>
+        <div class="qc-field-row">
+          <dt>備註</dt>
+          <dd id="completed-note">-</dd>
+        </div>
+      </dl>
+      <p class="qc-completed-note">此連結已完成回覆，無法再次修改。如需異動請洽業務人員。</p>
+    </section>
+
+  </div>
+
+</main>
+<script src="js/analytics-tracker.js" defer></script>
+<script src="js/quote-confirmation.js" defer></script>
+</body>
+</html>
