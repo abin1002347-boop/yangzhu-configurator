@@ -2505,7 +2505,7 @@ async function selectBlackCardCandidate(index) {
   try {
     STATE.blackCardSelectedImage = src;
 
-    // 候選圖是後端以 background:'transparent' 向 gpt-image-1 要求的結果，本來就應該
+    // 候選圖是後端以 background:'transparent' 向 gpt-image-2 要求的結果，本來就應該
     // 已經是乾淨透明背景。只有在「模型這次沒有真的給透明背景」的少數情況（imageHasCleanCutout
     // 檢查不到足夠的透明像素比例）才需要再跑一次色彩式去背當保險，避免對已經乾淨的圖案
     // 做不必要、反而可能傷到細節的二次處理。

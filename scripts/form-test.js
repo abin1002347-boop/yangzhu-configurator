@@ -170,6 +170,12 @@ async function main() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yz-form-test-'));
   const port = await getFreePort();
   const baseUrl = `http://localhost:${port}`;
+  // 測試專用的隨機 ADMIN_TOKEN：只存在這支腳本自己的記憶體與子行程的環境變數裡，這支
+  // 腳本本身不會把它印到任何輸出、不會寫入任何檔案。用意是讓臨時資料庫的首位管理員帳號
+  // 能正常 bootstrap（避免每次執行都印出「admin_users資料表目前是空的...無法自動建立
+  // 第一位管理員帳號」的警告訊息），不是為了讓這支腳本測試登入功能本身——目前13項測試
+  // 完全不涉及後台登入，值本身用完即棄，跟真實環境的任何密碼／Token都無關。
+  const testOnlyAdminToken = crypto.randomBytes(16).toString('hex');
   const { child } = spawnTempServer({
     PORT: String(port),
     NODE_ENV: 'test',
@@ -179,8 +185,9 @@ async function main() {
     // .env 檔案載入這幾個值（dotenv 預設不會覆蓋「已經存在」的 process.env 值，但這裡
     // 沒有先設定它們，所以會被真的載入）。這幾個測試完全用不到，明確覆寫成空字串，
     // 讓這個臨時行程的記憶體裡盡量不出現任何真實機密，降低不必要的暴露面（資料庫隔離
-    // 本身已經足夠安全，這是額外的防禦層，不是必要條件）。
-    ADMIN_TOKEN: '',
+    // 本身已經足夠安全，這是額外的防禦層，不是必要條件）。ADMIN_TOKEN例外：改用上面
+    // 產生的測試專用隨機值，而不是空字串，讓臨時資料庫的bootstrap邏輯能正常運作。
+    ADMIN_TOKEN: testOnlyAdminToken,
     ADMIN_CSRF_SECRET: '',
     LINE_NOTIFY_TOKEN: '',
     CHATBOT_PUBLIC_URL: '',
@@ -320,10 +327,14 @@ async function main() {
     } else {
       fail('額外項目：production + FORM_TEST_MODE=true', '進程沒有拒絕啟動，持續執行中');
     }
-    // beforeGuard.exists 應該是 false（這個測試不該讓 ./data 被建立過），afterGuard 也要
-    // 維持一樣的狀態，才代表這個危險組合真的連 production 資料庫路徑都沒有碰過。
-    if (!beforeGuard.exists && snapshotsEqual(beforeGuard, afterGuard)) {
-      pass('額外項目：production 阻擋測試期間，production 資料庫路徑（./data/admin.db）完全未被建立或碰觸');
+    // 判斷依據改成單純比較「這次測試前後」的檔案狀態，不預先假設 ./data/admin.db 原本
+    // 就不該存在——這個專案的正式部署（Railway APP_DATA_DIR 相關批次）本來就可能在同一台
+    // 開發機上留下過 ./data/admin.db，檔案「原本就存在」是完全合理的既有狀態，不代表這次
+    // production 阻擋測試本身有問題。真正要驗證的是「這次測試沒有讓它被建立、被改動」，
+    // 也就是 mtime／size／exists 在測試前後完全一致（beforeGuard.exists 若原本是 true，
+    // afterGuard 也要維持 true 且 mtime/size 不變；若原本是 false，測試後也要維持 false）。
+    if (snapshotsEqual(beforeGuard, afterGuard)) {
+      pass(`額外項目：production 阻擋測試期間，production 資料庫路徑（./data/admin.db）完全未被建立或碰觸（測試前後 exists=${beforeGuard.exists} 不變）`);
     } else {
       fail('額外項目：production 阻擋測試期間，./data/admin.db 疑似被建立或碰觸', `測試前 exists=${beforeGuard.exists}，測試後 exists=${afterGuard.exists}`);
     }

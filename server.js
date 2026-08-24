@@ -3680,7 +3680,8 @@ app.get('/api/orders/:orderId/factory-package', checkAdminAuth, auditLogMiddlewa
   archive.finalize();
 });
 
-// ─── API：AI 生圖（DALL-E 3）──────────────
+// ─── API：AI 生圖（gpt-image-2，2026-08-24 由已下架的 dall-e-3 經 gpt-image-1 過渡後，
+// 改到官方目前建議的 gpt-image-2，詳見 db.js AI_FEATURE_DEFAULTS 上方註解）──────────────
 app.post('/api/generate-image', aiUsageLimitMiddleware('generate_image'), async (req, res) => {
   const tracker = req.aiUsageTracker;
 
@@ -3725,13 +3726,15 @@ app.post('/api/generate-image', aiUsageLimitMiddleware('generate_image'), async 
   try {
     tracker.setProviderCalled(true);
     tracker.setProviderCallCount(1);
+    // gpt-image-2 的 size／quality 是它自己的固定選項，不是 dall-e-3 那組
+    // '1792x1024'／'standard'；1536x1024 是官方文件列出的常用尺寸中最接近原本橫向卡片比例者。
+    // response_format 不指定，沿用官方預設的 b64_json。
     const response = await openai.images.generate({
-      model:           cfg.model,
-      prompt:          enhancedPrompt,
-      n:               1,
-      size:            '1792x1024',
-      quality:         'standard',
-      response_format: 'b64_json'
+      model:   cfg.model,
+      prompt:  enhancedPrompt,
+      n:       1,
+      size:    '1536x1024',
+      quality: 'medium'
     });
 
     const b64           = response.data[0].b64_json;
@@ -3747,6 +3750,12 @@ app.post('/api/generate-image', aiUsageLimitMiddleware('generate_image'), async 
     console.error('[generate-image]', err.status, err.message);
     tracker.setImageCounts({ generated: 0 });
     tracker.setErrorCategory(classifyAiProviderError(err, { treatPlain400AsModeration: true }));
+    const msgLower = (err.message || '').toLowerCase();
+    // 帳號/組織未驗證：查得到 gpt-image-2 模型（GET /models/gpt-image-2 成功）不代表這個
+    // 帳號已經通過組織驗證、可以實際呼叫生成，兩者是分開的檢查，錯誤仍可能在真正呼叫時出現。
+    if (err.status === 403 || err.error?.code === 'organization_not_verified' || msgLower.includes('must be verified') || msgLower.includes('verify your organization')) {
+      return res.status(403).json({ error: '此功能需要 OpenAI 帳號完成組織驗證才能使用，請聯絡管理員確認設定（platform.openai.com 組織驗證狀態）' });
+    }
     if (err.status === 400) return res.status(400).json({ error: '圖片描述違反內容政策，請修改描述後再試' });
     if (err.status === 401) return res.status(401).json({ error: 'API Key 無效' });
     if (err.status === 429) return res.status(429).json({ error: '請求過於頻繁，請稍後再試' });
@@ -4006,12 +4015,11 @@ app.post('/api/black-card-pattern-candidates', aiUsageLimitMiddleware('black_car
     new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('timeout'), { isTimeout: true })), GENERATE_TIMEOUT_MS))
   ]);
 
-  // 用 gpt-image-1（text-to-image，非 edit）而非 dall-e-3：此帳號目前呼叫 dall-e-3
-  // 一律回傳「model does not exist」，gpt-image-1 的 images.generate（純文字生圖，
-  // 不同於 /api/cartoon-image 用的 images.edit）不需要組織驗證，且固定回傳 b64_json，
-  // 不用另外帶 response_format。
-  // background:'transparent' 讓 gpt-image-1 直接回傳乾淨 alpha 透明背景的 PNG，
-  // 不必依賴模型是否真的畫出「純白背景」再靠前端去背猜測邊界——實測發現即使 prompt
+  // 2026-08-24 改用官方目前建議的 gpt-image-2（images.generate，純文字生圖，不同於
+  // /api/cartoon-image 用的 images.edit）。查得到這個模型（GET /models/gpt-image-2 成功）
+  // 不等於實際生成一定會通過，組織驗證等問題仍可能在下方 catch 區塊的403分支出現。
+  // background:'transparent' 是 gpt-image-2 正式支援的參數，直接回傳乾淨 alpha 透明背景的
+  // PNG，不必依賴模型是否真的畫出「純白背景」再靠前端去背猜測邊界——實測發現即使 prompt
   // 明確要求純白背景，模型仍偶爾會畫出淡淡漸層／暗角，導致色彩式去背抓不準邊界；
   // 直接請 API 給透明背景可以完全避開這個不確定性。
   const moderation = await runContentModeration(tracker, { text: rawPrompt });
@@ -4074,6 +4082,10 @@ app.post('/api/black-card-pattern-candidates', aiUsageLimitMiddleware('black_car
     if (err.isTimeout) {
       return res.status(504).json({ error: 'AI 圖案生成逾時，請稍後再試一次' });
     }
+    // 帳號/組織未驗證
+    if (status === 403 || code === 'organization_not_verified' || msgLower.includes('must be verified') || msgLower.includes('verify your organization')) {
+      return res.status(403).json({ error: '此功能需要 OpenAI 帳號完成組織驗證才能使用，請聯絡管理員確認設定（platform.openai.com 組織驗證狀態）' });
+    }
     if (status === 400 && (code === 'moderation_blocked' || msgLower.includes('safety system') || msgLower.includes('moderation') || msgLower.includes('rejected') || msgLower.includes('policy'))) {
       return res.status(400).json({ error: '這個描述無法生成圖案，可能觸發 AI 圖像安全限制，請修改描述後再試一次' });
     }
@@ -4101,9 +4113,11 @@ app.post('/api/black-card-pattern-candidates', aiUsageLimitMiddleware('black_car
   });
 });
 
-// ─── API：Q版卡通化（gpt-image-1 image edit，直接以照片為輸入）──────
-// 注意：呼叫 gpt-image-1 需要 OpenAI 組織已完成驗證（Individual 或 Business），
-// 否則一律會收到「帳號/組織未驗證」錯誤，詳見 test-gpt-image-edit.js
+// ─── API：Q版卡通化（gpt-image-2 image edit，直接以照片為輸入，2026-08-24 由
+// gpt-image-1 改過來）──────
+// 注意：呼叫 GPT Image 系列模型的 images.edit 需要 OpenAI 組織已完成驗證（Individual 或
+// Business），否則一律會收到「帳號/組織未驗證」錯誤（詳見 test-gpt-image-edit.js）；能查到
+// gpt-image-2 這個模型不代表組織驗證已經完成，這是兩件互相獨立的事。
 app.post('/api/cartoon-image', aiUsageLimitMiddleware('cartoon_image'), async (req, res) => {
   const tracker = req.aiUsageTracker;
 

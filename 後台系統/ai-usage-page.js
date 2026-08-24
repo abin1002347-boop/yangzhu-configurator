@@ -461,25 +461,45 @@ function renderAiUsageModelWarnings(pricing) {
     desc.style.fontSize = '12px';
     desc.style.color = 'var(--gray-400)';
     desc.style.margin = '6px 0 0';
-    desc.textContent = 'AI 生圖（卡片背景設計）目前使用的模型已從 OpenAI API 移除，此頁面不會用舊價格估算成本，也不會自動更換模型；如需繼續使用此功能，請至「AI 功能設定」頁面確認後續安排。';
+    desc.textContent = 'AI 生圖（卡片背景設計）已改用官方目前建議的 gpt-image-2，此警示只代表歷史紀錄中曾經使用 dall-e-3 的舊資料列無法估算成本，不代表目前功能仍在使用這個模型。';
     box.appendChild(title);
     box.appendChild(desc);
     wrap.appendChild(box);
   }
 
-  const hasGptImage = pricing.some(p => p.model === 'gpt-image-1');
-  if (hasGptImage) {
+  const gptImage1 = pricing.find(p => p.model === 'gpt-image-1');
+  if (gptImage1 && gptImage1.availabilityStatus === 'deprecated') {
+    const box = document.createElement('div');
+    box.className = 'card';
+    box.style.marginBottom = '12px';
+    box.style.borderColor = '#d97706';
+    const title = document.createElement('p');
+    title.style.fontWeight = '700';
+    title.style.color = '#d97706';
+    title.textContent = 'gpt-image-1：官方已列為 Deprecated（已淘汰）';
+    const desc = document.createElement('p');
+    desc.style.fontSize = '12px';
+    desc.style.color = 'var(--gray-400)';
+    desc.style.margin = '6px 0 0';
+    desc.textContent = 'AI 生圖、尊爵不凡黑卡圖案生成與Q版卡通化已於 2026-08-24 全部改用官方目前建議的 gpt-image-2，此警示只代表歷史紀錄中曾經使用 gpt-image-1 的舊資料列，這些舊資料列仍依 gpt-image-1 當時的價格估算成本，不代表目前功能仍在使用這個模型。';
+    box.appendChild(title);
+    box.appendChild(desc);
+    wrap.appendChild(box);
+  }
+
+  const hasGptImage2 = pricing.some(p => p.model === 'gpt-image-2');
+  if (hasGptImage2) {
     const box = document.createElement('div');
     box.className = 'card';
     box.style.marginBottom = '12px';
     const title = document.createElement('p');
     title.style.fontWeight = '700';
-    title.textContent = 'gpt-image-1：費用為部分預估';
+    title.textContent = 'gpt-image-2：費用為部分預估';
     const desc = document.createElement('p');
     desc.style.fontSize = '12px';
     desc.style.color = 'var(--gray-400)';
     desc.style.margin = '6px 0 0';
-    desc.textContent = '尊爵不凡黑卡圖案生成與Q版卡通化目前只記錄並估算已知的輸出圖片費用，圖片編輯可能另有未記錄的文字或輸入圖片 Token 成本，此頁顯示的成本不等於 OpenAI 最終帳單。';
+    desc.textContent = 'AI 生圖（卡片背景設計）、尊爵不凡黑卡圖案生成與Q版卡通化目前只記錄並估算已知的輸出圖片費用，圖片編輯可能另有未記錄的文字或輸入圖片 Token 成本，此頁顯示的成本不等於 OpenAI 最終帳單。';
     box.appendChild(title);
     box.appendChild(desc);
     wrap.appendChild(box);

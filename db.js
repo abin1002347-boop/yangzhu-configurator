@@ -1057,11 +1057,19 @@ db.prepare(`
 // 管理員尚未在後台儲存任何設定之前，四支 AI 路由的實際行為與 migration 前完全一致。
 // INSERT OR IGNORE 天生冪等：只有資料庫第一次建立這兩張表、還沒有任何一列時才會真的寫入，
 // 不會覆蓋管理員之後已經在後台儲存過的內容。
+// 2026-08-24（第一次修正）：generate_image 原本預設 dall-e-3，該模型已被 OpenAI 官方下架
+// （此帳號呼叫一律回傳「model does not exist」），當時先改用 black_card_pattern 已經實測
+// 成功過的 gpt-image-1。
+// 2026-08-24（Codex 獨立驗收後第二次修正）：確認帳號能查到 gpt-image-2（GET /models/gpt-image-2
+// 成功），且官方已將 gpt-image-1 列為 Deprecated（已淘汰）；三支圖片功能統一改用官方目前
+// 建議的 gpt-image-2，不再區分「哪支已驗證能動、哪支還沒」。generate_design 是文字功能，
+// 不受影響，維持 gpt-4o-mini。既有資料庫（已經跑過舊版種子資料）的既有列，交由下方
+// migrateAiImageFeaturesToGptImage2() 另外遷移，這裡的預設值只影響全新安裝。
 const AI_FEATURE_DEFAULTS = [
-  { featureKey: 'generate_image',     model: 'dall-e-3' },
+  { featureKey: 'generate_image',     model: 'gpt-image-2' },
   { featureKey: 'generate_design',    model: 'gpt-4o-mini' },
-  { featureKey: 'black_card_pattern', model: 'gpt-image-1' },
-  { featureKey: 'cartoon_image',      model: 'gpt-image-1' }
+  { featureKey: 'black_card_pattern', model: 'gpt-image-2' },
+  { featureKey: 'cartoon_image',      model: 'gpt-image-2' }
 ];
 
 const AI_PROMPT_DEFAULTS = [
@@ -1205,38 +1213,74 @@ const aiSettingsSeedNow = new Date().toISOString();
 AI_FEATURE_DEFAULTS.forEach(f => insertAiFeatureDefault.run(f.featureKey, f.model, aiSettingsSeedNow));
 AI_PROMPT_DEFAULTS.forEach(p => insertAiPromptDefault.run(p.promptKey, p.featureKey, p.content, aiSettingsSeedNow));
 
-// ─── Migration：AI 價格資料 預設值（2026-08-08 查核）──────────────────────
+// ─── Migration：AI 價格資料 預設值（2026-08-08 查核，2026-08-24 補充 gpt-image-2）───────
 // 官方來源與查核結果：
 //   - gpt-4o-mini：https://developers.openai.com/api/docs/models/gpt-4o-mini
 //     input USD 0.15 / 1,000,000 tokens、output USD 0.60 / 1,000,000 tokens
-//   - gpt-image-1（medium 品質）：https://developers.openai.com/api/docs/models/gpt-image-1
-//     1024x1024 USD 0.042 / 張（black_card_pattern 使用）、1024x1536 USD 0.063 / 張（cartoon_image 使用）
+//   - gpt-image-1（medium 品質，2026-08-08查核）：https://developers.openai.com/api/docs/models/gpt-image-1
+//     1024x1024 USD 0.042／張、1024x1536 及 1536x1024 USD 0.063／張。2026-08-24 查核：官方已將
+//     此模型列為 Deprecated（已淘汰，但尚未像 dall-e-3 完全下架），三支圖片功能已全部改用
+//     gpt-image-2，這三筆價格資料保留供歷史紀錄查價，availability_status 改為 'deprecated'。
+//   - gpt-image-2（medium 品質，2026-08-24查核）：
+//     https://developers.openai.com/api/docs/guides/image-generation 的成本試算章節：
+//     1024x1024 USD 0.018／張、1024x1536 及 1536x1024 USD 0.027／張。這是「僅輸出圖片
+//     token」換算出的每張圖片費用，不含輸入文字或輸入圖片（image edit 用）的 token 成本，
+//     跟既有 gpt-image-1 價格資料同一套「已知輸出費用、其餘視為不明」的估算慣例一致。
 //   - dall-e-3：https://developers.openai.com/api/docs/models/dall-e-3
 //     官方目前已將此模型從 API 移除，沒有現行官方價格，unit_price_usd 刻意留 null、
 //     availability_status='removed'，绝不可套用舊價格估算，也不可以在這個階段自動更換模型。
 // INSERT OR IGNORE 天生冪等：只有資料庫第一次建立這張表、還沒有任何一列時才會真的寫入，
-// 不會覆蓋管理員之後可能已經調整過的價格資料（雖然本階段還沒有提供修改用的API）。
+// 不會覆蓋管理員之後可能已經調整過的價格資料（雖然本階段還沒有提供修改用的API）。既有資料庫
+// 裡2026-08-08就已經存在的 gpt-image-1 三筆價格列，INSERT OR IGNORE 不會回頭更新它們的
+// availability_status，這批連同 ai_feature_settings 一起交給下面的
+// migrateAiImageFeaturesToGptImage2() 處理（同一支函式、同一個 transaction）。
 const AI_PRICING_VERIFIED_AT = '2026-08-08';
+const AI_PRICING_VERIFIED_AT_20260824 = '2026-08-24';
 const AI_PRICING_DEFAULTS = [
   {
     rateKey: 'gpt4o_mini_input_1m', model: 'gpt-4o-mini', usageType: 'input_tokens', unit: '1,000,000 tokens',
-    unitPriceUsd: 0.15, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-4o-mini'
+    unitPriceUsd: 0.15, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-4o-mini',
+    verifiedAt: AI_PRICING_VERIFIED_AT
   },
   {
     rateKey: 'gpt4o_mini_output_1m', model: 'gpt-4o-mini', usageType: 'output_tokens', unit: '1,000,000 tokens',
-    unitPriceUsd: 0.60, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-4o-mini'
+    unitPriceUsd: 0.60, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-4o-mini',
+    verifiedAt: AI_PRICING_VERIFIED_AT
   },
   {
     rateKey: 'gpt_image_1_medium_1024_square', model: 'gpt-image-1', usageType: 'generated_image', unit: 'image (1024x1024, medium)',
-    unitPriceUsd: 0.042, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-image-1'
+    unitPriceUsd: 0.042, availabilityStatus: 'deprecated', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-image-1',
+    verifiedAt: AI_PRICING_VERIFIED_AT_20260824
   },
   {
     rateKey: 'gpt_image_1_medium_1024_portrait', model: 'gpt-image-1', usageType: 'generated_image', unit: 'image (1024x1536, medium)',
-    unitPriceUsd: 0.063, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-image-1'
+    unitPriceUsd: 0.063, availabilityStatus: 'deprecated', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-image-1',
+    verifiedAt: AI_PRICING_VERIFIED_AT_20260824
+  },
+  {
+    rateKey: 'gpt_image_1_medium_1024_landscape', model: 'gpt-image-1', usageType: 'generated_image', unit: 'image (1536x1024, medium)',
+    unitPriceUsd: 0.063, availabilityStatus: 'deprecated', sourceUrl: 'https://developers.openai.com/api/docs/models/gpt-image-1',
+    verifiedAt: AI_PRICING_VERIFIED_AT_20260824
   },
   {
     rateKey: 'dall_e_3_standard_landscape', model: 'dall-e-3', usageType: 'generated_image', unit: 'image (1792x1024, standard)',
-    unitPriceUsd: null, availabilityStatus: 'removed', sourceUrl: 'https://developers.openai.com/api/docs/models/dall-e-3'
+    unitPriceUsd: null, availabilityStatus: 'removed', sourceUrl: 'https://developers.openai.com/api/docs/models/dall-e-3',
+    verifiedAt: AI_PRICING_VERIFIED_AT
+  },
+  {
+    rateKey: 'gpt_image_2_medium_1024_square', model: 'gpt-image-2', usageType: 'generated_image', unit: 'image (1024x1024, medium, output-only)',
+    unitPriceUsd: 0.018, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/guides/image-generation',
+    verifiedAt: AI_PRICING_VERIFIED_AT_20260824
+  },
+  {
+    rateKey: 'gpt_image_2_medium_1024_portrait', model: 'gpt-image-2', usageType: 'generated_image', unit: 'image (1024x1536, medium, output-only)',
+    unitPriceUsd: 0.027, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/guides/image-generation',
+    verifiedAt: AI_PRICING_VERIFIED_AT_20260824
+  },
+  {
+    rateKey: 'gpt_image_2_medium_1024_landscape', model: 'gpt-image-2', usageType: 'generated_image', unit: 'image (1536x1024, medium, output-only)',
+    unitPriceUsd: 0.027, availabilityStatus: 'active', sourceUrl: 'https://developers.openai.com/api/docs/guides/image-generation',
+    verifiedAt: AI_PRICING_VERIFIED_AT_20260824
   }
 ];
 const insertAiPricingDefault = db.prepare(`
@@ -1246,8 +1290,49 @@ const insertAiPricingDefault = db.prepare(`
 AI_PRICING_DEFAULTS.forEach(p => insertAiPricingDefault.run({
   rate_key: p.rateKey, model: p.model, usage_type: p.usageType, unit: p.unit,
   unit_price_usd: p.unitPriceUsd, availability_status: p.availabilityStatus, source_url: p.sourceUrl,
-  verified_at: AI_PRICING_VERIFIED_AT, updated_at: aiSettingsSeedNow
+  verified_at: p.verifiedAt, updated_at: aiSettingsSeedNow
 }));
+
+// ─── Migration：既有資料庫的 AI 圖片功能模型／價格狀態遷移到 gpt-image-2（2026-08-24）───
+// 只處理三支「圖片」功能（generate_image／black_card_pattern／cartoon_image）的 model 欄位，
+// 不動 enabled、不動任何提示詞內容；同時把既有資料庫裡可能已經存在、状态還停留在 'active' 的
+// gpt-image-1 三筆價格列同步標成 'deprecated'（新資料庫由上面 AI_PRICING_DEFAULTS 的
+// INSERT OR IGNORE 已經是 deprecated，這裡是给已經跑過舊版種子資料、既有那三筆還是 active 的
+// 資料庫補上這個狀態更新）。整支函式包在單一 transaction 內，三項全部成功才提交，任何一項
+// 出錯就整批回滾，不會出現「只改了一半」的中間狀態。可重複執行：已經是 gpt-image-2／
+// deprecated 的資料列，UPDATE 條件式本身就不會再符合，第二次執行不會有任何效果，也不會
+// 產生錯誤或重複寫入。這支函式刻意「只匯出、不在 db.js 載入時自動呼叫」——避免 require('./db')
+// 這個動作本身就悄悄把正式資料庫的既有設定改掉；要不要、什麼時候對哪個資料庫執行，
+// 由呼叫端（測試腳本／未來經過同意的正式遷移腳本）自行決定。
+const AI_IMAGE_FEATURE_KEYS_FOR_GPT_IMAGE_2_MIGRATION = ['generate_image', 'black_card_pattern', 'cartoon_image'];
+const AI_LEGACY_IMAGE_MODELS_FOR_GPT_IMAGE_2_MIGRATION = ['dall-e-3', 'gpt-image-1'];
+function migrateAiImageFeaturesToGptImage2() {
+  const now = new Date().toISOString();
+  const featurePlaceholders = AI_IMAGE_FEATURE_KEYS_FOR_GPT_IMAGE_2_MIGRATION.map(() => '?').join(',');
+  const legacyModelPlaceholders = AI_LEGACY_IMAGE_MODELS_FOR_GPT_IMAGE_2_MIGRATION.map(() => '?').join(',');
+
+  const updateFeatureModel = db.prepare(`
+    UPDATE ai_feature_settings
+    SET model = 'gpt-image-2', updated_at = ?, updated_by = 'system-migration-20260824'
+    WHERE feature_key IN (${featurePlaceholders}) AND model IN (${legacyModelPlaceholders})
+  `);
+  const updatePricingDeprecated = db.prepare(`
+    UPDATE ai_pricing_settings
+    SET availability_status = 'deprecated', verified_at = ?, updated_at = ?, updated_by = 'system-migration-20260824'
+    WHERE model = 'gpt-image-1' AND availability_status = 'active'
+  `);
+
+  const run = db.transaction(() => {
+    const featureResult = updateFeatureModel.run(now, ...AI_IMAGE_FEATURE_KEYS_FOR_GPT_IMAGE_2_MIGRATION, ...AI_LEGACY_IMAGE_MODELS_FOR_GPT_IMAGE_2_MIGRATION);
+    const pricingResult = updatePricingDeprecated.run(AI_PRICING_VERIFIED_AT_20260824, now);
+    return {
+      featureRowsUpdated: featureResult.changes,
+      pricingRowsUpdated: pricingResult.changes
+    };
+  });
+
+  return run();
+}
 
 // ─── Migration：補上 js/products.js 裡有、但原本 schema 沒涵蓋的欄位 ──────
 // （黑卡等商品需要 priceOnInquiry/materialLabel/finishLabel，悠遊卡/一卡通/黑卡需要 svgViewBox/svgPath）
@@ -2044,6 +2129,7 @@ module.exports = {
   getAllAiFeatureSettings, getAiFeatureSetting, getAllAiPromptSettings, getAiPromptSetting,
   createAiUsageLog, getAiUsageLogByRequestId,
   getAllAiPricingSettings, getAiPricingByRateKey,
+  migrateAiImageFeaturesToGptImage2,
   getAiUsageLimitSettings, recordAiClientAttemptIfAllowed, reserveAiSiteUsageIfAllowed,
   recordAnalyticsEvent, getAnalyticsEventByEventId,
   // 管理員帳號／角色權限／登入限制／操作稽核（正式管理員帳號、角色權限、登入限制與操作稽核批次）

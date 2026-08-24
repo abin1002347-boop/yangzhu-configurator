@@ -3213,11 +3213,13 @@ module.exports = function createAdminRouter(checkAdminAuth, ORDER_DIR, csrfProte
   // API——要新增第五個 AI 功能，需要另外寫一支新的 migration 與對應路由，不是這裡的職責。
   // 絕對不可以在這支路由的任何回應（GET／PUT）中帶出 OPENAI_API_KEY 或其他環境變數。
   const AI_FEATURE_KEYS = ['generate_image', 'generate_design', 'black_card_pattern', 'cartoon_image'];
+  // 2026-08-24：dall-e-3 已被 OpenAI 官方下架、gpt-image-1 已被官方列為 Deprecated，三支
+  // 圖片功能統一改用官方目前建議的 gpt-image-2（詳見 db.js AI_FEATURE_DEFAULTS 上方註解）。
   const AI_FEATURE_MODEL_WHITELIST = {
-    generate_image:     ['dall-e-3'],
+    generate_image:     ['gpt-image-2'],
     generate_design:    ['gpt-4o-mini'],
-    black_card_pattern: ['gpt-image-1'],
-    cartoon_image:       ['gpt-image-1']
+    black_card_pattern: ['gpt-image-2'],
+    cartoon_image:       ['gpt-image-2']
   };
   const AI_PROMPT_KEYS = ['generate_image_main', 'generate_design_system', 'black_card_pattern_system', 'cartoon_image_base', 'cartoon_image_black_card'];
   const AI_PROMPT_KEY_FEATURE_MAP = {
@@ -3581,10 +3583,11 @@ module.exports = function createAdminRouter(checkAdminAuth, ORDER_DIR, csrfProte
   });
 
   // ══════════ AI 使用量、成本及錯誤統計（第二階段：只唯讀彙總 ai_usage_logs，不提供任何寫入）══════════
-  // 固定的「執行日期：2026-08-08」查核結果，dall-e-3 已被 OpenAI 官方從 API 移除（見
-  // https://developers.openai.com/api/docs/models/dall-e-3），沒有現行官方價格，這裡絕對不可以
-  // 把它的成本算成0元，也不會在這個統計階段自動把 generate_image 換成別的模型
-  // （換模型是「AI 功能開關、模型及提示詞管理」那個既有頁面的職責，不是這裡）。
+  // dall-e-3 已被 OpenAI 官方從 API 移除（見 https://developers.openai.com/api/docs/models/dall-e-3），
+  // 沒有現行官方價格，這裡絕對不可以把它的成本算成0元。三支圖片功能已於 2026-08-24 改用
+  // gpt-image-2（換模型是「AI 功能開關、模型及提示詞管理」那個既有頁面／db.js migration
+  // 的職責，不是這裡）；這裡純粹依每一筆歷史紀錄「當時實際用的是哪個模型」（row.model）
+  // 對應到正確的價格區間，同一個功能的新舊資料列可以用不同模型的價格分別計算，互不影響。
   const AI_USAGE_STATS_FEATURE_KEYS = ['generate_image', 'generate_design', 'black_card_pattern', 'cartoon_image'];
   const AI_USAGE_STATS_OUTCOMES = ['success', 'partial', 'validation_error', 'disabled', 'unavailable', 'provider_error', 'rate_limited', 'content_blocked', 'internal_error'];
   const AI_USAGE_STATS_RANGE_DAYS = { '7d': 7, '30d': 30, '90d': 90 };
@@ -3664,8 +3667,14 @@ module.exports = function createAdminRouter(checkAdminAuth, ORDER_DIR, csrfProte
     pricingRows.forEach(p => { pricingByKey[p.rateKey] = p; });
     const PRICE_GPT4O_INPUT   = pricingByKey.gpt4o_mini_input_1m;
     const PRICE_GPT4O_OUTPUT  = pricingByKey.gpt4o_mini_output_1m;
-    const PRICE_IMAGE_SQUARE  = pricingByKey.gpt_image_1_medium_1024_square;
-    const PRICE_IMAGE_PORTRAIT = pricingByKey.gpt_image_1_medium_1024_portrait;
+    // gpt-image-2（2026-08-24起三支圖片功能的現行模型）
+    const PRICE_IMAGE_SQUARE_V2    = pricingByKey.gpt_image_2_medium_1024_square;
+    const PRICE_IMAGE_PORTRAIT_V2  = pricingByKey.gpt_image_2_medium_1024_portrait;
+    const PRICE_IMAGE_LANDSCAPE_V2 = pricingByKey.gpt_image_2_medium_1024_landscape;
+    // gpt-image-1（已被官方列為Deprecated，僅供歷史紀錄裡 model='gpt-image-1' 的舊資料列查價）
+    const PRICE_IMAGE_SQUARE_LEGACY    = pricingByKey.gpt_image_1_medium_1024_square;
+    const PRICE_IMAGE_PORTRAIT_LEGACY  = pricingByKey.gpt_image_1_medium_1024_portrait;
+    const PRICE_IMAGE_LANDSCAPE_LEGACY = pricingByKey.gpt_image_1_medium_1024_landscape;
 
     // ── 每日趨勢桶：固定回傳 rangeDays 筆（含今天），依日期由舊到新排列，沒有資料的日期
     // 也要補0，確保圖表日期連續，不受伺服器UTC日期偏移影響（全部用台北年/月/日計算）。
@@ -3747,17 +3756,26 @@ module.exports = function createAdminRouter(checkAdminAuth, ORDER_DIR, csrfProte
           } else {
             rowUnknownCost = true;
           }
-        } else if (row.feature_key === 'black_card_pattern' || row.feature_key === 'cartoon_image') {
-          const price = row.feature_key === 'black_card_pattern' ? PRICE_IMAGE_SQUARE : PRICE_IMAGE_PORTRAIT;
-          if (row.generated_image_count !== null && price.unitPriceUsd !== null) {
+        } else if (row.feature_key === 'black_card_pattern' || row.feature_key === 'cartoon_image' || row.feature_key === 'generate_image') {
+          // 三支圖片功能共用同一套「依這筆紀錄實際使用的模型挑對應價格」邏輯：
+          // gpt-image-2（2026-08-24起現行模型）用新價格；gpt-image-1（已被官方列為Deprecated
+          // 但尚未下架，歷史紀錄可能還有）用舊價格；dall-e-3（已被官方下架，沒有現行官方價格）
+          // 或任何其他未知模型一律算 unknown，不可用舊價格回推估算現行費用。
+          const IMAGE_PRICE_BY_FEATURE = {
+            black_card_pattern: { v2: PRICE_IMAGE_SQUARE_V2,   legacy: PRICE_IMAGE_SQUARE_LEGACY },
+            cartoon_image:      { v2: PRICE_IMAGE_PORTRAIT_V2, legacy: PRICE_IMAGE_PORTRAIT_LEGACY },
+            generate_image:     { v2: PRICE_IMAGE_LANDSCAPE_V2, legacy: PRICE_IMAGE_LANDSCAPE_LEGACY }
+          };
+          const priceSet = IMAGE_PRICE_BY_FEATURE[row.feature_key];
+          const price = row.model === 'gpt-image-2' ? priceSet.v2
+                      : row.model === 'gpt-image-1' ? priceSet.legacy
+                      : null;
+          if (price && row.generated_image_count !== null && price.unitPriceUsd !== null) {
             rowKnownCostNanos = usdToNanos(row.generated_image_count * price.unitPriceUsd);
             rowPartialCost = true; // 只涵蓋已知的圖片輸出費用，沒有記錄文字（及輸入圖片）Token成本
           } else {
             rowUnknownCost = true;
           }
-        } else if (row.feature_key === 'generate_image') {
-          // dall-e-3 已被官方從API移除，沒有現行官方價格，一律視為unknown，不可用舊價格估算
-          rowUnknownCost = true;
         }
       }
       if (rowUnknownCost) unknownCostRequests++;
