@@ -726,6 +726,12 @@
             <button type="button" class="wb-tab-btn" id="wb-tab-btn-qversion" data-tab="qversion" onclick="switchUploadTab('qversion')">
               <span class="wb-tab-dot"></span>Q版照片
             </button>
+            <!-- 只在悠遊卡／一卡通顯示（見 configurator.js initDesignStep() 的 isCardShell
+                 判斷，2026-08-24新增）；保溫杯／黑卡不會渲染出這個分頁面板，這裡預設先隱藏，
+                 由 JS 依商品類型切換 .hidden。 -->
+            <button type="button" class="wb-tab-btn hidden" id="wb-tab-btn-aibg" data-tab="aibg" onclick="switchUploadTab('aibg')">
+              <span class="wb-tab-dot"></span>AI生成背景
+            </button>
           </div>
 
           <div class="wb-tab-panel active" data-tabpanel="photo">
@@ -773,6 +779,47 @@
             <details class="teaching-note">
               <summary>製作須知</summary>
               <p class="production-note">約 15-40 秒完成，業務確認後再安排正式製作。</p>
+            </details>
+          </details>
+          </div>
+
+          <!-- AI 生成背景（POST /api/generate-image，2026-08-24新增）：只在悠遊卡／一卡通
+               顯示，保溫杯／黑卡不套用這個面板。輸入背景描述→生成→先只顯示預覽，客戶按
+               「套用到卡面」才真的加入畫布，避免還沒確認就先蓋掉原本的設計。 -->
+          <div class="wb-tab-panel" data-tabpanel="aibg" id="ai-background-panel">
+          <details class="ai-section q-section" open>
+            <summary class="ai-header">
+              <span class="ai-badge">AI 生成背景</span>
+            </summary>
+            <details class="teaching-note">
+              <summary>說明</summary>
+              <p class="ai-desc">
+                描述想要的卡面背景風格，AI 生成後可先預覽，滿意再套用到卡面；卡面文字、Logo、照片等內容不受影響。
+              </p>
+            </details>
+
+            <label for="ai-bg-prompt" class="ai-step-label" style="display:block;"><span class="ai-step-num">1</span>背景描述</label>
+            <textarea id="ai-bg-prompt" rows="2" maxlength="200"
+              placeholder="例如：簡約竹葉線條圖案，白色背景，綠色細線，不要文字與商標"
+              aria-label="背景描述"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;resize:none;margin-bottom:10px;"></textarea>
+
+            <button type="button" class="btn btn-ai" id="ai-bg-btn" onclick="generateAiBackgroundImage()" style="width:100%;">
+              <span id="ai-bg-btn-text">生成背景</span>
+              <span id="ai-bg-btn-loading" class="hidden">生成中（約30～60秒）…</span>
+            </button>
+
+            <div id="ai-bg-error" class="ai-error hidden" role="alert"></div>
+
+            <div id="ai-bg-preview" class="hidden"></div>
+            <button type="button" class="btn btn-secondary btn-sm hidden" id="ai-bg-apply-btn" onclick="applyAiBackgroundImage()" style="width:100%;margin-top:8px;">
+              套用到卡面
+            </button>
+            <p class="black-card-hint black-card-hint-success hidden" id="ai-bg-apply-hint">已套用背景，你可以在左側圖層清單調整順序，或再次生成以替換目前的 AI 背景。</p>
+
+            <details class="teaching-note">
+              <summary>製作須知</summary>
+              <p class="production-note">約 30-60 秒完成，業務確認後再安排正式製作；再次套用會取代目前已套用的 AI 背景，不會重複疊加。</p>
             </details>
           </details>
           </div>

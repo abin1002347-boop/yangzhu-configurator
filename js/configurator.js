@@ -218,6 +218,7 @@ const STATE = {
   blackCardFullBleedRelief: 5,        // 黑卡：滿版元素浮雕強度（1~10）
   blackCardSignatureText: '',         // 黑卡：藝術簽名文字
   blackCardSignatureFont: null,       // 黑卡：藝術簽名字體
+  aiBackgroundPrompt: '',             // 悠遊卡／一卡通：AI生成背景的文字描述（只還原輸入框內容用，見 preview2d.js initAiBackgroundPanel()）
   contactName: '',
   contactEmail: '',
   contactPhone: '',
@@ -1098,6 +1099,10 @@ function goStep(n) {
 
   // 離開設計步驟前，先快照 2D 設計圖（canvas 還在畫面上時最可靠）
   if (STATE.step === 3 && n !== 3) {
+    // 中止尚未完成的 AI 生成背景請求，避免離開設計頁後回應才回來被誤套用
+    // （黑卡圖案／Q版卡通化目前只在切換商品時中止，離開設計頁沒有對應處理；
+    // 這裡只加這支新功能自己的中止呼叫，不更動既有兩支功能的既有行為）
+    if (typeof abortAiBackgroundGeneration === 'function') abortAiBackgroundGeneration();
     STATE.designDataURL = (typeof get2DDataURL === 'function') ? get2DDataURL() : null;
     // 同時存下可編輯的 canvas 狀態（含物件位置/大小/旋轉角度），
     // 這樣「預覽 → 修改設計」返回時 initDesignStep() 才能真的還原，而不是重置成空白模板
@@ -1203,6 +1208,7 @@ function resetDesignStateForProduct(productId) {
   // 取消尚未完成的 AI 請求，避免舊商品的回應在切換後才回來污染新商品狀態
   if (typeof abortBlackCardGeneration === 'function') abortBlackCardGeneration();
   if (typeof abortCartoonGeneration === 'function') abortCartoonGeneration();
+  if (typeof abortAiBackgroundGeneration === 'function') abortAiBackgroundGeneration();
 
   // 黑卡候選圖是直接寫進 DOM 的，只切換面板可見度並不會清掉裡面的 .black-card-candidate
   // 節點與 selected 樣式，這裡直接清空，確保切到別的商品後 DOM 上真的沒有殘留候選圖。
@@ -1234,6 +1240,7 @@ function resetDesignStateForProduct(productId) {
   STATE.blackCardFullBleedRelief = 5;
   STATE.blackCardSignatureText = '';
   STATE.blackCardSignatureFont = null;
+  STATE.aiBackgroundPrompt = '';
   _fullBleedCustomImg = null;
   STATE.textLine1 = '';
   STATE.textLine2 = '';
@@ -1759,6 +1766,15 @@ function initDesignStep() {
     const el = document.getElementById(id);
     if (el) el.style.display = isThermos ? 'none' : '';
   });
+
+  // AI 生成背景：只在悠遊卡／一卡通顯示（isCardShell），保溫杯目前生成尺寸／提示詞
+  // 是卡片比例不適用，黑卡繼續用原本獨立的「主圖案」功能；分頁按鈕隱藏之外，
+  // 也要確保不是這兩個商品時，分頁不會停留在「AI生成背景」（例如從悠遊卡切到保溫杯，
+  // 保溫杯根本沒有這個分頁面板，若還留在active狀態，之後切回悠遊卡會顯示錯誤分頁）。
+  const aiBgTabBtn = document.getElementById('wb-tab-btn-aibg');
+  if (aiBgTabBtn) aiBgTabBtn.classList.toggle('hidden', !isCardShell);
+  if (!isCardShell && typeof switchUploadTab === 'function') switchUploadTab('photo');
+  if (isCardShell && typeof initAiBackgroundPanel === 'function') initAiBackgroundPanel();
 
   const qAvatarPanel = document.getElementById('q-avatar-panel');
   const blackCardPatternPanel = document.getElementById('black-card-pattern-panel');

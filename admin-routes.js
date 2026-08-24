@@ -3847,7 +3847,6 @@ module.exports = function createAdminRouter(checkAdminAuth, ORDER_DIR, csrfProte
 
     function featureCostCoverage(fk, bucket) {
       if (bucket.totalRequests === 0) return 'none';
-      if (fk === 'generate_image') return 'unknown';
       if (bucket.partialCostCount > 0 || bucket.unknownCostCount > 0) return 'partial';
       return 'full';
     }

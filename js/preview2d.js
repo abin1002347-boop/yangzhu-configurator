@@ -885,6 +885,230 @@ function keepAboveProductBg(img) {
   if (bg) canvas2d.sendToBack(bg);
 }
 
+// ─── 悠遊卡／一卡通：「AI 生成背景」（POST /api/generate-image，2026-08-24 新增） ──────
+// 只在 easycard／ipass 顯示（見 configurator.js initDesignStep() 的 isCardShell 判斷）；
+// 保溫杯目前生成尺寸／提示詞是卡片比例，不適用；黑卡繼續用原本獨立的「主圖案」功能，
+// 兩者互不影響、程式也完全分開，不共用任何函式或DOM id。
+// 流程：輸入背景描述 → 生成 → 先只顯示預覽（不寫入畫布）→ 客戶按「套用到卡面」才真的
+// 加入 Fabric Canvas，且再次套用會整個換掉舊的 AI 背景，不會一直堆疊。
+let lastAiBackgroundImageDataURL = null;
+let aiBackgroundGenerating       = false; // 防止同一顆按鈕在請求進行中被重複點擊送出
+let _aiBackgroundAbortController = null;  // 切換商品/重新配置、或離開設計頁時用來中止尚未完成的請求
+
+// 商品切換／離開設計頁時呼叫：中止還在進行中的請求，並清掉尚未套用的預覽圖，避免
+// 舊商品（或舊描述）的回應在使用者已經離開之後才回來、被誤套到新的商品或畫面上。
+function abortAiBackgroundGeneration() {
+  if (_aiBackgroundAbortController) {
+    _aiBackgroundAbortController.abort();
+    _aiBackgroundAbortController = null;
+  }
+  aiBackgroundGenerating = false;
+  lastAiBackgroundImageDataURL = null;
+  const previewEl = document.getElementById('ai-bg-preview');
+  if (previewEl) previewEl.classList.add('hidden');
+  const applyBtn = document.getElementById('ai-bg-apply-btn');
+  if (applyBtn) applyBtn.classList.add('hidden');
+  const applyHintEl = document.getElementById('ai-bg-apply-hint');
+  if (applyHintEl) applyHintEl.classList.add('hidden');
+  const errEl = document.getElementById('ai-bg-error');
+  if (errEl) errEl.classList.add('hidden');
+}
+
+// 從設計頁初始化時呼叫：只還原文字描述輸入框（跟 initBlackCardPatternPanel() 還原
+// blackCardPrompt 同一套慣例），預覽圖／已套用狀態不特別還原——已經套用成功的 AI 背景
+// 是畫布上的實體物件，會隨 canvasJSON 一起還原，不需要另外记錄；還沒套用的預覽圖
+// 本來就只是「這次還沒按套用」的暫存內容，跟黑卡候選圖不同，不需要保存。
+function initAiBackgroundPanel() {
+  const promptInput = document.getElementById('ai-bg-prompt');
+  if (promptInput) promptInput.value = STATE.aiBackgroundPrompt || '';
+}
+
+function setAiBackgroundLoading(on) {
+  const btn  = document.getElementById('ai-bg-btn');
+  const text = document.getElementById('ai-bg-btn-text');
+  const load = document.getElementById('ai-bg-btn-loading');
+  if (!btn) return;
+  btn.disabled = on;
+  text?.classList.toggle('hidden', on);
+  load?.classList.toggle('hidden', !on);
+}
+
+// 跟 _blackCardFriendlyError() 同樣的錯誤分類邏輯（file://、前端逾時、網路中斷、
+// 伺服器回應的 HTTP 狀態訊息），但訊息文字獨立維護，不直接呼叫黑卡那支——兩者
+// 目前文字剛好幾乎一樣，但刻意不共用同一支函式，避免未來其中一邊調整文案時，
+// 誤以為兩個完全不同的功能是綁在一起的。
+function _aiBackgroundFriendlyError(err) {
+  if (location.protocol === 'file:') {
+    return '目前是以檔案模式開啟，AI 生成背景需要透過網站伺服器開啟才能使用，請改用瀏覽器開啟正式網站網址。';
+  }
+  if (err._clientTimeout) {
+    return '請求逾時，AI 服務可能忙碌或網路不穩定，請稍後再試一次。';
+  }
+  if (err.name === 'TypeError' || /Failed to fetch/i.test(err.message || '')) {
+    return '無法連線到 AI 服務，請確認網路連線正常後再試一次；若持續發生，請聯繫客服協助處理。';
+  }
+  if (err.status) {
+    return err.message || `發生錯誤（狀態碼 ${err.status}），請稍後再試`;
+  }
+  return err.message || '發生未預期的錯誤，請稍後再試';
+}
+
+async function generateAiBackgroundImage() {
+  if (aiBackgroundGenerating) return; // 請求進行中，從按鈕按下當下就已鎖定，不可重複送出
+
+  const errEl = document.getElementById('ai-bg-error');
+  const applyHintEl = document.getElementById('ai-bg-apply-hint');
+  const previewEl = document.getElementById('ai-bg-preview');
+  if (errEl) errEl.classList.add('hidden');
+  if (applyHintEl) applyHintEl.classList.add('hidden');
+
+  const input  = document.getElementById('ai-bg-prompt');
+  const prompt = (input?.value || '').trim();
+  if (prompt.length < 2 || prompt.length > 200) {
+    if (errEl) { errEl.textContent = '請輸入 2～200 字的背景描述'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  STATE.aiBackgroundPrompt = prompt;
+
+  aiBackgroundGenerating = true;
+  setAiBackgroundLoading(true);
+  // 這次重新生成期間，先把上一次的預覽／套用按鈕都收起來，避免「套用」按鈕還亮著、
+  // 但畫面上其實已經看不到對應的預覽圖」這種狀態不一致；lastAiBackgroundImageDataURL
+  // 也要同步清空，這次生成失敗的話就整個回到「尚未產生預覽」的乾淨狀態，不留半套。
+  lastAiBackgroundImageDataURL = null;
+  if (previewEl) previewEl.classList.add('hidden');
+  const applyBtnAtStart = document.getElementById('ai-bg-apply-btn');
+  if (applyBtnAtStart) applyBtnAtStart.classList.add('hidden');
+
+  // 實測正式呼叫耗時可能落在 30～60 秒，等超過原本文案上限還沒完成時額外提示，
+  // 避免畫面長時間停在同一句話讓人以為卡住了（跟黑卡圖案同一套做法）。
+  const loadingTextEl = document.getElementById('ai-bg-btn-loading');
+  const extendedWaitTimer = setTimeout(() => {
+    if (loadingTextEl) loadingTextEl.textContent = '還在生成中，AI 繪圖有時較久，請再耐心等候一下……';
+  }, 40000);
+
+  const thisRequestProductId = STATE.productId; // 回應回來時用來判斷是否已經切換商品
+  _aiBackgroundAbortController = new AbortController();
+
+  // 前端最後一道逾時保險（後端本身沒有像黑卡/Q版那樣內建 45 秒逾時，正式測過單次
+  // 請求約 53 秒屬正常範圍，這裡故意抓比實測更寬裕的 90 秒，避免把正常回應誤判逾時）。
+  const CLIENT_TIMEOUT_MS = 90000;
+  let _clientTimedOut = false;
+  const clientTimeoutTimer = setTimeout(() => {
+    _clientTimedOut = true;
+    _aiBackgroundAbortController.abort();
+  }, CLIENT_TIMEOUT_MS);
+
+  const _aiBackgroundAnalyticsContext = (typeof _getAnalyticsContextForRequest === 'function') ? _getAnalyticsContextForRequest() : null;
+
+  try {
+    const resp = await fetch('/api/generate-image', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        prompt,
+        productName: (currentProduct && currentProduct.name) || thisRequestProductId,
+        productId:   thisRequestProductId,
+        ...( _aiBackgroundAnalyticsContext ? { analyticsContext: _aiBackgroundAnalyticsContext } : {} )
+      }),
+      signal:  _aiBackgroundAbortController.signal
+    });
+    clearTimeout(clientTimeoutTimer);
+    // 使用者可能在等待期間已經切換到別的商品，這種情況直接忽略回應，不寫進現在
+    // 其實已經是別的商品的畫面／狀態裡。
+    if (STATE.productId !== thisRequestProductId) return;
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      const err = new Error(data.error || '生成失敗');
+      err.status = resp.status;
+      throw err;
+    }
+    // 只接受 success=true 且具有合法圖片內容的結果，空值或格式錯誤一律當失敗處理，
+    // 不能讓客戶以為已經生成、實際卻是空白或損壞的內容。
+    if (!data.success || !data.imageDataURL || data.imageDataURL.length < 100) {
+      throw new Error('AI 沒有回傳有效的圖片，請調整描述後再試一次');
+    }
+
+    // decode 期間（非同步）使用者也可能已經切換商品，寫入前的最後一道防線
+    const img = await loadImageEl(data.imageDataURL);
+    if (!img.naturalWidth || !img.naturalHeight) throw new Error('AI 回傳的圖片無法正常載入，請再試一次');
+    if (STATE.productId !== thisRequestProductId) return;
+
+    lastAiBackgroundImageDataURL = data.imageDataURL;
+    if (previewEl) {
+      previewEl.innerHTML = `<img src="${data.imageDataURL}" alt="AI 生成的背景預覽" style="width:100%;border-radius:8px;margin-top:10px;display:block;">`;
+      previewEl.classList.remove('hidden');
+    }
+    const applyBtn = document.getElementById('ai-bg-apply-btn');
+    if (applyBtn) applyBtn.classList.remove('hidden');
+
+  } catch (err) {
+    clearTimeout(clientTimeoutTimer);
+    // AbortError 兩種成因分開處理：使用者主動切換商品／離開設計頁＝不是錯誤，靜默返回；
+    // 前端自己的逾時保護觸發＝要讓使用者知道的錯誤，不能被靜默吞掉。
+    if (err.name === 'AbortError') {
+      if (!_clientTimedOut) return;
+      err._clientTimeout = true;
+    }
+    if (errEl) {
+      errEl.innerHTML = '';
+      const msgSpan = document.createElement('span');
+      msgSpan.textContent = _aiBackgroundFriendlyError(err);
+      errEl.appendChild(msgSpan);
+      const retryWrap = document.createElement('div');
+      retryWrap.className = 'ai-error-actions';
+      const retryBtn = document.createElement('button');
+      retryBtn.type = 'button';
+      retryBtn.className = 'btn btn-outline btn-sm';
+      retryBtn.textContent = '重新嘗試';
+      retryBtn.onclick = generateAiBackgroundImage;
+      retryWrap.appendChild(retryBtn);
+      errEl.appendChild(retryWrap);
+      errEl.classList.remove('hidden');
+    }
+  } finally {
+    clearTimeout(clientTimeoutTimer);
+    clearTimeout(extendedWaitTimer);
+    if (loadingTextEl) loadingTextEl.textContent = '生成中（約30～60秒）…';
+    aiBackgroundGenerating = false;
+    setAiBackgroundLoading(false);
+  }
+}
+
+// 套用到卡面：cover（填滿裁切）鋪滿整個印刷區，沿用 getFillPlacement(img, true) 與
+// keepAboveProductBg()——跟 fillCanvasWithSelectedImage() 完全同一套算法與疊層規則，
+// 圖層維持在文字／Logo／照片等客製內容下方，也維持在 product-bg／template-bg 之上；
+// easycard／ipass 已有 canvas 級 clipPath（_applyCardShellClipPath()）處理圓角裁切，
+// 不需要再另外設定物件級 clipPath。再次套用時先移除舊的 AI 背景物件，不會一直堆疊。
+function applyAiBackgroundImage() {
+  if (!lastAiBackgroundImageDataURL || !canvas2d) return;
+  fabric.Image.fromURL(lastAiBackgroundImageDataURL, img => {
+    canvas2d.getObjects().filter(o => o.name === 'ai-generate-background').forEach(o => canvas2d.remove(o));
+
+    const place = getFillPlacement(img, true);
+    img.set({
+      left: place.left, top: place.top,
+      originX: 'center', originY: 'center',
+      scaleX: place.scale, scaleY: place.scale,
+      selectable: true, evented: true,
+      name: 'ai-generate-background'
+    });
+    canvas2d.add(img);
+    keepAboveProductBg(img);
+    canvas2d.requestRenderAll();
+
+    if (typeof STATE !== 'undefined') {
+      STATE.designDataURL = (typeof get2DDataURL === 'function') ? get2DDataURL() : STATE.designDataURL;
+      STATE.canvasJSON = (typeof getCanvas2DJSON === 'function') ? getCanvas2DJSON() : STATE.canvasJSON;
+    }
+    if (typeof syncDesignState === 'function') syncDesignState();
+
+    const applyHintEl = document.getElementById('ai-bg-apply-hint');
+    if (applyHintEl) applyHintEl.classList.remove('hidden');
+  });
+}
+
 // ─── 黑卡：上傳圖片轉黑色調效果 ──────────────────────────
 // 把圖片轉成「黑色調剪影」：色值統一改為接近純黑，保留原始透明度（PNG 去背圖直接可用）。
 // 若原圖沒有透明背景（一般 JPG），以亮度粗略去背（近白視為背景）作為 fallback。
@@ -2802,6 +3026,7 @@ function _layerObjectLabel(o) {
   if (o.name === 'subtitle') return (o.text || '').trim() ? `副標題：${o.text}` : '副標題文字';
   if (o.name === 'black-effect-image') return 'AI 主圖案';
   if (o.name === 'full-bleed-pattern') return '滿版紋理';
+  if (o.name === 'ai-generate-background') return 'AI 生成背景';
   if (o.name === 'black-card-signature') return (o.text || '').trim() ? `藝術簽名：${o.text}` : '藝術簽名';
   if (o.name === 'thermos-signature') return (o.text || '').trim() ? `藝術簽名：${o.text}` : '藝術簽名';
   if (o.name === 'thermos-demo-logo') return 'Logo 圖形';
