@@ -13,7 +13,8 @@
     "test": "node scripts/smoke-test.js",
     "test:form": "node scripts/form-test.js",
     "test:ai-migration": "node scripts/ai-image-migration-test.js",
-    "test:ai-background": "node scripts/ai-background-frontend-test.js"
+    "test:ai-background": "node scripts/ai-background-frontend-test.js",
+    "test:card-background-shape": "node scripts/card-background-shape-test.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",

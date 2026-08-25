@@ -201,7 +201,9 @@ const STATE = {
   textLine1: '',
   textLine2: '',
   bgColor: '#ffffff',
-  backgroundTemplateId: 'wave_single', // 背景蒙版造型id（對應 CARD_MASK_SHAPES，見 preview2d.js），只管形狀不管顏色
+  backgroundTemplateId: 'blank', // 背景造型id（對應 CARD_MASK_SHAPES，見 preview2d.js），只管形狀不管顏色。
+                                  // 悠遊卡／一卡通新設計預設為空白背板（'blank'），客戶需要時才自行選擇造型；
+                                  // 保溫杯／黑卡本來就不使用這個欄位（背景造型區塊對這兩商品隱藏，見 initDesignStep()）。
   waveColor: '#2D7D46',
   waveLightColor: '#dfead8',
   canvasJSON: null,       // 設計稿 canvas 狀態快照（返回時還原用）
@@ -1282,9 +1284,11 @@ function resetDesignStateForProduct(productId) {
   // 避免沿用上一個商品的數量／背景／波浪色／字體
   STATE.qty = _p ? _p.minQty : 1;
   // 造型（backgroundTemplateId，現在存的是 CARD_MASK_SHAPES 的造型id）跟顏色兩者
-  // 分開重設回預設值：顏色固定用楊竹綠白這組原本的預設色，造型固定用第一款「經典波浪」。
+  // 分開重設回預設值：顏色固定用楊竹綠白這組原本的預設色，造型固定用「空白背板」——
+  // 悠遊卡／一卡通新設計預設為空白背板，客戶需要時才自行加入造型，不可再重設成
+  // 'wave_single'（舊版預設「經典波浪」）。
   STATE.bgColor = '#ffffff';
-  STATE.backgroundTemplateId = 'wave_single';
+  STATE.backgroundTemplateId = 'blank';
   STATE.waveColor = '#2D7D46';
   STATE.waveLightColor = '#dfead8';
   STATE.font = undefined;
@@ -1834,9 +1838,8 @@ function initDesignStep() {
   }
 
   const bgTemplateBlock = document.querySelector('.background-template-block');
-  const waveColorPanel = document.getElementById('wave-color-panel');
   if (bgTemplateBlock) bgTemplateBlock.style.display = (isThermos || isBlackCard) ? 'none' : '';
-  if (waveColorPanel) waveColorPanel.style.display = (isThermos || isBlackCard) ? 'none' : '';
+  _syncWaveColorPanelVisibility();
   // 保溫杯／黑卡：造型跟波浪顏色兩塊都藏起來之後，.text-design-tool 這個外層
   // 容器裡就只剩一顆看不到的隱藏色票 input，整塊（含「背景造型與波浪顏色」標題）
   // 一起藏起來，不留一個標題底下空空的區塊。
@@ -1929,6 +1932,22 @@ function initFontGrid() {
   grid.classList.add('font-grid-hidden');
 }
 
+// 波浪顏色面板可見性同步（唯一入口，不分散寫多套顯示判斷）：保溫杯／黑卡本來就完全
+// 不提供背景造型（沿用上面 bgTemplateBlock 的既有判斷，跟這裡的商品類型檢查一致）；
+// 悠遊卡／一卡通則另外依「目前造型是否為空白背板」決定——空白背板底下沒有波浪可
+// 調色，繼續顯示一組波浪色票只會讓客戶誤以為畫面壞掉。呼叫時機：設計頁初始化
+// （initDesignStep()）、草稿恢復完成（會經過 initDesignStep()）、selectMaskShape()
+// 切換造型、切換商品後重新進入設計稿（同樣會經過 initDesignStep()），四個時機都呼叫
+// 這一個函式，不各自維護一份判斷邏輯。
+function _syncWaveColorPanelVisibility() {
+  const waveColorPanel = document.getElementById('wave-color-panel');
+  if (!waveColorPanel) return;
+  const isThermos = STATE.productId === 'thermos';
+  const isBlackCard = STATE.productId === 'black_card';
+  const isBlank = STATE.backgroundTemplateId === 'blank';
+  waveColorPanel.style.display = (isThermos || isBlackCard || isBlank) ? 'none' : '';
+}
+
 // 造型選單：顏色徹底跟造型脫鉤（見 CARD_MASK_SHAPES 開頭註解），這裡每一款的
 // 預覽縮圖直接畫成小 SVG、套用「目前」的波浪主色/淺色，讓縮圖看起來跟畫布上
 // 實際的顏色一致，不是每款都給一組固定假色。
@@ -1991,6 +2010,7 @@ function selectMaskShape(shapeId) {
   if (typeof CARD_MASK_SHAPES === 'undefined') return;
   const shape = CARD_MASK_SHAPES.find(s => s.id === shapeId) || CARD_MASK_SHAPES[0];
   STATE.backgroundTemplateId = shape.id;
+  _syncWaveColorPanelVisibility();
 
   document.querySelectorAll('.background-template-card').forEach(el => {
     el.classList.toggle('selected', el.dataset.template === shape.id);
