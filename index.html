@@ -783,9 +783,11 @@
           </details>
           </div>
 
-          <!-- AI 生成背景（POST /api/generate-image，2026-08-24新增）：只在悠遊卡／一卡通
-               顯示，保溫杯／黑卡不套用這個面板。輸入背景描述→生成→先只顯示預覽，客戶按
-               「套用到卡面」才真的加入畫布，避免還沒確認就先蓋掉原本的設計。 -->
+          <!-- AI 生成背景（POST /api/generate-image，2026-08-24新增，2026-08-24裁切功能改版）：
+               只在悠遊卡／一卡通顯示，保溫杯／黑卡不套用這個面板。輸入背景描述→生成→先只顯示
+               預覽，客戶按「選取背景範圍」開啟裁切彈窗，從生成圖片中選取想要的區域，確認後才
+               真的加入畫布，避免整張生成圖（可能含卡片外框/晶片等元素）直接套用造成「卡片裡
+               又出現一張卡片」。 -->
           <div class="wb-tab-panel" data-tabpanel="aibg" id="ai-background-panel">
           <details class="ai-section q-section" open>
             <summary class="ai-header">
@@ -794,7 +796,7 @@
             <details class="teaching-note">
               <summary>說明</summary>
               <p class="ai-desc">
-                描述想要的卡面背景風格，AI 生成後可先預覽，滿意再套用到卡面；卡面文字、Logo、照片等內容不受影響。
+                描述想要的背景風格，AI 生成後可先預覽；接著從生成圖片中選取喜歡的區域，裁切後才會套用到卡面。卡面文字、Logo、照片等內容不受影響。
               </p>
             </details>
 
@@ -812,16 +814,42 @@
             <div id="ai-bg-error" class="ai-error hidden" role="alert"></div>
 
             <div id="ai-bg-preview" class="hidden"></div>
-            <button type="button" class="btn btn-secondary btn-sm hidden" id="ai-bg-apply-btn" onclick="applyAiBackgroundImage()" style="width:100%;margin-top:8px;">
-              套用到卡面
+            <button type="button" class="btn btn-secondary btn-sm hidden" id="ai-bg-apply-btn" onclick="openAiBgCropModal()" style="width:100%;margin-top:8px;">
+              選取背景範圍
             </button>
-            <p class="black-card-hint black-card-hint-success hidden" id="ai-bg-apply-hint">已套用背景，你可以在左側圖層清單調整順序，或再次生成以替換目前的 AI 背景。</p>
+            <p class="black-card-hint black-card-hint-success hidden" id="ai-bg-apply-hint">已將選取範圍套用為卡面背景，你仍可重新裁切或調整圖層。</p>
 
             <details class="teaching-note">
               <summary>製作須知</summary>
-              <p class="production-note">約 30-60 秒完成，業務確認後再安排正式製作；再次套用會取代目前已套用的 AI 背景，不會重複疊加。</p>
+              <p class="production-note">約 30-60 秒完成，業務確認後再安排正式製作；每次套用會取代目前已套用的 AI 背景，不會重複疊加；原始生成圖片會保留，可重新裁切不必再次生成。</p>
             </details>
           </details>
+          </div>
+
+          <!-- AI 生成背景：裁切彈窗（2026-08-24新增）。沿用 .clear-draft-modal 系列既有彈窗
+               樣式（見 css/style.css .clear-draft-modal-panel），加寬到 .ai-bg-crop-modal-panel
+               以容納裁切畫布。裁切框比例由 preview2d.js _computeDesignAreaRatio() 依目前商品的
+               labelArea 動態計算，不寫死悠遊卡尺寸；套用時只讀取裁切框內的原始圖片像素，
+               不會把裁切框本身或任何操作介面畫進最終圖片。 -->
+          <div id="ai-bg-crop-modal" class="clear-draft-modal hidden">
+            <div class="clear-draft-modal-backdrop" onclick="closeAiBgCropModal()"></div>
+            <div class="clear-draft-modal-panel ai-bg-crop-modal-panel" role="dialog" aria-modal="true" aria-labelledby="ai-bg-crop-modal-title">
+              <h3 id="ai-bg-crop-modal-title">選取背景範圍</h3>
+              <p>拖曳及縮放選取框，選擇要套用到商品的背景範圍。</p>
+
+              <div class="ai-bg-crop-canvas-wrap" id="ai-bg-crop-canvas-wrap">
+                <canvas id="ai-bg-crop-canvas"></canvas>
+              </div>
+
+              <p id="ai-bg-crop-loading" class="ai-bg-crop-loading hidden" role="status">背景圖片載入中…</p>
+              <div id="ai-bg-crop-error" class="ai-error hidden" role="alert"></div>
+
+              <div class="clear-draft-modal-actions ai-bg-crop-modal-actions">
+                <button type="button" class="clear-draft-modal-cancel" id="ai-bg-crop-reset-btn" onclick="resetAiBgCropSelection()">重新選取</button>
+                <button type="button" class="clear-draft-modal-cancel" onclick="closeAiBgCropModal()">取消</button>
+                <button type="button" class="btn btn-primary btn-sm" id="ai-bg-crop-apply-btn" onclick="confirmAiBgCropApply()" disabled>套用選取範圍</button>
+              </div>
+            </div>
           </div>
 
         </div>

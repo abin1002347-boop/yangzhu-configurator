@@ -904,6 +904,9 @@ function abortAiBackgroundGeneration() {
   }
   aiBackgroundGenerating = false;
   lastAiBackgroundImageDataURL = null;
+  // 裁切彈窗如果還開著（例如商品切換發生在使用者還在裁切畫面時），一併關閉並清掉裁切
+  // 畫布狀態，避免舊商品比例的裁切框殘留、或裁切結果被誤套到切換後的新商品／新畫布上。
+  if (typeof closeAiBgCropModal === 'function') closeAiBgCropModal();
   const previewEl = document.getElementById('ai-bg-preview');
   if (previewEl) previewEl.classList.add('hidden');
   const applyBtn = document.getElementById('ai-bg-apply-btn');
@@ -1076,14 +1079,306 @@ async function generateAiBackgroundImage() {
   }
 }
 
-// 套用到卡面：cover（填滿裁切）鋪滿整個印刷區，沿用 getFillPlacement(img, true) 與
-// keepAboveProductBg()——跟 fillCanvasWithSelectedImage() 完全同一套算法與疊層規則，
+// ─── AI 生成背景：裁切選取（2026-08-24新增）────────────────────────
+// 問題背景：AI 生成的圖片可能包含完整卡片外框、晶片、文字等內容（即使提示詞已經要求
+// 純背景，仍無法100%保證），過去直接把整張生成圖套滿卡面，會出現「卡片裡又有一張卡片」。
+// 現在改成：生成完成後只顯示預覽，客戶按「選取背景範圍」開啟裁切彈窗，在圖片上拖曳／
+// 縮放一個比例鎖定的裁切框，選好範圍後才裁切出該區域、套用到卡面；原始 AI 圖片
+// （lastAiBackgroundImageDataURL）全程保留不變，可重新開啟裁切彈窗再次選取，不必
+// 重新生成、不必再次付費。
+
+// 裁切框比例：跟 getFillPlacement() 同一套 labelArea 換算邏輯（只取比例，不需要圖片
+// 尺寸），悠遊卡/一卡通/黑卡/保溫杯皆適用，不寫死任何商品的固定比例。
+function _computeDesignAreaRatio() {
+  const w = canvas2d.getWidth();
+  const h = canvas2d.getHeight();
+  let areaW = w, areaH = h;
+  if (currentProduct && currentProduct.labelArea) {
+    const la = currentProduct.labelArea;
+    areaW = w * la.wRatio; areaH = h * la.hRatio;
+  }
+  return areaW / areaH;
+}
+
+let _aiBgCrop = null; // 裁切彈窗開啟期間的狀態：{ canvas, img, rect, overlay四方, display座標與尺寸, natural尺寸, ratio }
+
+// 初始化競速保護（2026-08-24補正，回應Codex複驗）：_initAiBgCropCanvas() 內部有一段
+// await loadImageEl()，這段等待期間使用者可能已經關閉彈窗、或很快地關閉又重新開啟一次
+// （第二次開啟會呼叫新的_initAiBgCropCanvas()）。用一個單調遞增的序號token標記「這是第幾次
+// 初始化」，只有在await之後token仍然等於目前最新值，才代表這次載入結果還算數；否則代表
+// 使用者已經關閉／已經開啟了更新的一次，直接放棄這次結果，不建立畫布、不寫入任何狀態、
+// 也不觸碰DOM——避免「已關閉的彈窗卻在背景默默建立一個沒人看得到的Fabric Canvas」造成
+// 記憶體殘留，也避免「快速關閉再開啟時，第一次（較早）的載入結果覆蓋第二次（使用者
+// 實際看到的那次）」。_teardownAiBgCropCanvas() 每次呼叫都會讓token前進一格，因此「關閉
+// 彈窗」本身就會讓當下任何還在進行中的初始化立即失效，不需要額外呼叫AbortController。
+let _aiBgCropInitToken = 0;
+
+// 裁切彈窗的載入中狀態：圖片／畫布初始化完成前，「套用選取範圍」與「重新選取」按鈕
+// 都停用並顯示「背景圖片載入中」文字，避免使用者在真正原因是「還沒載入完成」時，
+// 誤按套用卻看到語意不符的「選取範圍太小」錯誤訊息。
+// 「載入中」文字提示的顯示／隱藏，跟下面 _setAiBgCropButtonsEnabled() 刻意分開兩支函式：
+// 載入失敗時要隱藏「載入中」文字，但套用／重新選取按鈕仍要維持停用（沒有有效的裁切
+// 狀態可以操作），不能因為呼叫同一支「關閉載入中」的函式就順便誤把按鈕啟用。
+function _setAiBgCropLoading(on) {
+  const loadingEl = document.getElementById('ai-bg-crop-loading');
+  if (loadingEl) loadingEl.classList.toggle('hidden', !on);
+}
+function _setAiBgCropButtonsEnabled(enabled) {
+  const applyBtn = document.getElementById('ai-bg-crop-apply-btn');
+  const resetBtn = document.getElementById('ai-bg-crop-reset-btn');
+  if (applyBtn) applyBtn.disabled = !enabled;
+  if (resetBtn) resetBtn.disabled = !enabled;
+}
+
+// 裁切框初始（及「重新選取」）幾何：置中、鎖定目前商品設計區比例，最大不超過圖片顯示框，
+// 保留約14%邊界方便使用者一開始就能拖曳縮放，不會一開場就頂到圖片邊緣。
+function _aiBgCropDefaultRectGeometry(displayLeft, displayTop, displayW, displayH, ratio) {
+  let rectW = displayW;
+  let rectH = rectW / ratio;
+  if (rectH > displayH) {
+    rectH = displayH;
+    rectW = rectH * ratio;
+  }
+  rectW *= 0.86; rectH *= 0.86;
+  return {
+    left: displayLeft + (displayW - rectW) / 2,
+    top:  displayTop  + (displayH - rectH) / 2,
+    width: rectW, height: rectH
+  };
+}
+
+// 裁切框強制等比例縮放：不管從哪個角落拖曳，一律取 scaleX/scaleY 其中較大者、兩者同步設成
+// 一樣的值，確保裁切框的寬高比例永遠等於目前商品設計區比例，不會被拖成不對的比例；
+// 同時限制縮放上限（不超出圖片顯示框）與下限（不能小到選取不到有意義的內容）。
+function _clampAiBgCropScale() {
+  const st = _aiBgCrop;
+  if (!st) return;
+  const rect = st.rect;
+  const s = Math.max(rect.scaleX, rect.scaleY);
+  const maxScale = Math.min(st.displayW / rect.width, st.displayH / rect.height);
+  const minDim = Math.min(st.displayW, st.displayH);
+  const minScale = Math.max(0.001, (minDim * 0.25) / Math.min(rect.width, rect.height));
+  let finalScale = s;
+  if (finalScale > maxScale) finalScale = maxScale;
+  if (finalScale < minScale) finalScale = minScale;
+  rect.set({ scaleX: finalScale, scaleY: finalScale });
+}
+
+// 裁切框不得超出原始圖片範圍：每次拖曳／縮放後都夾回圖片顯示框內
+function _clampAiBgCropRect() {
+  const st = _aiBgCrop;
+  if (!st) return;
+  const rect = st.rect;
+  const w = rect.width * rect.scaleX;
+  const h = rect.height * rect.scaleY;
+  let left = rect.left, top = rect.top;
+  if (left < st.displayLeft) left = st.displayLeft;
+  if (top < st.displayTop) top = st.displayTop;
+  if (left + w > st.displayLeft + st.displayW) left = st.displayLeft + st.displayW - w;
+  if (top + h > st.displayTop + st.displayH) top = st.displayTop + st.displayH - h;
+  rect.set({ left, top });
+}
+
+// 裁切框外側四個遮罩色塊（上/下/左/右），視覺上標示「裁切框外＝不會套用的範圍」
+function _updateAiBgCropOverlay() {
+  const st = _aiBgCrop;
+  if (!st) return;
+  const rect = st.rect;
+  const w = rect.width * rect.scaleX;
+  const h = rect.height * rect.scaleY;
+  const left = rect.left, top = rect.top;
+  st.overlayTop.set(   { left: st.displayLeft, top: st.displayTop, width: st.displayW, height: Math.max(0, top - st.displayTop) });
+  st.overlayBottom.set({ left: st.displayLeft, top: top + h,       width: st.displayW, height: Math.max(0, (st.displayTop + st.displayH) - (top + h)) });
+  st.overlayLeft.set(  { left: st.displayLeft, top: top,           width: Math.max(0, left - st.displayLeft), height: h });
+  st.overlayRight.set( { left: left + w,       top: top,           width: Math.max(0, (st.displayLeft + st.displayW) - (left + w)), height: h });
+  st.canvas.requestRenderAll();
+}
+
+// 關閉彈窗／中止生成時呼叫：釋放裁切用的獨立 Fabric Canvas，避免殘留的第二個 canvas
+// 實例繼續佔用記憶體，也避免下次開啟彈窗時疊加到舊的物件上。
+function _teardownAiBgCropCanvas() {
+  _aiBgCropInitToken++; // 讓任何還在進行中（await載入圖片期間）的初始化立即失效
+  if (_aiBgCrop && _aiBgCrop.canvas) {
+    _aiBgCrop.canvas.dispose();
+  }
+  _aiBgCrop = null;
+  const errEl = document.getElementById('ai-bg-crop-error');
+  if (errEl) errEl.classList.add('hidden');
+  _setAiBgCropLoading(false);
+  _setAiBgCropButtonsEnabled(false); // 沒有裁切狀態可操作，套用／重新選取都停用
+}
+
+// 開啟裁切彈窗時呼叫（configurator.js openAiBgCropModal() 負責顯示彈窗本身，這裡負責
+// 畫布內容）：載入原始 AI 生成圖片、依目前彈窗容器實際寬度（CSS已處理各尺寸螢幕的
+// 最大寬度）等比例縮小顯示，裁切框比例則依目前商品設計區比例計算。
+async function _initAiBgCropCanvas(dataURL) {
+  const errEl = document.getElementById('ai-bg-crop-error');
+  if (errEl) errEl.classList.add('hidden');
+  _teardownAiBgCropCanvas(); // 內部會讓 _aiBgCropInitToken 前進一格
+  const myToken = _aiBgCropInitToken;
+  _setAiBgCropLoading(true);
+
+  let img;
+  try {
+    img = await loadImageEl(dataURL);
+  } catch (e) {
+    if (myToken !== _aiBgCropInitToken) return; // 彈窗已關閉／已重新開啟，這次載入結果不算數
+    _setAiBgCropLoading(false);
+    if (errEl) { errEl.textContent = '圖片載入失敗，請關閉後重新生成一次'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  if (myToken !== _aiBgCropInitToken) return; // await期間也可能被關閉/重開，圖片decode完成後再確認一次
+
+  const naturalW = img.naturalWidth || img.width;
+  const naturalH = img.naturalHeight || img.height;
+  if (!naturalW || !naturalH) {
+    _setAiBgCropLoading(false);
+    if (errEl) { errEl.textContent = '圖片載入失敗，請關閉後重新生成一次'; errEl.classList.remove('hidden'); }
+    return;
+  }
+
+  const wrap = document.getElementById('ai-bg-crop-canvas-wrap');
+  const canvasEl = document.getElementById('ai-bg-crop-canvas');
+  if (!wrap || !canvasEl) { _setAiBgCropLoading(false); return; }
+
+  const availW = wrap.clientWidth || 320;
+  const displayW = Math.max(200, Math.min(availW, 560));
+  const displayH = Math.round(displayW * (naturalH / naturalW));
+
+  canvasEl.width = displayW;
+  canvasEl.height = displayH;
+
+  const fabricCanvas = new fabric.Canvas('ai-bg-crop-canvas', {
+    width: displayW, height: displayH,
+    selection: false
+  });
+
+  const bgImg = new fabric.Image(img, {
+    left: 0, top: 0, originX: 'left', originY: 'top',
+    scaleX: displayW / naturalW, scaleY: displayH / naturalH,
+    selectable: false, evented: false
+  });
+  fabricCanvas.add(bgImg);
+
+  const overlayBase = { fill: 'rgba(20,22,28,0.55)', selectable: false, evented: false, originX: 'left', originY: 'top' };
+  const overlayTop    = new fabric.Rect(Object.assign({}, overlayBase));
+  const overlayBottom = new fabric.Rect(Object.assign({}, overlayBase));
+  const overlayLeft   = new fabric.Rect(Object.assign({}, overlayBase));
+  const overlayRight  = new fabric.Rect(Object.assign({}, overlayBase));
+  fabricCanvas.add(overlayTop, overlayBottom, overlayLeft, overlayRight);
+
+  const ratio = _computeDesignAreaRatio();
+  const geo = _aiBgCropDefaultRectGeometry(0, 0, displayW, displayH, ratio);
+  const rect = new fabric.Rect({
+    left: geo.left, top: geo.top, width: geo.width, height: geo.height,
+    originX: 'left', originY: 'top',
+    fill: 'transparent', stroke: '#ffffff', strokeWidth: 2, strokeDashArray: [6, 4],
+    lockRotation: true, hasRotatingPoint: false
+  });
+  // 裁切框專屬觸控熱區（2026-08-24補正，回應Codex複驗）：全域 fabric.Object.prototype.
+  // touchCornerSize 是 34px（見本檔案上方 canvas2d 初始化區塊），小於行動介面建議的44px，
+  // 但那個全域設定同時影響一般照片/文字/裝飾圖形等所有物件的把手，不能直接改全域值。
+  // 這裡只在裁切框「這一個物件實例」上覆蓋 touchCornerSize，屬於Fabric.js標準的
+  // instance-level覆蓋寫法（設定實例屬性會遮蔽prototype預設值），不影響其他任何物件的
+  // 觸控熱區；桌面滑鼠用的 cornerSize（視覺大小）維持不動，一樣是全域的11px。
+  rect.touchCornerSize = 48;
+  rect.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false, mtr: false });
+  fabricCanvas.add(rect);
+  fabricCanvas.setActiveObject(rect);
+
+  if (myToken !== _aiBgCropInitToken) {
+    // 理論上這個同步區塊執行期間不會有其他程式碼插入把token改掉，這裡純屬防禦性檢查——
+    // 萬一真的發生，直接釋放剛剛建立好的畫布，不留下沒人看得到的殘留 Fabric Canvas。
+    fabricCanvas.dispose();
+    return;
+  }
+
+  _aiBgCrop = {
+    canvas: fabricCanvas, img, rect,
+    overlayTop, overlayBottom, overlayLeft, overlayRight,
+    displayLeft: 0, displayTop: 0, displayW, displayH,
+    naturalW, naturalH, ratio
+  };
+
+  _updateAiBgCropOverlay();
+
+  fabricCanvas.on('object:moving', () => { _clampAiBgCropRect(); _updateAiBgCropOverlay(); });
+  fabricCanvas.on('object:scaling', () => { _clampAiBgCropScale(); _clampAiBgCropRect(); _updateAiBgCropOverlay(); });
+
+  _setAiBgCropLoading(false);
+  _setAiBgCropButtonsEnabled(true); // 圖片與裁切框都初始化成功，套用／重新選取才真正可用
+
+  // 初始化完成，焦點移到第一個操作按鈕（「重新選取」），方便鍵盤／輔助科技使用者
+  // 接續操作，也讓一般使用者清楚知道裁切區塊已經準備好了
+  const resetBtn = document.getElementById('ai-bg-crop-reset-btn');
+  if (resetBtn) resetBtn.focus();
+}
+
+// 「重新選取」：裁切框回到初始置中位置與大小，不影響原始圖片或已經套用到卡面的內容
+function resetAiBgCropSelection() {
+  const st = _aiBgCrop;
+  if (!st) return;
+  const geo = _aiBgCropDefaultRectGeometry(st.displayLeft, st.displayTop, st.displayW, st.displayH, st.ratio);
+  st.rect.set({ left: geo.left, top: geo.top, width: geo.width, height: geo.height, scaleX: 1, scaleY: 1 });
+  st.canvas.setActiveObject(st.rect);
+  _updateAiBgCropOverlay();
+  const errEl = document.getElementById('ai-bg-crop-error');
+  if (errEl) errEl.classList.add('hidden');
+}
+
+// 從「原始」<img> 元素（不是裁切彈窗的 Fabric Canvas 畫面）依裁切框在顯示座標中的位置，
+// 換算回原圖全解析度像素座標後取樣，裁切框、遮罩等操作介面不會被畫進最終圖片。
+function _extractAiBgCroppedDataURL() {
+  const st = _aiBgCrop;
+  if (!st) return null;
+  const rect = st.rect;
+  const w = rect.width * rect.scaleX;
+  const h = rect.height * rect.scaleY;
+  const left = rect.left, top = rect.top;
+
+  const scale = st.naturalW / st.displayW; // displayW/H 是等比例縮小顯示，X/Y換算比例相同
+  const sx = Math.max(0, Math.round((left - st.displayLeft) * scale));
+  const sy = Math.max(0, Math.round((top  - st.displayTop)  * scale));
+  const sw = Math.min(st.naturalW - sx, Math.round(w * scale));
+  const sh = Math.min(st.naturalH - sy, Math.round(h * scale));
+  if (sw < 10 || sh < 10) return null;
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = sw;
+  outCanvas.height = sh;
+  const ctx = outCanvas.getContext('2d');
+  ctx.drawImage(st.img, sx, sy, sw, sh, 0, 0, sw, sh);
+  return outCanvas.toDataURL('image/png');
+}
+
+// 「套用選取範圍」（彈窗內）：擷取裁切結果後關閉彈窗並套用；擷取失敗（裁切框太小等
+// 異常情況）顯示彈窗內錯誤訊息，不使用瀏覽器原生 alert()，也不會無反應。
+function confirmAiBgCropApply() {
+  const errEl = document.getElementById('ai-bg-crop-error');
+  if (errEl) errEl.classList.add('hidden');
+  // 裁切畫布還沒初始化完成時，按鈕理論上已經被 _setAiBgCropLoading(true) 停用擋掉這個情況；
+  // 這裡是防禦性檢查（例如透過鍵盤Enter觸發），不能讓「其實是還沒載入完成」被誤顯示成
+  // 語意不符的「選取範圍太小」。
+  if (!_aiBgCrop) return;
+  const dataURL = _extractAiBgCroppedDataURL();
+  if (!dataURL) {
+    if (errEl) { errEl.textContent = '選取範圍太小，請重新調整裁切框後再試一次'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  applyCroppedAiBackgroundImage(dataURL);
+  if (typeof closeAiBgCropModal === 'function') closeAiBgCropModal();
+}
+
+// 套用裁切後的圖片到卡面：cover（填滿裁切）鋪滿整個印刷區，沿用 getFillPlacement(img, true)
+// 與 keepAboveProductBg()——跟 fillCanvasWithSelectedImage() 完全同一套算法與疊層規則，
 // 圖層維持在文字／Logo／照片等客製內容下方，也維持在 product-bg／template-bg 之上；
 // easycard／ipass 已有 canvas 級 clipPath（_applyCardShellClipPath()）處理圓角裁切，
 // 不需要再另外設定物件級 clipPath。再次套用時先移除舊的 AI 背景物件，不會一直堆疊。
-function applyAiBackgroundImage() {
-  if (!lastAiBackgroundImageDataURL || !canvas2d) return;
-  fabric.Image.fromURL(lastAiBackgroundImageDataURL, img => {
+// 傳入的 dataURL 是「已經裁切好」的區域（見 _extractAiBgCroppedDataURL()），不是原始整張
+// AI 生成圖片——lastAiBackgroundImageDataURL（原始圖）在這支函式全程不會被改動。
+function applyCroppedAiBackgroundImage(dataURL) {
+  if (!dataURL || !canvas2d) return;
+  fabric.Image.fromURL(dataURL, img => {
     canvas2d.getObjects().filter(o => o.name === 'ai-generate-background').forEach(o => canvas2d.remove(o));
 
     const place = getFillPlacement(img, true);

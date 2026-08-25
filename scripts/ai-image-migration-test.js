@@ -373,6 +373,293 @@ function runPartA() {
       fail('A11. dall-e-3 舊價格資料狀態改變了', JSON.stringify(dalle3));
     }
 
+    // ── 6. migrateGenerateImagePromptToBackgroundOnly()：generate_image_main 提示詞
+    //    遷移到純背景素材版本（2026-08-24裁切功能改版新增，回應Codex複驗「缺少正式回歸
+    //    測試」的意見）。同一支獨立臨時資料庫、同一個行程，接續上面的圖片模型migration
+    //    測試繼續測，不另外開新的臨時資料夾。───────────────────────────────
+    const LEGACY_GENERATE_IMAGE_PROMPT = `設計一張橫向卡片背景印刷圖案（比例 85:54，類似悠遊卡/信用卡），圖案必須完整填滿整個畫面、四邊無任何留白，直接可印製在「{{PRODUCT_NAME}}」上。主題內容：{{USER_INPUT}}。設計規範：色彩飽滿鮮豔，滿版構圖四邊無白邊，無任何文字數字，高品質商業插畫，橫向印刷適用。`;
+
+    // 6a. 全新資料庫（這支腳本一開始建立的那個）預設就應該已經是新版純背景提示詞
+    const freshPrompt = db.getAiPromptSetting('generate_image_main');
+    const freshPromptOk = !!freshPrompt && freshPrompt.content.includes('僅作為背景素材使用') && !freshPrompt.content.includes('類似悠遊卡');
+    if (freshPromptOk) pass('A12. 全新資料庫：generate_image_main 預設已是新版純背景提示詞');
+    else fail('A12. 全新資料庫的 generate_image_main 提示詞不符預期', JSON.stringify(freshPrompt));
+
+    // 6b. 模擬舊資料庫：手動把內容改回舊版字串（模擬尚未遷移的既有資料庫），驗證測試前提本身正確
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'system' WHERE prompt_key = 'generate_image_main'`).run(LEGACY_GENERATE_IMAGE_PROMPT);
+    const beforePromptMigration = db.getAiPromptSetting('generate_image_main');
+    if (beforePromptMigration.content === LEGACY_GENERATE_IMAGE_PROMPT) {
+      pass('A13. 模擬舊資料庫的 generate_image_main 提示詞建立成功');
+    } else {
+      fail('A13. 模擬舊資料庫的提示詞內容建立失敗', JSON.stringify(beforePromptMigration));
+    }
+
+    // 6c. 第一次執行 migration：應該更新這1筆，內容改成新版純背景提示詞
+    const promptResult1 = db.migrateGenerateImagePromptToBackgroundOnly();
+    const afterPromptMigration1 = db.getAiPromptSetting('generate_image_main');
+    if (promptResult1.promptRowsUpdated === 1) {
+      pass('A14. 第一次執行 migrateGenerateImagePromptToBackgroundOnly() 回報 promptRowsUpdated=1');
+    } else {
+      fail('A14. 第一次執行回報的異動筆數不符預期', JSON.stringify(promptResult1));
+    }
+    const newContentOk = afterPromptMigration1.content.includes('禁止出現任何文字') &&
+      afterPromptMigration1.content.includes('禁止出現悠遊卡') &&
+      !afterPromptMigration1.content.includes('類似悠遊卡');
+    if (newContentOk) {
+      pass('A15. migration 後 generate_image_main 內容已包含純背景限制（禁止文字／禁止卡片外型等描述）');
+    } else {
+      fail('A15. migration 後的提示詞內容不符預期', afterPromptMigration1.content);
+    }
+
+    // 6d. 第二次執行，驗證冪等：不應該再更新任何列，內容也應該完全相同
+    const promptResult2 = db.migrateGenerateImagePromptToBackgroundOnly();
+    const afterPromptMigration2 = db.getAiPromptSetting('generate_image_main');
+    if (promptResult2.promptRowsUpdated === 0) {
+      pass('A16. 第二次執行 migrateGenerateImagePromptToBackgroundOnly() 回報 promptRowsUpdated=0（冪等）');
+    } else {
+      fail('A16. 第二次執行仍回報有異動', JSON.stringify(promptResult2));
+    }
+    if (afterPromptMigration2.content === afterPromptMigration1.content) {
+      pass('A17. 第二次執行後，提示詞內容與第一次執行後完全相同，未再被改變');
+    } else {
+      fail('A17. 第二次執行後提示詞內容改變了', '不應該再有變動');
+    }
+
+    // 6e. 管理員自訂提示詞不得被覆蓋：把內容改成「不等於舊版預設值」的自訂文字——
+    //     migration 的 UPDATE 條件式限定「目前內容剛好等於舊版預設值」才會更新，
+    //     自訂內容不符合這個條件，理論上完全不會被這支migration碰到。
+    const customPromptContent = 'MIGRATION_TEST_ADMIN_CUSTOM_PROMPT_不應被migration覆蓋';
+    const customUpdatedAt = new Date(Date.now() - 3600000).toISOString(); // 隨便一個過去時間，方便比對「完全沒被改動」
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'owner', updated_at = ? WHERE prompt_key = 'generate_image_main'`).run(customPromptContent, customUpdatedAt);
+    const promptResult3 = db.migrateGenerateImagePromptToBackgroundOnly();
+    const afterCustom = db.getAiPromptSetting('generate_image_main');
+    if (promptResult3.promptRowsUpdated === 0 && afterCustom.content === customPromptContent) {
+      pass('A18. 管理員自訂提示詞（不等於舊版預設值）不會被 migration 覆蓋，promptRowsUpdated=0');
+    } else {
+      fail('A18. migration 疑似覆蓋了管理員自訂的提示詞內容', JSON.stringify({ promptResult3, afterCustom }));
+    }
+    if (afterCustom.updatedBy === 'owner' && afterCustom.updatedAt === customUpdatedAt) {
+      pass('A19. 管理員自訂提示詞的 updated_by／updated_at 維持原樣，沒有被改成 system-migration-20260824-crop');
+    } else {
+      fail('A19. 管理員自訂提示詞的 updated_by／updated_at 被意外改動', JSON.stringify(afterCustom));
+    }
+
+    // ── 7. inspectKnownCorruptedAiPrompts()／migrateKnownCorruptedAiPromptsToDefaults()：
+    //    Codex 唯讀複驗本機正式 admin.db 發現 generate_image_main／generate_design_system
+    //    兩筆提示詞的中文已被永久轉成 ASCII 問號，這裡補上對應的隔離測試。下面兩個常數是
+    //    CC 用唯讀連線直接讀取正式 `後台資料庫/admin.db` 取得的精確損壞內容（逐字元比對），
+    //    只用在這支隔離測試腳本裡模擬同一種已知損壞，不會、也從未寫回正式資料庫。同一個
+    //    獨立臨時資料庫、同一個行程，接續上面 A1-A19 繼續測，不另外開新的臨時資料夾。──
+    const KNOWN_CORRUPTED_GENERATE_IMAGE_MAIN = "??????????????(?? 85:54,?????/???),????????????????????,???????{{PRODUCT_NAME}}???????:{{USER_INPUT}}?????:??????,?????????,???????,???????,???????";
+    const KNOWN_CORRUPTED_GENERATE_DESIGN_SYSTEM = "???????????,????????????????????\n?????????????????????,????????????\n\n????:??????,?????????????????\n\n??:\n- ???????,????\n- ???(???):10???,???????\n- ???(???):15???,??????????\n- ????:?? HEX ??,??????\n- ?? 3 ????????\n- ??? JSON,???????";
+
+    // 這一整段開始前先拍照：其他三支提示詞內容、AI功能模型設定、AI使用次數限制，
+    // 之後 A33／A34 用來確認新函式全程沒有影響到這些不相關的資料。
+    const OTHER_PROMPT_KEYS_SNAPSHOT_BEFORE = ['black_card_pattern_system', 'cartoon_image_base', 'cartoon_image_black_card']
+      .map(k => ({ promptKey: k, content: db.getAllAiPromptSettings().find(p => p.promptKey === k).content }));
+    const FEATURE_SETTINGS_SNAPSHOT_BEFORE = db.getAllAiFeatureSettings();
+    const USAGE_LIMIT_SNAPSHOT_BEFORE = db.getAiUsageLimitSettings();
+
+    // 先把上面A18的自訂內容還原成目前正確預設值，確保這一整段從乾淨的「already_current」
+    // 起點開始測試，不受A18殘留狀態影響。
+    const currentDefaults = {
+      generate_image_main: freshPrompt.content, // A12已驗證這就是目前 AI_PROMPT_DEFAULTS 的純背景版本
+      generate_design_system: null // 稍後用 db.getAllAiPromptSettings() 實際取值，避免手動謄打長字串出錯
+    };
+    currentDefaults.generate_design_system = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_design_system').content;
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'system', updated_at = ? WHERE prompt_key = 'generate_image_main'`).run(currentDefaults.generate_image_main, new Date().toISOString());
+
+    // 7a. 全新（已還原）狀態：兩筆都應該分類成 already_current
+    const inspectFresh = db.inspectKnownCorruptedAiPrompts();
+    const freshImg = inspectFresh.find(r => r.promptKey === 'generate_image_main');
+    const freshDesign = inspectFresh.find(r => r.promptKey === 'generate_design_system');
+    if (freshImg.status === 'already_current' && freshDesign.status === 'already_current') {
+      pass('A20. 兩筆提示詞皆為目前正確內容時，inspectKnownCorruptedAiPrompts() 分類為 already_current');
+    } else {
+      fail('A20. 已還原狀態的分類不符預期', JSON.stringify(inspectFresh));
+    }
+
+    // 7b. 建立精確的兩筆問號損壞資料（模擬正式站已確認過的損壞內容與 updated_by／updated_at）
+    const knownCorruptedTimestamp = '2026-08-07T15:50:06.253Z';
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'admin', updated_at = ? WHERE prompt_key = 'generate_image_main'`).run(KNOWN_CORRUPTED_GENERATE_IMAGE_MAIN, knownCorruptedTimestamp);
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'admin', updated_at = ? WHERE prompt_key = 'generate_design_system'`).run(KNOWN_CORRUPTED_GENERATE_DESIGN_SYSTEM, knownCorruptedTimestamp);
+    const corruptedRowImg = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_image_main');
+    const corruptedRowDesign = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_design_system');
+    if (corruptedRowImg.content === KNOWN_CORRUPTED_GENERATE_IMAGE_MAIN && corruptedRowDesign.content === KNOWN_CORRUPTED_GENERATE_DESIGN_SYSTEM) {
+      pass('A21. 已建立精確的兩筆問號損壞測試資料');
+    } else {
+      fail('A21. 建立問號損壞測試資料失敗', JSON.stringify({ corruptedRowImg, corruptedRowDesign }));
+    }
+
+    // 7c. 唯讀分析：兩筆都應該正確分類成 known_corrupted
+    const inspectCorrupted = db.inspectKnownCorruptedAiPrompts();
+    const corruptedImgStatus = inspectCorrupted.find(r => r.promptKey === 'generate_image_main');
+    const corruptedDesignStatus = inspectCorrupted.find(r => r.promptKey === 'generate_design_system');
+    if (corruptedImgStatus.status === 'known_corrupted' && corruptedDesignStatus.status === 'known_corrupted') {
+      pass('A22. inspectKnownCorruptedAiPrompts() 正確把兩筆問號損壞內容分類成 known_corrupted');
+    } else {
+      fail('A22. 唯讀分析分類不符預期', JSON.stringify(inspectCorrupted));
+    }
+
+    // 7d. 唯讀分析本身不得寫入資料庫：分析前後兩筆的 content／updated_by／updated_at 完全不變
+    const afterInspectRowImg = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_image_main');
+    const afterInspectRowDesign = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_design_system');
+    const inspectIsReadOnly = afterInspectRowImg.content === KNOWN_CORRUPTED_GENERATE_IMAGE_MAIN && afterInspectRowImg.updatedBy === 'admin' && afterInspectRowImg.updatedAt === knownCorruptedTimestamp
+      && afterInspectRowDesign.content === KNOWN_CORRUPTED_GENERATE_DESIGN_SYSTEM && afterInspectRowDesign.updatedBy === 'admin' && afterInspectRowDesign.updatedAt === knownCorruptedTimestamp;
+    if (inspectIsReadOnly) {
+      pass('A23. 執行 inspectKnownCorruptedAiPrompts() 後，兩筆資料內容與 updated_by／updated_at 完全沒變（純唯讀）');
+    } else {
+      fail('A23. inspectKnownCorruptedAiPrompts() 疑似有寫入副作用', JSON.stringify({ afterInspectRowImg, afterInspectRowDesign }));
+    }
+
+    // 7e. 執行修復 migration：總更新筆數應為2，兩筆的 originalStatus 都應回報 known_corrupted
+    const repairResult1 = db.migrateKnownCorruptedAiPromptsToDefaults();
+    if (repairResult1.totalRowsUpdated === 2
+        && repairResult1.results.generate_image_main.originalStatus === 'known_corrupted' && repairResult1.results.generate_image_main.updated === true
+        && repairResult1.results.generate_design_system.originalStatus === 'known_corrupted' && repairResult1.results.generate_design_system.updated === true) {
+      pass('A24. migrateKnownCorruptedAiPromptsToDefaults() 第一次執行：兩筆問號損壞資料皆正確辨識並更新，totalRowsUpdated=2');
+    } else {
+      fail('A24. 修復 migration 第一次執行結果不符預期', JSON.stringify(repairResult1));
+    }
+
+    // 7f. generate_image_main 還原成目前純背景提示詞（不是舊版「類似悠遊卡」內容）
+    const repairedImg = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_image_main');
+    if (repairedImg.content === currentDefaults.generate_image_main
+        && repairedImg.content.includes('僅作為背景素材使用') && !repairedImg.content.includes('類似悠遊卡')
+        && repairedImg.updatedBy === 'system-migration-20260824-corrupted-prompt-repair') {
+      pass('A25. generate_image_main 修復後等於目前 AI_PROMPT_DEFAULTS 的純背景提示詞，updated_by 為新遷移名稱');
+    } else {
+      fail('A25. generate_image_main 修復後內容不符預期', JSON.stringify(repairedImg));
+    }
+
+    // 7g. generate_design_system 還原成目前正確的楊竹設計顧問提示詞
+    const repairedDesign = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_design_system');
+    if (repairedDesign.content === currentDefaults.generate_design_system
+        && repairedDesign.content.includes('楊竹科技的設計顧問') && repairedDesign.content.includes('回傳純 JSON')
+        && repairedDesign.updatedBy === 'system-migration-20260824-corrupted-prompt-repair') {
+      pass('A26. generate_design_system 修復後等於目前 AI_PROMPT_DEFAULTS 的正確設計顧問提示詞，updated_by 為新遷移名稱');
+    } else {
+      fail('A26. generate_design_system 修復後內容不符預期', JSON.stringify(repairedDesign));
+    }
+
+    // 7h. 第二次執行修復 migration：應該完全冪等，totalRowsUpdated=0，兩筆內容與第一次執行後相同
+    const repairResult2 = db.migrateKnownCorruptedAiPromptsToDefaults();
+    const repairedImgAfter2 = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_image_main');
+    const repairedDesignAfter2 = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_design_system');
+    if (repairResult2.totalRowsUpdated === 0
+        && repairResult2.results.generate_image_main.originalStatus === 'already_current'
+        && repairResult2.results.generate_design_system.originalStatus === 'already_current') {
+      pass('A27. migrateKnownCorruptedAiPromptsToDefaults() 第二次執行 totalRowsUpdated=0（冪等）');
+    } else {
+      fail('A27. 修復 migration 第二次執行結果不符預期', JSON.stringify(repairResult2));
+    }
+    if (repairedImgAfter2.content === repairedImg.content && repairedImgAfter2.updatedAt === repairedImg.updatedAt
+        && repairedDesignAfter2.content === repairedDesign.content && repairedDesignAfter2.updatedAt === repairedDesign.updatedAt) {
+      pass('A28. 第二次執行後，兩筆內容與 updated_at 皆與第一次執行後完全相同，未再被改動');
+    } else {
+      fail('A28. 第二次執行後資料疑似又被改動了', '不應該再有變動');
+    }
+
+    // 7i. 管理員自訂 generate_image_main 不得被覆蓋
+    const customImageContent = 'MIGRATION_TEST_ADMIN_CUSTOM_GENERATE_IMAGE_MAIN_不應被修復migration覆蓋';
+    const customImageUpdatedAt = new Date(Date.now() - 7200000).toISOString();
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'owner', updated_at = ? WHERE prompt_key = 'generate_image_main'`).run(customImageContent, customImageUpdatedAt);
+    const inspectCustomImg = db.inspectKnownCorruptedAiPrompts().find(r => r.promptKey === 'generate_image_main');
+    const repairResult3 = db.migrateKnownCorruptedAiPromptsToDefaults();
+    const afterCustomImg = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_image_main');
+    if (inspectCustomImg.status === 'custom_or_unknown'
+        && repairResult3.results.generate_image_main.originalStatus === 'custom_or_unknown' && repairResult3.results.generate_image_main.updated === false
+        && afterCustomImg.content === customImageContent && afterCustomImg.updatedBy === 'owner' && afterCustomImg.updatedAt === customImageUpdatedAt) {
+      pass('A29. 管理員自訂的 generate_image_main（不等於任何已知版本）不會被修復migration覆蓋，分類正確為 custom_or_unknown');
+    } else {
+      fail('A29. 修復migration疑似覆蓋了管理員自訂的 generate_image_main', JSON.stringify({ inspectCustomImg, repairResult3, afterCustomImg }));
+    }
+    // 還原回目前正確預設值，避免影響後面的測試
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'system', updated_at = ? WHERE prompt_key = 'generate_image_main'`).run(currentDefaults.generate_image_main, new Date().toISOString());
+
+    // 7j. 管理員自訂 generate_design_system 不得被覆蓋
+    const customDesignContent = 'MIGRATION_TEST_ADMIN_CUSTOM_GENERATE_DESIGN_SYSTEM_不應被修復migration覆蓋';
+    const customDesignUpdatedAt = new Date(Date.now() - 7200000).toISOString();
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'owner', updated_at = ? WHERE prompt_key = 'generate_design_system'`).run(customDesignContent, customDesignUpdatedAt);
+    const inspectCustomDesign = db.inspectKnownCorruptedAiPrompts().find(r => r.promptKey === 'generate_design_system');
+    const repairResult4 = db.migrateKnownCorruptedAiPromptsToDefaults();
+    const afterCustomDesign = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_design_system');
+    if (inspectCustomDesign.status === 'custom_or_unknown'
+        && repairResult4.results.generate_design_system.originalStatus === 'custom_or_unknown' && repairResult4.results.generate_design_system.updated === false
+        && afterCustomDesign.content === customDesignContent && afterCustomDesign.updatedBy === 'owner' && afterCustomDesign.updatedAt === customDesignUpdatedAt) {
+      pass('A30. 管理員自訂的 generate_design_system（不等於任何已知版本）不會被修復migration覆蓋，分類正確為 custom_or_unknown');
+    } else {
+      fail('A30. 修復migration疑似覆蓋了管理員自訂的 generate_design_system', JSON.stringify({ inspectCustomDesign, repairResult4, afterCustomDesign }));
+    }
+    // 還原回目前正確預設值，避免影響後面的測試
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'system', updated_at = ? WHERE prompt_key = 'generate_design_system'`).run(currentDefaults.generate_design_system, new Date().toISOString());
+
+    // 7k. 只有部分問號、但不完全等於已知精確損壞內容的資料，不可被視為 known_corrupted 修改
+    //     （模擬「只有一部分被腐蝕」或人工不小心打了問號但跟已知損壞內容不完全相同的情境）。
+    const partiallyCorruptedContent = '?'.repeat(20) + currentDefaults.generate_image_main.slice(20);
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'admin', updated_at = ? WHERE prompt_key = 'generate_image_main'`).run(partiallyCorruptedContent, knownCorruptedTimestamp);
+    const inspectPartial = db.inspectKnownCorruptedAiPrompts().find(r => r.promptKey === 'generate_image_main');
+    const repairResult5 = db.migrateKnownCorruptedAiPromptsToDefaults();
+    const afterPartial = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_image_main');
+    if (inspectPartial.status === 'custom_or_unknown'
+        && repairResult5.results.generate_image_main.originalStatus === 'custom_or_unknown' && repairResult5.results.generate_image_main.updated === false
+        && afterPartial.content === partiallyCorruptedContent) {
+      pass('A31. 只有部分問號、不完全等於已知精確損壞內容的資料，正確分類為 custom_or_unknown 且不會被修改');
+    } else {
+      fail('A31. 部分問號內容被誤判或被錯誤修改', JSON.stringify({ inspectPartial, repairResult5, afterPartial }));
+    }
+    // 還原回目前正確預設值，避免影響後面的測試
+    db.db.prepare(`UPDATE ai_prompt_settings SET content = ?, updated_by = 'system', updated_at = ? WHERE prompt_key = 'generate_image_main'`).run(currentDefaults.generate_image_main, new Date().toISOString());
+
+    // 7l. missing 狀態：資料列不存在時，唯讀分析回報 missing，修復migration不得自動建立資料列
+    db.db.prepare(`DELETE FROM ai_prompt_settings WHERE prompt_key = 'generate_design_system'`).run();
+    const inspectMissing = db.inspectKnownCorruptedAiPrompts().find(r => r.promptKey === 'generate_design_system');
+    const repairResult6 = db.migrateKnownCorruptedAiPromptsToDefaults();
+    const afterMissing = db.getAllAiPromptSettings().find(p => p.promptKey === 'generate_design_system');
+    if (inspectMissing.status === 'missing' && inspectMissing.updatedBy === null && inspectMissing.updatedAt === null
+        && repairResult6.results.generate_design_system.originalStatus === 'missing' && repairResult6.results.generate_design_system.updated === false
+        && afterMissing === undefined) {
+      pass('A32. generate_design_system 資料列不存在時，正確分類為 missing，修復migration不會自動建立資料列');
+    } else {
+      fail('A32. missing 狀態處理不符預期', JSON.stringify({ inspectMissing, repairResult6, afterMissing }));
+    }
+    // 還原回目前正確預設值，避免影響後面的測試（含關掉整支腳本前的其餘一致性檢查）
+    db.db.prepare(`INSERT INTO ai_prompt_settings (prompt_key, feature_key, content, updated_at, updated_by) VALUES ('generate_design_system', 'generate_design', ?, ?, 'system')`).run(currentDefaults.generate_design_system, new Date().toISOString());
+
+    // 7m. 這一整段（A20-A32）過程中，其他三支提示詞（black_card_pattern_system／
+    //     cartoon_image_base／cartoon_image_black_card）內容前後應完全一致：新增的兩支函式
+    //     全程只用 prompt_key='generate_image_main' 或 'generate_design_system' 當WHERE條件，
+    //     結構上不可能動到其他 prompt_key。
+    const otherPromptsAfter = OTHER_PROMPT_KEYS_SNAPSHOT_BEFORE.map(k => ({
+      promptKey: k.promptKey,
+      content: db.getAllAiPromptSettings().find(p => p.promptKey === k.promptKey).content
+    }));
+    const otherPromptsUnchanged = OTHER_PROMPT_KEYS_SNAPSHOT_BEFORE.every((before, i) => before.content === otherPromptsAfter[i].content);
+    if (otherPromptsUnchanged) {
+      pass('A33. black_card_pattern_system／cartoon_image_base／cartoon_image_black_card 三支提示詞內容前後完全一致，未受影響');
+    } else {
+      fail('A33. 其他提示詞內容疑似被意外改動', JSON.stringify({ before: OTHER_PROMPT_KEYS_SNAPSHOT_BEFORE, after: otherPromptsAfter }));
+    }
+
+    // 7n. AI模型設定與AI使用次數限制全程不受這兩支新函式影響
+    const featureSettingsAfter = db.getAllAiFeatureSettings();
+    const usageLimitAfter = db.getAiUsageLimitSettings();
+    const featureSettingsUnchanged = JSON.stringify(featureSettingsAfter) === JSON.stringify(FEATURE_SETTINGS_SNAPSHOT_BEFORE);
+    const usageLimitUnchanged = usageLimitAfter.enabled === true && usageLimitAfter.clientHourlyLimit === 20 && usageLimitAfter.siteDailyLimit === 200
+      && JSON.stringify(usageLimitAfter) === JSON.stringify(USAGE_LIMIT_SNAPSHOT_BEFORE);
+    if (featureSettingsUnchanged && usageLimitUnchanged) {
+      pass('A34. AI功能模型設定（含enabled）與AI使用次數限制（每小時20次／全站每日200次）全程未被這兩支新函式影響');
+    } else {
+      fail('A34. AI功能模型設定或使用次數限制疑似被意外改動', JSON.stringify({ featureSettingsAfter, usageLimitAfter }));
+    }
+
+    // 7o. 這一整段測試自始至終都在本支腳本自建的 TEST_DB_DIR 臨時資料庫（testDirA）內操作，
+    //     沒有任何一行程式碼指向或讀寫本機正式 `後台資料庫/admin.db`——結構上的保證見本檔案
+    //     最上方「隔離邊界」說明；本支腳本 main() 最後另外會呼叫 runPartB() 的B9/B10，
+    //     對正式 admin.db 及訂單／工廠包／上傳資料夾做整支腳本執行前後的快照比對，涵蓋這一段
+    //     Part A 測試在內，不需要在這裡重複比對一次。
+    pass('A35. 本段（A20-A32）修復migration相關測試全程只操作 TEST_DB_DIR 臨時資料庫，正式 admin.db 一致性由後面的 B9/B10 統一覆核');
+
   } finally {
     db.db.close();
   }

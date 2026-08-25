@@ -388,6 +388,33 @@ body {
 }
 .clear-draft-modal-confirm:hover { background: #a83224; }
 
+/* ─── AI生成背景：裁切彈窗（2026-08-24新增，沿用 .clear-draft-modal / .clear-draft-modal-backdrop
+     的置中遮罩定位，跟 .privacy-modal-panel 同樣需要加寬＋可捲動高度，因為要容納裁切畫布）─── */
+.ai-bg-crop-modal-panel {
+  max-width: 640px;
+  max-height: 92vh;
+  overflow-y: auto;
+}
+.ai-bg-crop-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 4px 0 12px;
+  /* touch-action:none：避免手機上在裁切框拖曳/縮放時，整個網頁跟著手勢橫向或垂直移動，
+     裁切畫布內部的拖曳/縮放操作交給 Fabric.js 自己處理 */
+  touch-action: none;
+}
+.ai-bg-crop-canvas-wrap canvas { display: block; max-width: 100%; border-radius: 8px; }
+.ai-bg-crop-loading { font-size: 12px; color: var(--gray-500, #6b7280); text-align: center; margin: 0 0 10px; }
+.ai-bg-crop-modal-actions { flex-wrap: wrap; }
+#ai-bg-crop-reset-btn { margin-right: auto; }
+@media (max-width: 480px) {
+  .ai-bg-crop-modal-panel { padding: 16px; max-width: calc(100vw - 24px); }
+  .ai-bg-crop-modal-actions { justify-content: stretch; }
+  .ai-bg-crop-modal-actions button { flex: 1 1 auto; }
+  #ai-bg-crop-reset-btn { margin-right: 0; }
+}
+
 /* ─── 隱私權政策彈窗（內容較長，需要獨立寬度／可捲動高度，其餘沿用
      .clear-draft-modal / .clear-draft-modal-backdrop 的置中遮罩定位）─── */
 .privacy-modal-panel {

@@ -561,6 +561,40 @@ function getSignatureDescription(productId) {
   return '加入專屬簽名文字，可獨立調整大小、位置、旋轉與顏色，會呈現在商品印刷範圍內。';
 }
 
+// ─── AI 生成背景：裁切彈窗（跟文字與版面視窗同一套彈窗互動邏輯；實際畫布內容/裁切運算
+//     在 preview2d.js _initAiBgCropCanvas() 等函式，這裡只負責彈窗開關本身）───
+let _aiBgCropModalReturnFocusEl = null;
+
+function openAiBgCropModal() {
+  if (!lastAiBackgroundImageDataURL) return; // 還沒有可裁切的生成圖片，不開啟彈窗
+  const modal = document.getElementById('ai-bg-crop-modal');
+  if (!modal) return;
+  _aiBgCropModalReturnFocusEl = document.activeElement;
+  modal.classList.remove('hidden');
+  document.addEventListener('keydown', _aiBgCropModalKeydown);
+  // 先讓彈窗顯示（class移除後容器才有真實寬度），再初始化裁切畫布，
+  // 避免 wrap.clientWidth 在彈窗還是 display:none 時量到 0
+  if (typeof _initAiBgCropCanvas === 'function') _initAiBgCropCanvas(lastAiBackgroundImageDataURL);
+}
+
+function _aiBgCropModalKeydown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeAiBgCropModal();
+  }
+}
+
+function closeAiBgCropModal() {
+  const modal = document.getElementById('ai-bg-crop-modal');
+  if (modal) modal.classList.add('hidden');
+  document.removeEventListener('keydown', _aiBgCropModalKeydown);
+  if (typeof _teardownAiBgCropCanvas === 'function') _teardownAiBgCropCanvas();
+  if (_aiBgCropModalReturnFocusEl && typeof _aiBgCropModalReturnFocusEl.focus === 'function') {
+    _aiBgCropModalReturnFocusEl.focus();
+  }
+  _aiBgCropModalReturnFocusEl = null;
+}
+
 // ─── 保溫杯「藝術簽名」視窗（跟文字與版面視窗同一套彈窗互動邏輯）───
 let _thermosSignatureModalReturnFocusEl = null;
 

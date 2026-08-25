@@ -1074,11 +1074,15 @@ const AI_FEATURE_DEFAULTS = [
 
 const AI_PROMPT_DEFAULTS = [
   {
-    // 對應 server.js 原本的 enhancedPrompt 樣板，${productName || '客製化卡片'} 與 ${prompt.trim()}
-    // 改成明確佔位符，由 server.js 在送出前用 replace() 代換，語意與原本完全一致。
+    // 2026-08-24（第三次修正）：原本的提示詞明講「類似悠遊卡/信用卡」，等於直接請AI畫一張
+    // 完整卡片（含卡片外框、晶片、版面），套到卡面後變成「卡片裡面又出現一張卡片」。
+    // 前端現在改成「生成→使用者自行裁切選取範圍→套用」的流程（見 preview2d.js
+    // applyCroppedAiBackgroundImage()），提示詞職責也跟著改：只負責生成純背景素材，
+    // 不再要求AI理解「這是卡片」，裁切與比例交給前端裁切框處理，不寫死85:54卡片比例。
+    // {{PRODUCT_NAME}}／{{USER_INPUT}} 佔位符語意不變，由 server.js 送出前 replace()。
     promptKey: 'generate_image_main',
     featureKey: 'generate_image',
-    content: `設計一張橫向卡片背景印刷圖案（比例 85:54，類似悠遊卡/信用卡），圖案必須完整填滿整個畫面、四邊無任何留白，直接可印製在「{{PRODUCT_NAME}}」上。主題內容：{{USER_INPUT}}。設計規範：色彩飽滿鮮豔，滿版構圖四邊無白邊，無任何文字數字，高品質商業插畫，橫向印刷適用。`
+    content: `這張圖片僅作為背景素材使用，之後會由使用者自行裁切、套用到「{{PRODUCT_NAME}}」等商品的印刷背景，不是完整成品，請勿繪製任何完成品的樣子。主題與風格：{{USER_INPUT}}，請將此主題轉換為純背景圖案風格呈現。設計規範：只能呈現背景材質本身，禁止出現任何文字、英文字母、數字、標點符號、Logo或品牌標誌；禁止出現悠遊卡、一卡通、晶片、卡片外型、任何商品模型、包裝或產品展示畫面；禁止出現邊框、版型線條、按鈕、圖示或任何操作介面元素；不要預先繪製標題、裝飾文字或商品說明資訊。畫面主體請集中於中心區域、四周保留足夠可裁切延伸的空間，避免主體緊貼畫面邊緣。整體須為高品質商業美術背景素材，色彩與質感統一。`
   },
   {
     // 對應 server.js 原本的 systemPrompt，逐字沿用，不含需要代換的佔位符。
@@ -1332,6 +1336,149 @@ function migrateAiImageFeaturesToGptImage2() {
   });
 
   return run();
+}
+
+// ─── Migration：既有資料庫的 generate_image_main 提示詞改成純背景素材版本（2026-08-24）───
+// 只更新這一個 prompt_key 的 content，WHERE 條件式限定「目前內容剛好等於舊版預設值」，
+// 管理員如果已經在後台自行修改過這支提示詞，UPDATE 就不會符合條件、不會覆蓋掉管理員的
+// 自訂內容——跟 migrateAiImageFeaturesToGptImage2() 同一套「migration 不覆蓋人為調整」原則。
+// 這支函式刻意「只匯出、不在 db.js 載入時自動呼叫」，要不要、什麼時候對哪個資料庫執行，
+// 由呼叫端（隔離測試腳本／未來經過使用者同意的正式遷移操作）自行決定，require('./db')
+// 本身不會悄悄改掉正式資料庫既有的提示詞設定。
+const AI_GENERATE_IMAGE_PROMPT_LEGACY_CONTENT = `設計一張橫向卡片背景印刷圖案（比例 85:54，類似悠遊卡/信用卡），圖案必須完整填滿整個畫面、四邊無任何留白，直接可印製在「{{PRODUCT_NAME}}」上。主題內容：{{USER_INPUT}}。設計規範：色彩飽滿鮮豔，滿版構圖四邊無白邊，無任何文字數字，高品質商業插畫，橫向印刷適用。`;
+function migrateGenerateImagePromptToBackgroundOnly() {
+  const now = new Date().toISOString();
+  const newContent = AI_PROMPT_DEFAULTS.find(p => p.promptKey === 'generate_image_main').content;
+  const updatePrompt = db.prepare(`
+    UPDATE ai_prompt_settings
+    SET content = ?, updated_at = ?, updated_by = 'system-migration-20260824-crop'
+    WHERE prompt_key = 'generate_image_main' AND content = ?
+  `);
+  const result = updatePrompt.run(newContent, now, AI_GENERATE_IMAGE_PROMPT_LEGACY_CONTENT);
+  return { promptRowsUpdated: result.changes };
+}
+
+// ─── 已知編碼損壞提示詞：唯讀分析＋安全修復 migration（2026-08-24）───────────────
+// 背景：Codex 唯讀複驗本機正式 admin.db 時發現 generate_image_main／generate_design_system
+// 這兩筆提示詞的中文內容已被永久轉成 ASCII 問號（例如「設計一張橫向...」變成「??????...」），
+// updated_by='admin'、updated_at='2026-08-07T15:50:06.253Z'，研判是先前某次寫入流程用了
+// 錯誤的字元編碼（把非ASCII字元批量替換成'?'），中文內容已不可逆地遺失，只剩下原本內容中
+// 恰好本來就是ASCII的標點/數字/佔位符還可辨識。因為原始中文已經遺失，這裡的「修復」定義是
+// 「換回目前 AI_PROMPT_DEFAULTS 裡正確可用的版本」，而不是嘗試逆向還原出遺失的原始文字。
+//
+// 下面兩個常數是 CC 用唯讀連線（new Database(path, { readonly: true })，全程沒有任何寫入
+// 操作）直接讀取本機正式 `後台資料庫/admin.db` 取得的精確損壞內容（逐字元比對，非「問號很多」
+// 這種寬鬆判斷），只用來讓 migration 能精確辨識「已知這一種損壞」，不代表這是唯一可能出現的
+// 損壞型態——內容如果跟這兩個常數不完全相同，一律視為 custom_or_unknown，不會被自動修改。
+const AI_GENERATE_IMAGE_PROMPT_KNOWN_CORRUPTED_CONTENT = "??????????????(?? 85:54,?????/???),????????????????????,???????{{PRODUCT_NAME}}???????:{{USER_INPUT}}?????:??????,?????????,???????,???????,???????";
+const AI_GENERATE_DESIGN_SYSTEM_PROMPT_KNOWN_CORRUPTED_CONTENT = "???????????,????????????????????\n?????????????????????,????????????\n\n????:??????,?????????????????\n\n??:\n- ???????,????\n- ???(???):10???,???????\n- ???(???):15???,??????????\n- ????:?? HEX ??,??????\n- ?? 3 ????????\n- ??? JSON,???????";
+
+// 每個 prompt_key 認得的「已知可安全覆蓋」內容清單：
+// - legacyDefault：曾經是正確、可讀中文的舊版預設值（目前只有 generate_image_main 有這個
+//   歷史版本，沿用上面 migrateGenerateImagePromptToBackgroundOnly() 已經在用的同一個常數，
+//   不重複定義第二份）。generate_design_system 這支系統提示詞從新增以來內容從未刻意變更過，
+//   沒有另一個「舊版正確值」需要辨識，所以是 null。
+// - knownCorrupted：上面兩個已知精確問號損壞內容。
+const AI_KNOWN_CORRUPTED_PROMPT_VARIANTS = {
+  generate_image_main: {
+    legacyDefault: AI_GENERATE_IMAGE_PROMPT_LEGACY_CONTENT,
+    knownCorrupted: AI_GENERATE_IMAGE_PROMPT_KNOWN_CORRUPTED_CONTENT
+  },
+  generate_design_system: {
+    legacyDefault: null,
+    knownCorrupted: AI_GENERATE_DESIGN_SYSTEM_PROMPT_KNOWN_CORRUPTED_CONTENT
+  }
+};
+
+// 唯讀分析函式：只執行 SELECT，完全不寫入資料庫。針對上面兩個 prompt_key，把資料庫目前
+// 內容分類成五種狀態之一（already_current／legacy_default／known_corrupted／
+// custom_or_unknown／missing），提供給呼叫端（例如未來的正式修復操作腳本）在真正執行
+// migrateKnownCorruptedAiPromptsToDefaults() 之前先預演、確認分類結果符合預期。
+// 回傳值刻意不包含 content 原文，只給狀態、字元數與 sha256 雜湊，避免這支分析函式的呼叫端
+// 不小心把提示詞全文重複印進記錄檔——狀態與雜湊已足夠用來核對「是不是我認得的那個版本」。
+function inspectKnownCorruptedAiPrompts() {
+  return Object.keys(AI_KNOWN_CORRUPTED_PROMPT_VARIANTS).map(promptKey => {
+    const row = db.prepare('SELECT content, updated_by, updated_at FROM ai_prompt_settings WHERE prompt_key = ?').get(promptKey);
+    if (!row) {
+      return { promptKey, status: 'missing', updatedBy: null, updatedAt: null, charLength: null, contentSha256: null };
+    }
+    const { legacyDefault, knownCorrupted } = AI_KNOWN_CORRUPTED_PROMPT_VARIANTS[promptKey];
+    const currentDefault = AI_PROMPT_DEFAULTS.find(p => p.promptKey === promptKey).content;
+    let status;
+    if (row.content === currentDefault) status = 'already_current';
+    else if (legacyDefault !== null && row.content === legacyDefault) status = 'legacy_default';
+    else if (row.content === knownCorrupted) status = 'known_corrupted';
+    else status = 'custom_or_unknown';
+    return {
+      promptKey,
+      status,
+      updatedBy: row.updated_by,
+      updatedAt: row.updated_at,
+      charLength: row.content.length,
+      contentSha256: crypto.createHash('sha256').update(row.content, 'utf8').digest('hex')
+    };
+  });
+}
+
+// 修復 migration：只處理 generate_image_main／generate_design_system 這兩個 prompt_key，
+// 且只在內容精確等於上面認得的 legacyDefault 或 knownCorrupted 時才覆蓋成目前
+// AI_PROMPT_DEFAULTS 裡正確的版本；already_current 略過不重複更新、custom_or_unknown
+// （管理員真正自訂的內容）一律略過不強制覆蓋、missing 不自動建立資料列，這三種情況都不算
+// 錯誤，只是「這一筆這次不需要／不可以更新」，回報在結果裡讓呼叫端自行判斷。
+// 兩筆整包在同一個 db.transaction() 內處理，任何一筆在寫入時發生非預期的資料庫錯誤，
+// 交易會整批回滾，不會出現「只修好一筆」的中間狀態；已經略過的筆數不算失敗，不會觸發回滾。
+// updated_by 使用清楚可辨識的系統遷移名稱，跟 migrateGenerateImagePromptToBackgroundOnly()
+// 使用的 'system-migration-20260824-crop' 刻意不同名，方便之後從 updated_by 分辨是哪一支
+// migration 做的修改。這支函式刻意「只匯出、不在 db.js 載入時自動呼叫」，行為與匯出慣例
+// 跟本檔案其餘 migration 函式一致。
+//
+// 與 migrateGenerateImagePromptToBackgroundOnly() 的關係：這支新函式是它的超集合——
+// generate_image_main 這個 key 同時認得 legacyDefault 與 knownCorrupted 兩種舊內容，
+// 涵蓋範圍完全包含舊函式原本能處理的情境，另外再加上 generate_design_system 的問號
+// 損壞修復。兩支函式都用「WHERE content 精確等於某個已知值才更新」，就算未來的正式遷移
+// 操作不小心把兩支都呼叫到，也不會互相重複計數或衝突：第一支更新過的內容，第二支再檢查
+// 時只會判斷成 already_current 並略過（0筆）。舊函式維持保留（既有 test:ai-migration
+// A12-A19 仍在測它），但往後要修復這兩筆提示詞、尤其是要處理問號損壞的情境，都應該呼叫
+// 這支新函式，不需要再分開呼叫兩次。
+function migrateKnownCorruptedAiPromptsToDefaults() {
+  const now = new Date().toISOString();
+
+  const run = db.transaction(() => {
+    const results = {};
+    for (const promptKey of Object.keys(AI_KNOWN_CORRUPTED_PROMPT_VARIANTS)) {
+      const { legacyDefault, knownCorrupted } = AI_KNOWN_CORRUPTED_PROMPT_VARIANTS[promptKey];
+      const currentDefault = AI_PROMPT_DEFAULTS.find(p => p.promptKey === promptKey).content;
+      const row = db.prepare('SELECT content FROM ai_prompt_settings WHERE prompt_key = ?').get(promptKey);
+
+      if (!row) {
+        results[promptKey] = { originalStatus: 'missing', updated: false };
+        continue;
+      }
+      if (row.content === currentDefault) {
+        results[promptKey] = { originalStatus: 'already_current', updated: false };
+        continue;
+      }
+      const matchContents = [legacyDefault, knownCorrupted].filter(c => c !== null);
+      if (!matchContents.includes(row.content)) {
+        results[promptKey] = { originalStatus: 'custom_or_unknown', updated: false };
+        continue;
+      }
+      const originalStatus = (legacyDefault !== null && row.content === legacyDefault) ? 'legacy_default' : 'known_corrupted';
+      const placeholders = matchContents.map(() => '?').join(',');
+      const updatePrompt = db.prepare(`
+        UPDATE ai_prompt_settings
+        SET content = ?, updated_at = ?, updated_by = 'system-migration-20260824-corrupted-prompt-repair'
+        WHERE prompt_key = ? AND content IN (${placeholders})
+      `);
+      const updateResult = updatePrompt.run(currentDefault, now, promptKey, ...matchContents);
+      results[promptKey] = { originalStatus, updated: updateResult.changes > 0 };
+    }
+    return results;
+  });
+
+  const results = run();
+  const totalRowsUpdated = Object.values(results).filter(r => r.updated).length;
+  return { results, totalRowsUpdated };
 }
 
 // ─── Migration：補上 js/products.js 裡有、但原本 schema 沒涵蓋的欄位 ──────
@@ -2130,6 +2277,9 @@ module.exports = {
   createAiUsageLog, getAiUsageLogByRequestId,
   getAllAiPricingSettings, getAiPricingByRateKey,
   migrateAiImageFeaturesToGptImage2,
+  migrateGenerateImagePromptToBackgroundOnly,
+  inspectKnownCorruptedAiPrompts,
+  migrateKnownCorruptedAiPromptsToDefaults,
   getAiUsageLimitSettings, recordAiClientAttemptIfAllowed, reserveAiSiteUsageIfAllowed,
   recordAnalyticsEvent, getAnalyticsEventByEventId,
   // 管理員帳號／角色權限／登入限制／操作稽核（正式管理員帳號、角色權限、登入限制與操作稽核批次）
